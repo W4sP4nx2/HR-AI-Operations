@@ -47,6 +47,7 @@ def _enforce_agent_role(agent_name: str, user: dict[str, Any]) -> None:
             status_code=403, detail=f"triggering '{agent_name}' requires '{min_role}' or higher"
         )
 
+
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 # Static registry describing each agent for the Fleet panel.

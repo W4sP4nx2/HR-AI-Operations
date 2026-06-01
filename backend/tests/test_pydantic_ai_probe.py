@@ -35,7 +35,7 @@ from pydantic_ai.models.anthropic import AnthropicModel  # noqa: E402
 from pydantic_ai.providers.anthropic import AnthropicProvider  # noqa: E402
 from pydantic_ai.settings import ModelSettings  # noqa: E402
 
-_FAKE_KEY = "sk-ant-FAKE-not-a-real-key"
+_FAKE_KEY = "fixture-anthropic-key-not-real"
 
 
 def test_api_key_is_not_a_model_setting() -> None:

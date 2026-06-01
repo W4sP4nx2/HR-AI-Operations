@@ -1,0 +1,11 @@
+title = "HR AI Command Center gitleaks config"
+
+[allowlist]
+description = "Allow only documented fake/placeholder API key examples in history."
+regexes = [
+  '''sk-ant-\.\.\.''',
+  '''sk-ant-FAKE[-A-Za-z0-9_]*''',
+  '''sk-ant-fake-key[-A-Za-z0-9_]*''',
+  '''sk-server-key-[0-9]+''',
+  '''sk-visitor[-A-Za-z0-9_]*''',
+]

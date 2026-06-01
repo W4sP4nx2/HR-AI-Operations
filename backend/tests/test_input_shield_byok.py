@@ -64,18 +64,18 @@ def test_effective_key_falls_back_to_server_then_empty(monkeypatch) -> None:
 
     monkeypatch.setattr(settings, "anthropic_api_key", "")
     assert runtime_key.effective_api_key() == ""
-    monkeypatch.setattr(settings, "anthropic_api_key", "sk-server-key-1234567890")
-    assert runtime_key.effective_api_key() == "sk-server-key-1234567890"
+    monkeypatch.setattr(settings, "anthropic_api_key", "fixture-server-key-1234567890")
+    assert runtime_key.effective_api_key() == "fixture-server-key-1234567890"
 
 
 def test_request_key_overrides_and_clears() -> None:
     from core import runtime_key
 
     assert runtime_key.request_api_key() is None
-    token = runtime_key.set_request_api_key("sk-visitor-abcdefghij1234567890")
+    token = runtime_key.set_request_api_key("fixture-visitor-key-abcdefghij1234567890")
     try:
-        assert runtime_key.request_api_key() == "sk-visitor-abcdefghij1234567890"
-        assert runtime_key.effective_api_key() == "sk-visitor-abcdefghij1234567890"
+        assert runtime_key.request_api_key() == "fixture-visitor-key-abcdefghij1234567890"
+        assert runtime_key.effective_api_key() == "fixture-visitor-key-abcdefghij1234567890"
     finally:
         runtime_key.reset_request_api_key(token)
     assert runtime_key.request_api_key() is None  # cleared, never lingers
@@ -91,7 +91,7 @@ def test_byok_overrides_mock_llm_cost_guard(monkeypatch) -> None:
     monkeypatch.setattr(settings, "anthropic_api_key", "")
 
     assert runtime_key.llm_active() is False  # no key → deterministic
-    token = runtime_key.set_request_api_key("sk-visitor-abcdefghij1234567890")
+    token = runtime_key.set_request_api_key("fixture-visitor-key-abcdefghij1234567890")
     try:
         assert runtime_key.llm_active() is True  # BYOK overrides cost guards
     finally:
@@ -187,7 +187,8 @@ def test_byok_verify_missing_and_malformed() -> None:
     # A well-formed but fake key reaches the provider check → not "verified"
     # (rejected if the network is up, unverifiable if offline — never valid).
     fake = client.get(
-        "/byok/verify", headers={"X-Client-LLM-Key": "sk-ant-fake-key-1234567890abcdef"}
+        "/byok/verify",
+        headers={"X-Client-LLM-Key": "fixture-anthropic-key-1234567890abcdef"},
     ).json()["data"]
     assert fake["valid"] is False and fake["status"] in {"rejected", "unverifiable"}
 
@@ -197,7 +198,7 @@ def test_byok_key_is_never_persisted_to_audit() -> None:
     from core import runtime_key
     from core.memory import memory
 
-    secret = "sk-visitor-DEADBEEF-never-store-1234567890"
+    secret = "fixture-visitor-key-DEADBEEF-never-store-1234567890"
     token = runtime_key.set_request_api_key(secret)
     try:
 

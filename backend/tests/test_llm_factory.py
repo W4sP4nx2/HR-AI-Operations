@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-_FAKE = "sk-ant-FAKE-not-real"
+_FAKE = "fixture-anthropic-key-not-real"
 
 
 def test_factory_builds_model_from_key_without_network() -> None:
