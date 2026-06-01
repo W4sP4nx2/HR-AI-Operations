@@ -11,6 +11,10 @@ import asyncio
 import os
 import sys
 
+import httpx
+import pytest
+import pytest_asyncio
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
@@ -96,3 +100,62 @@ def test_resolve_agent_task_is_atomic_compare_and_set(tmp_path) -> None:
         assert await mem.resolve_agent_task("TASK-NOPE", "approved", "") is None
 
     asyncio.run(scenario())
+
+
+@pytest_asyncio.fixture
+async def reroute_client(tmp_path):
+    """ASGI client with cases + metrics memory rebound to a fresh DB."""
+    import api.routes.cases as cases_mod
+    import api.routes.metrics as metrics_mod
+    from api.main import app
+    from core.memory import Memory
+
+    fresh = Memory(f"sqlite:///{tmp_path / 'reroute.db'}")
+    saved = {cases_mod: cases_mod.memory, metrics_mod: metrics_mod.memory}
+    cases_mod.memory = fresh
+    metrics_mod.memory = fresh
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+            yield c, fresh
+    finally:
+        for mod, prev in saved.items():
+            mod.memory = prev
+
+
+@pytest.mark.asyncio
+async def test_reroute_records_override_and_reassigns(reroute_client) -> None:
+    """Re-routing hands the case to a human queue and writes a triage_override row."""
+    c, mem = reroute_client
+    case = await mem.create_case(
+        category="POLICY", summary="misrouted", assigned_agent="policy_qa_agent", status="resolved"
+    )
+    r = await c.patch(
+        f"/cases/{case['id']}/reroute",
+        json={"queue": "legal", "reason": "actually a legal matter"},
+    )
+    assert r.status_code == 200
+    updated = r.json()["data"]
+    assert updated["assigned_agent"] == "legal"
+    assert updated["status"] == "open"  # re-opened, not falsely resolved
+
+    # An immutable triage_override row exists (the override-rate numerator).
+    rows = await mem.list_audit()
+    overrides = [a for a in rows if a["action_type"] == "triage_override"]
+    assert len(overrides) == 1
+    assert "legal" in overrides[0]["output"]
+
+    # Metrics expose the override telemetry.
+    metrics = (await c.get("/metrics")).json()["data"]
+    assert metrics["triage_overrides"] == 1
+
+
+@pytest.mark.asyncio
+async def test_reroute_rejects_unknown_queue_422(reroute_client) -> None:
+    """An out-of-enum queue is rejected by validation (422), nothing logged."""
+    c, mem = reroute_client
+    case = await mem.create_case(category="POLICY", summary="x", status="open")
+    r = await c.patch(f"/cases/{case['id']}/reroute", json={"queue": "marketing"})
+    assert r.status_code == 422
+    rows = await mem.list_audit()
+    assert not [a for a in rows if a["action_type"] == "triage_override"]

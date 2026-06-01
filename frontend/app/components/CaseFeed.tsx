@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Database,
   AlertTriangle,
+  ArrowRightLeft,
 } from "lucide-react";
 import { WS_URL, api, type HRCase, type AuditRow } from "../../lib/api";
 import { useToast } from "./Toast";
@@ -35,6 +36,16 @@ const CATEGORIES = [
   "URGENT",
 ];
 const STATUSES = ["ALL", "open", "resolved", "escalated"];
+
+// Human queues a misrouted case can be handed off to (mirrors the backend enum).
+const REROUTE_QUEUES: { value: string; label: string }[] = [
+  { value: "payroll", label: "Payroll" },
+  { value: "legal", label: "Legal" },
+  { value: "employee_relations", label: "Employee Relations" },
+  { value: "benefits", label: "Benefits" },
+  { value: "it_helpdesk", label: "IT Helpdesk" },
+  { value: "people_partner", label: "People Partner" },
+];
 
 const CATEGORY_COLORS: Record<string, string> = {
   URGENT: "bg-red-500 text-white",
@@ -354,6 +365,8 @@ function CaseDrawer({
   const [activity, setActivity] = useState<AuditRow[] | null>(null);
   const [detail, setDetail] = useState<HRCase>(caseRow);
   const [busy, setBusy] = useState(false);
+  const [showReroute, setShowReroute] = useState(false);
+  const [queue, setQueue] = useState(REROUTE_QUEUES[0].value);
   const toast = useToast();
 
   const setStatus = async (status: string) => {
@@ -363,6 +376,22 @@ function CaseDrawer({
       setDetail(updated);
       onChanged(updated);
       toast.notify(`Case ${status}`, status === "resolved" ? "success" : "warning");
+    } catch (e) {
+      toast.notifyError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reroute = async () => {
+    setBusy(true);
+    try {
+      const updated = await api.rerouteCase(detail.id, queue);
+      setDetail(updated);
+      onChanged(updated);
+      setShowReroute(false);
+      const label = REROUTE_QUEUES.find((q) => q.value === queue)?.label ?? queue;
+      toast.notify(`Triage overridden → ${label}`, "warning");
     } catch (e) {
       toast.notifyError(e);
     } finally {
@@ -466,8 +495,9 @@ function CaseDrawer({
           </section>
         </div>
 
-        {/* Resolve / Reopen — closes the loop the agents can't (analyst+) */}
-        <footer className="flex gap-2 border-t border-brand-purple/10 px-6 py-4">
+        {/* Split action — resolve, or reject the AI's triage and re-route (analyst+).
+            Re-routing keeps misclassifications out of the resolution metrics. */}
+        <footer className="border-t border-brand-purple/10 px-6 py-4">
           {detail.status === "resolved" ? (
             <button
               onClick={() => setStatus("open")}
@@ -477,15 +507,59 @@ function CaseDrawer({
               {busy ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
               Reopen
             </button>
+          ) : showReroute ? (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-ink-700/60">
+                Reject AI routing → hand off to:
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={queue}
+                  onChange={(e) => setQueue(e.target.value)}
+                  className="flex-1 rounded-lg border border-brand-purple/15 bg-white px-3 py-2 text-sm"
+                >
+                  {REROUTE_QUEUES.map((q) => (
+                    <option key={q.value} value={q.value}>
+                      {q.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={reroute}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {busy ? <Loader2 size={15} className="animate-spin" /> : "Confirm"}
+                </button>
+                <button
+                  onClick={() => setShowReroute(false)}
+                  disabled={busy}
+                  className="rounded-lg border border-brand-purple/15 px-3 py-2 text-sm text-ink-700 hover:bg-brand-cream disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           ) : (
-            <button
-              onClick={() => setStatus("resolved")}
-              disabled={busy}
-              className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
-              Mark resolved
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setStatus("resolved")}
+                disabled={busy}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {busy ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
+                Mark resolved
+              </button>
+              <button
+                onClick={() => setShowReroute(true)}
+                disabled={busy}
+                title="Reject the AI's triage and send to the right human queue"
+                className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                <ArrowRightLeft size={15} />
+                Re-route
+              </button>
+            </div>
           )}
         </footer>
       </aside>

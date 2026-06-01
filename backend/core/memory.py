@@ -116,6 +116,25 @@ agent_tasks_t = Table(
     Index("idx_tasks_status", "status"),
 )
 
+# Append-only ledger of human feedback on agent suggestions (e.g. a manager
+# accepting/rejecting/editing a retention option). Captured for human-facing
+# "what's working" analytics — deliberately NOT fed back into the agents to steer
+# future output (that would be an unauditable, bias-prone reward loop). There is
+# no update/delete path: the table is immutable by construction.
+agent_feedback_t = Table(
+    "agent_feedback",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("case_id", String(64)),
+    Column("suggestion_id", String(128)),
+    Column("risk_driver", String(64)),
+    Column("action_taken", String(16), nullable=False),  # accepted|rejected|edited
+    Column("manager_notes", Text),  # PII-redacted before insert
+    Column("decided_by_id", String(64)),  # non-PII actor id
+    Column("created_at", String(40), nullable=False),
+    Index("idx_feedback_driver", "risk_driver"),
+)
+
 # Tracks every policy document ingested into the vector store.
 policies_t = Table(
     "policies",
@@ -675,6 +694,71 @@ class Memory:
                 .first()
             )
         return dict(row) if row else None
+
+    # ------------------------------------------------------------------ #
+    # Agent feedback ledger (append-only; human "what's working" signal)
+    # ------------------------------------------------------------------ #
+    async def record_feedback(
+        self,
+        *,
+        case_id: str,
+        suggestion_id: str,
+        risk_driver: str,
+        action_taken: str,
+        manager_notes: str = "",
+        decided_by_id: str = "unknown",
+    ) -> dict[str, Any]:
+        """Append one feedback row. Insert-only — there is no update/delete path."""
+        await self._ensure_schema()
+        from core.safety import redact_pii
+
+        record = {
+            "id": str(uuid.uuid4()),
+            "case_id": case_id,
+            "suggestion_id": suggestion_id,
+            "risk_driver": risk_driver,
+            "action_taken": action_taken,
+            "manager_notes": redact_pii(manager_notes or "")[:2000],
+            "decided_by_id": decided_by_id,
+            "created_at": _utcnow(),
+        }
+        async with self._engine.begin() as conn:
+            await conn.execute(insert(agent_feedback_t).values(**record))
+        return record
+
+    async def feedback_stats(self) -> list[dict[str, Any]]:
+        """Per-driver acceptance aggregates, derived by ``GROUP BY`` (newest-heavy first).
+
+        Returns one row per ``risk_driver`` with accepted/rejected/edited counts,
+        the total, and an exact acceptance_rate — the human-facing "what's
+        working" signal. Pure query: no agent state, no steering.
+        """
+        await self._ensure_schema()
+        stmt = select(
+            agent_feedback_t.c.risk_driver,
+            agent_feedback_t.c.action_taken,
+            func.count().label("n"),
+        ).group_by(agent_feedback_t.c.risk_driver, agent_feedback_t.c.action_taken)
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(stmt)).mappings().all()
+
+        agg: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            d = agg.setdefault(
+                r["risk_driver"],
+                {"risk_driver": r["risk_driver"], "accepted": 0, "rejected": 0, "edited": 0},
+            )
+            if r["action_taken"] in ("accepted", "rejected", "edited"):
+                d[r["action_taken"]] = int(r["n"])
+        out: list[dict[str, Any]] = []
+        for d in agg.values():
+            total = d["accepted"] + d["rejected"] + d["edited"]
+            d["total"] = total
+            # Exact ratio (no lossy intermediate rounding); 4 dp is display-safe.
+            d["acceptance_rate"] = round(d["accepted"] / total, 4) if total else 0.0
+            out.append(d)
+        out.sort(key=lambda d: d["total"], reverse=True)
+        return out
 
     # ------------------------------------------------------------------ #
     # Policy registry (tracks documents ingested into the vector store)

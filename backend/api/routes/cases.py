@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -44,6 +44,25 @@ class StatusUpdate(BaseModel):
 
     status: str  # resolved | open | escalated
     note: str = ""
+
+
+# The human queues a misrouted case can be handed off to. Closed enum → an
+# unknown queue is rejected with 422 before the data layer.
+TriageQueue = Literal[
+    "payroll",
+    "legal",
+    "employee_relations",
+    "benefits",
+    "it_helpdesk",
+    "people_partner",
+]
+
+
+class TriageReroute(BaseModel):
+    """Payload to reject the AI's triage routing and hand off to a human queue."""
+
+    queue: TriageQueue
+    reason: str = ""
 
 
 @router.get("")
@@ -92,6 +111,44 @@ async def update_case_status(
             "role": user.get("role"),
         },
         {"status": body.status},
+        "success",
+    )
+    await manager.broadcast({"type": "case_updated", "case": case})
+    return ok(case)
+
+
+@router.patch("/{case_id}/reroute")
+async def reroute_case(
+    case_id: str,
+    body: TriageReroute,
+    user: dict[str, Any] = Depends(require_role("analyst")),
+) -> dict[str, Any]:
+    """Reject the AI's triage routing and hand the case to a human queue.
+
+    This is the honest alternative to forcing a misclassified case through
+    "Mark resolved" (which would log a broken triage path as a success). The
+    case is handed off (re-opened, re-assigned), and an immutable
+    ``triage_override`` row is written — so the **Triage Override Rate** is a
+    pure audit query, never a number an agent stored.
+    """
+    existing = await memory.get_case(case_id)
+    if not existing:
+        return fail(f"case '{case_id}' not found")
+
+    case = await memory.update_case(case_id, assigned_agent=body.queue, status="open")
+    await memory.log_audit(
+        "triage_agent",
+        "triage_override",
+        {
+            "case_id": case_id,
+            "from_category": existing.get("category"),
+            "from_assignee": existing.get("assigned_agent"),
+            "to_queue": body.queue,
+            "reason": body.reason,
+            "by_id": user.get("id", "unknown"),
+            "role": user.get("role"),
+        },
+        {"rerouted_to": body.queue, "status": "open"},
         "success",
     )
     await manager.broadcast({"type": "case_updated", "case": case})

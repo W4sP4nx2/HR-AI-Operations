@@ -29,6 +29,7 @@ from api.routes import auth as auth_routes
 from api.routes import byok as byok_routes
 from api.routes import cases as cases_routes
 from api.routes import chat as chat_routes
+from api.routes import feedback as feedback_routes
 from api.routes import metrics as metrics_routes
 from api.routes import policies as policies_routes
 from api.routes import webhooks as webhooks_routes
@@ -169,6 +170,7 @@ app.include_router(auth_routes.router)
 app.include_router(byok_routes.router)
 app.include_router(agents_routes.router)
 app.include_router(cases_routes.router)
+app.include_router(feedback_routes.router)
 app.include_router(audit_routes.router)
 app.include_router(chat_routes.router)
 app.include_router(metrics_routes.router)

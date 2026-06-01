@@ -211,6 +211,22 @@ export const api = {
       body: JSON.stringify({ input: "", payload: features }),
     }),
 
+  /** Record a manager's decision on a retention suggestion (append-only). */
+  submitRetentionFeedback: (payload: {
+    case_id: string;
+    suggestion_id: string;
+    risk_driver: string;
+    action_taken: "accepted" | "rejected" | "edited";
+    manager_notes?: string;
+  }) =>
+    request<{ id: string }>(`/feedback`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Per-driver aggregate of manager feedback (the "what's working" signal). */
+  feedbackStats: () => request<FeedbackStat[]>(`/feedback/stats`),
+
   /**
    * Trigger an agent from typed text, a PDF attachment, or a URL to scrape.
    * Returns the full envelope (including `status`) so the caller can show
@@ -253,6 +269,13 @@ export const api = {
     request<HRCase>(`/cases/${caseId}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status, note }),
+    }),
+
+  /** Reject the AI's triage routing → hand off to a human queue (override telemetry). */
+  rerouteCase: (caseId: string, queue: string, reason = "") =>
+    request<HRCase>(`/cases/${caseId}/reroute`, {
+      method: "PATCH",
+      body: JSON.stringify({ queue, reason }),
     }),
 
   /** Pending human-in-the-loop approval tasks. */
@@ -406,6 +429,8 @@ export interface Metrics {
   injection_blocks: number;
   auto_resolution_rate: number;
   escalation_rate: number;
+  triage_overrides: number;
+  triage_override_rate: number;
   cases_by_status: { status: string; count: number }[];
   cases_by_category: { category: string; count: number }[];
 }
@@ -417,6 +442,15 @@ export interface AttritionFeatures {
   last_promotion_months: number;
   salary_band: number;
   manager_rating: number;
+}
+
+export interface FeedbackStat {
+  risk_driver: string;
+  accepted: number;
+  rejected: number;
+  edited: number;
+  total: number;
+  acceptance_rate: number;
 }
 
 export interface RetentionSuggestion {
@@ -436,6 +470,7 @@ export interface AttritionResult {
   advisory_only: boolean;
   // Policy-grounded retention suggestions, composed from Policy Q&A on high risk.
   retention_context?: RetentionSuggestion[];
+  case_id?: string;
   _mode?: "full" | "degraded";
 }
 

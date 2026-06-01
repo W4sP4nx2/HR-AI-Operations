@@ -271,6 +271,42 @@ distributed event bus / message broker, because that would break the headline
 Covered by `tests/test_policy_resolver.py` (6 cases: accept-first-pass, bounded
 retry, retry-recovers, reformulation, no-LangGraph fallback, timeout→single-pass).
 
+## Triage override / re-route — keep misclassifications out of the resolution metric
+
+A misrouted case used to have only one human action — "Mark resolved" — which
+logged a broken triage path as a *success*. The Case Drawer now offers a **split
+action**: **Mark resolved** (green) or **Re-route** (red) → a closed-enum queue
+dropdown (Payroll / Legal / Employee Relations / Benefits / IT / People Partner).
+
+- Re-routing re-opens + re-assigns the case to the human queue and writes an
+  immutable `triage_override` audit row (from_category, to_queue, reason, actor).
+- **Triage Override Rate** is therefore a pure audit query: `triage_override ÷
+  triage` — exposed in `/metrics` and as an Analytics chip. No agent-stored number.
+- `PATCH /cases/{id}/reroute` (analyst+); the queue is a `Literal` → 422 on
+  anything else, before the data layer. Covered by `tests/test_cases.py`.
+
+## Retention feedback telemetry — capture, NOT a reward loop (honest by design)
+
+Managers can now accept/reject each retention suggestion (Attrition panel). Those
+decisions are captured in an **append-only `agent_feedback` ledger** + an immutable
+audit row, and surfaced as human-facing aggregates (`GET /feedback/stats`:
+per-driver accepted/rejected/edited + exact acceptance_rate).
+
+What this deliberately is **not**: a closed reward loop. We rejected "record a
+reward and dynamically re-prompt future predictions" because in a regulated HR
+setting that (a) optimises a confounded proxy — manager click ≠ retention outcome,
+(b) amplifies bias into adverse-action-adjacent output (EEOC disparate-impact),
+(c) erodes the grounding/determinism (`temperature=0`, context-or-null) and
+auditability the system is built on. So: **the agent's recommendations stay
+deterministic and grounded; a human reads the "what's working" signal and
+decides.** The ledger is immutable by construction (no update/delete path);
+`manager_notes` are PII-redacted before insert.
+
+- Endpoints: `POST /feedback` (manager+, `action_taken` is a closed enum → 422 on
+  anything else, before the data layer) · `GET /feedback/stats` (analyst+).
+- Covered by `tests/test_feedback.py` (append-only, PII-at-rest, exact aggregation,
+  422 validation, persist round-trip).
+
 ## Onboarding checkpointer (Phase 2) — investigated and DECLINED (minimalist win)
 
 Before adding `langgraph-checkpoint-sqlite`, we traced the actual resume path.

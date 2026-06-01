@@ -21,8 +21,13 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Loader2, Gauge, ShieldCheck, AlertTriangle, Info } from "lucide-react";
-import { api, type AttritionFeatures, type AttritionResult } from "../../lib/api";
+import { Loader2, Gauge, ShieldCheck, AlertTriangle, Info, Check, X } from "lucide-react";
+import {
+  api,
+  type AttritionFeatures,
+  type AttritionResult,
+  type RetentionSuggestion,
+} from "../../lib/api";
 
 type FieldKey = keyof AttritionFeatures;
 
@@ -203,27 +208,12 @@ export default function AttritionPanel() {
                 </h4>
                 <ul className="space-y-2.5">
                   {result.retention_context.map((s, i) => (
-                    <li key={i} className="text-[12px] leading-snug">
-                      <p className="font-medium text-ink-800">{s.suggestion}</p>
-                      <p className="mt-0.5 text-ink-700/70">
-                        {s.grounded ? (
-                          <>
-                            From <span className="italic">{s.policy_query}</span>
-                            {s.sources.length > 0 && (
-                              <span className="text-ink-700/50"> · {s.sources.join(", ")}</span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-amber-700">
-                            No specific policy located — handle via manual review.
-                          </span>
-                        )}
-                      </p>
-                    </li>
+                    <RetentionItem key={i} suggestion={s} caseId={result.case_id} />
                   ))}
                 </ul>
                 <p className="mt-2 text-[10px] italic text-ink-700/50">
-                  Composed from the Policy Q&amp;A engine on the top drivers. Decision-support only.
+                  Composed from the Policy Q&amp;A engine on the top drivers. Decision-support only —
+                  your accept/reject is recorded for human review, never to steer future predictions.
                 </p>
               </div>
             )}
@@ -236,5 +226,82 @@ export default function AttritionPanel() {
         )}
       </div>
     </div>
+  );
+}
+
+/** One retention suggestion with accept/reject capture (append-only feedback). */
+function RetentionItem({
+  suggestion,
+  caseId,
+}: {
+  suggestion: RetentionSuggestion;
+  caseId?: string;
+}) {
+  const [recorded, setRecorded] = useState<"accepted" | "rejected" | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const send = async (action: "accepted" | "rejected") => {
+    if (!caseId || busy) return;
+    setBusy(true);
+    try {
+      await api.submitRetentionFeedback({
+        case_id: caseId,
+        suggestion_id: suggestion.factor,
+        risk_driver: suggestion.factor,
+        action_taken: action,
+      });
+      setRecorded(action);
+    } catch {
+      /* advisory capture — stay silent on failure */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <li className="text-[12px] leading-snug">
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-medium text-ink-800">{suggestion.suggestion}</p>
+        {caseId &&
+          (recorded ? (
+            <span className="shrink-0 rounded-full bg-ink-700/10 px-2 py-0.5 text-[10px] font-medium text-ink-700/70">
+              {recorded === "accepted" ? "Accepted" : "Rejected"}
+            </span>
+          ) : (
+            <span className="flex shrink-0 gap-1">
+              <button
+                onClick={() => send("accepted")}
+                disabled={busy}
+                aria-label="Accept suggestion"
+                className="rounded-md border border-green-300 p-1 text-green-700 hover:bg-green-50 disabled:opacity-50"
+              >
+                <Check size={13} />
+              </button>
+              <button
+                onClick={() => send("rejected")}
+                disabled={busy}
+                aria-label="Reject suggestion"
+                className="rounded-md border border-red-300 p-1 text-red-600 hover:bg-red-50 disabled:opacity-50"
+              >
+                <X size={13} />
+              </button>
+            </span>
+          ))}
+      </div>
+      <p className="mt-0.5 text-ink-700/70">
+        {suggestion.grounded ? (
+          <>
+            From <span className="italic">{suggestion.policy_query}</span>
+            {suggestion.sources.length > 0 && (
+              <span className="text-ink-700/50"> · {suggestion.sources.join(", ")}</span>
+            )}
+          </>
+        ) : (
+          <span className="text-amber-700">
+            No specific policy located — handle via manual review.
+          </span>
+        )}
+      </p>
+    </li>
   );
 }
