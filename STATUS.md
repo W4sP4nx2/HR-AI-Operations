@@ -271,6 +271,26 @@ distributed event bus / message broker, because that would break the headline
 Covered by `tests/test_policy_resolver.py` (6 cases: accept-first-pass, bounded
 retry, retry-recovers, reformulation, no-LangGraph fallback, timeout→single-pass).
 
+## Defensive UI pass (auditability + boundary visibility)
+
+Three glanceability/guard components built on the type-safe triage foundation:
+
+- **Classifier confidence gauge** — the LLM classifier's self-reported confidence
+  is surfaced in the Case Drawer's execution trace as a coloured gauge (audited at
+  the boundary as `classifier_confidence`; shows only on the LLM path).
+- **Dual-label override** — when a case sits in a human re-route queue, the drawer
+  shows the *machine* category badge **and** a red "Manual → <queue>" tag with a
+  "machine label kept for drift tracking" note. The original classification is
+  never overwritten — you can see model-vs-human divergence.
+- **Pre-flight input shield** — the Screener shows a live char/word counter +
+  validation badge under each input (mirrors the backend insufficiency guard and
+  the 20k-char `sanitize_text` cap), so a recruiter sees the boundary before
+  dispatch.
+
+Model EOL (`claude-sonnet-4-20250514`, 2026-06-15) is now documented in
+`.env.example` / `.env.production.example`; the in-code default is deliberately
+left unchanged (no guessed/older model ID shipped).
+
 ## Triage → type-safe Pydantic AI classification (with keyword fallback)
 
 Triage no longer string-scrapes a CrewAI text answer (`if cat in out`, brittle).

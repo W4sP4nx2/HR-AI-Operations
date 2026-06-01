@@ -220,9 +220,14 @@ function AuditOutput({ raw }: { raw: string }) {
       label: "Reasoning",
       value: o.mode === "llm" ? "LLM synthesis" : `deterministic (${String(o.mode)})`,
     });
+  if (o.rerouted_to) rows.push({ label: "Re-routed to", value: String(o.rerouted_to) });
   if (o.needs_review === true) rows.push({ label: "Flag", value: "Needs human review" });
 
-  if (rows.length === 0) {
+  // The type-safe classifier's confidence renders as a gauge, not a bare number.
+  const classifierConf =
+    typeof o.classifier_confidence === "number" ? (o.classifier_confidence as number) : null;
+
+  if (rows.length === 0 && classifierConf === null) {
     return (
       <pre className="mt-1 overflow-x-auto rounded-lg bg-brand-cream/50 p-2 text-[11px] leading-snug text-ink-700/80">
         {raw}
@@ -237,6 +242,14 @@ function AuditOutput({ raw }: { raw: string }) {
           <span className="text-ink-700/80">{r.value}</span>
         </div>
       ))}
+      {classifierConf !== null && (
+        <div className="pt-1">
+          <span className="font-semibold text-brand-purple/80">Classifier confidence</span>
+          <div className="mt-1">
+            <ConfidenceBar value={classifierConf} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -415,6 +428,10 @@ function CaseDrawer({
     };
   }, [caseRow.id]);
 
+  // Dual-label state: if the case now sits in a human re-route queue, its AI
+  // category is the *machine* label and the queue is the *manual* override.
+  const overrideQueue = REROUTE_QUEUES.find((q) => q.value === detail.assigned_agent);
+
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
       {/* backdrop */}
@@ -441,8 +458,21 @@ function CaseDrawer({
               <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs text-brand-purple">
                 {detail.status}
               </span>
-              <span className="text-xs text-ink-700/60">→ {detail.assigned_agent}</span>
+              {overrideQueue ? (
+                <span className="flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                  <ArrowRightLeft size={11} /> Manual → {overrideQueue.label}
+                </span>
+              ) : (
+                <span className="text-xs text-ink-700/60">→ {detail.assigned_agent}</span>
+              )}
             </div>
+            {overrideQueue && (
+              <p className="mt-1.5 text-[11px] text-ink-700/55">
+                AI classified <span className="font-semibold">{detail.category}</span>; a human
+                re-routed it to <span className="font-semibold">{overrideQueue.label}</span>. The
+                machine label is kept for drift tracking.
+              </p>
+            )}
           </div>
           <button
             aria-label="Close case detail"

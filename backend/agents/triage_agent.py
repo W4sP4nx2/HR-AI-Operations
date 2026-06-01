@@ -289,6 +289,13 @@ class TriageAgent:
                     **(
                         {"retrieval_attempts": dossier["attempts"]} if "attempts" in dossier else {}
                     ),
+                    # The type-safe classifier's self-reported confidence (LLM path
+                    # only) — surfaced as a gauge in the case drawer's trace.
+                    **(
+                        {"classifier_confidence": dossier["classifier_confidence"]}
+                        if "classifier_confidence" in dossier
+                        else {}
+                    ),
                 },
                 "success",
             )
