@@ -1,4 +1,4 @@
-"""Triage agent built with CrewAI.
+"""Triage agent — type-safe classification via Pydantic AI, with keyword fallback.
 
 Classifies incoming HR tickets into one of:
     [BENEFITS, POLICY, ONBOARDING, PERFORMANCE, COMPLIANCE, URGENT]
@@ -9,22 +9,49 @@ Behaviour:
     * POLICY tickets are auto-resolved using the RAG pipeline.
     * All tickets create/update a case via the cases store.
 
-CrewAI orchestrates an LLM classifier when available; otherwise a transparent
-keyword-based classifier is used so triage always functions.
+Classification uses a **Pydantic AI** agent with a ``Literal``-typed result
+(``TriageDecision``), so the model is schema-constrained — it cannot return an
+arbitrary string, and the validated ``category`` / ``confidence`` / ``rationale``
+flow straight into the decision dossier. When no live key is available (the
+zero-secret default) a transparent keyword classifier is used, so triage always
+functions deterministically.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Literal
+
+from pydantic import BaseModel, Field
 
 from agents.policy_resolver import policy_resolver
-from core.config import settings
 from core.memory import memory
 
 AGENT_NAME = "triage_agent"
 
 CATEGORIES = ["BENEFITS", "POLICY", "ONBOARDING", "PERFORMANCE", "COMPLIANCE", "URGENT"]
+
+
+class TriageDecision(BaseModel):
+    """Schema-constrained classifier output (the model can't return arbitrary text)."""
+
+    category: Literal["BENEFITS", "POLICY", "ONBOARDING", "PERFORMANCE", "COMPLIANCE", "URGENT"]
+    confidence: float = Field(ge=0.0, le=1.0)
+    rationale: str
+
+
+_TRIAGE_SYSTEM_PROMPT = (
+    "You are an HR ticket triage classifier. Classify the ticket into exactly one "
+    "category: URGENT (legal/safety/harassment/discrimination/retaliation/"
+    "emergency — anything needing immediate human attention), BENEFITS, ONBOARDING, "
+    "PERFORMANCE, COMPLIANCE, or POLICY (general policy/handbook questions). Give a "
+    "one-sentence rationale and a confidence in [0,1]. When in doubt between URGENT "
+    "and anything else, choose URGENT."
+)
+
+# Cap classifier input so a long pasted document can't multiply tokens across the
+# (bounded) validation-retry loop — keeps routing a cheap call.
+_MAX_CLASSIFY_CHARS = 4000
 
 Broadcaster = Callable[[dict[str, Any]], Awaitable[None]]
 
@@ -124,44 +151,35 @@ class TriageAgent:
             "document lookup. Low confidence — consider human review."
         )
 
-    def _crew_classify(self, text: str) -> str | None:
-        """Classify with a CrewAI agent, returning None on failure.
+    async def _llm_classify(self, text: str) -> TriageDecision | None:
+        """Classify with a type-safe Pydantic AI agent; ``None`` to fall back.
 
-        Args:
-            text: The ticket text.
-
-        Returns:
-            A category string, or ``None`` if CrewAI is unavailable.
+        The result is validated against :class:`TriageDecision`, so the model is
+        physically blocked from returning a malformed/arbitrary category. The
+        retry loop is capped (``retries=1``) and the input is length-bounded so a
+        long document can't multiply token cost; a wall-clock timeout guards the
+        call. Runs in-request (await), keeping the BYOK key on the request frame.
         """
-        if not settings.anthropic_api_key:
+        from core.llm_factory import get_request_scoped_anthropic_model
+
+        model = get_request_scoped_anthropic_model()
+        if model is None:  # no live key / gated off → deterministic keyword path
             return None
         try:
-            from crewai import Agent, Crew, Process, Task
-
-            classifier = Agent(
-                role="HR Ticket Classifier",
-                goal="Classify HR tickets into the correct category.",
-                backstory="A seasoned HR operations specialist.",
-                llm=f"anthropic/{settings.claude_model}",
-                verbose=False,
-            )
-            task = Task(
-                description=(
-                    f"Classify this HR ticket into exactly one of {CATEGORIES}. "
-                    f"Respond with only the category word.\n\nTicket: {text}"
-                ),
-                expected_output="One category word.",
-                agent=classifier,
-            )
-            crew = Crew(
-                agents=[classifier], tasks=[task], process=Process.sequential, verbose=False
-            )
-            out = str(crew.kickoff()).strip().upper()
-            for cat in CATEGORIES:
-                if cat in out:
-                    return cat
-            return None
+            from pydantic_ai import Agent
         except Exception:  # noqa: BLE001
+            return None
+
+        agent: Agent[None, TriageDecision] = Agent(
+            model,
+            output_type=TriageDecision,
+            system_prompt=_TRIAGE_SYSTEM_PROMPT,
+            retries=1,  # one schema self-heal, not the default 3–4 (token guard)
+        )
+        try:
+            result = await asyncio.wait_for(agent.run(text[:_MAX_CLASSIFY_CHARS]), timeout=20.0)
+            return result.output
+        except Exception:  # noqa: BLE001 — any failure → keyword fallback
             return None
 
     # -- public API -------------------------------------------------------
@@ -179,11 +197,17 @@ class TriageAgent:
         await memory.upsert_agent(AGENT_NAME, status="running", last_action="triaging ticket")
         summary = summary or (ticket_text[:120] + ("…" if len(ticket_text) > 120 else ""))
         try:
-            category = await asyncio.to_thread(self._crew_classify, ticket_text)
-            method = "llm"
-            if category is None:
+            decision = await self._llm_classify(ticket_text)
+            if decision is not None:
+                category = decision.category
+                method = "llm"
+                llm_rationale: str | None = decision.rationale
+                llm_confidence: float | None = decision.confidence
+            else:
                 category = self._keyword_classify(ticket_text)
                 method = "keyword"
+                llm_rationale = None
+                llm_confidence = None
 
             resolution: dict[str, Any] | None = None
             policy_trace: list[dict[str, Any]] = []
@@ -208,7 +232,7 @@ class TriageAgent:
             # carries context (not just the raw ticket) and the audit log reads
             # like a compliance record, not developer JSON.
             rationale = (
-                "Classified by the LLM classifier."
+                (llm_rationale or "Classified by the LLM classifier.")
                 if method == "llm"
                 else self._keyword_reason(ticket_text, category)
             )
@@ -219,6 +243,8 @@ class TriageAgent:
                     category, "Route to the assigned queue."
                 ),
             }
+            if method == "llm" and llm_confidence is not None:
+                dossier["classifier_confidence"] = round(llm_confidence, 2)
             if category == "POLICY" and resolution:
                 dossier["confidence"] = resolution.get("confidence_score")
                 dossier["sources"] = resolution.get("source_documents", [])[:3]
@@ -262,6 +288,13 @@ class TriageAgent:
                     # many retrieval attempts the agentic loop took to resolve.
                     **(
                         {"retrieval_attempts": dossier["attempts"]} if "attempts" in dossier else {}
+                    ),
+                    # The type-safe classifier's self-reported confidence (LLM path
+                    # only) — surfaced as a gauge in the case drawer's trace.
+                    **(
+                        {"classifier_confidence": dossier["classifier_confidence"]}
+                        if "classifier_confidence" in dossier
+                        else {}
                     ),
                 },
                 "success",

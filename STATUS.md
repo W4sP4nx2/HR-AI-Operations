@@ -271,6 +271,49 @@ distributed event bus / message broker, because that would break the headline
 Covered by `tests/test_policy_resolver.py` (6 cases: accept-first-pass, bounded
 retry, retry-recovers, reformulation, no-LangGraph fallback, timeout→single-pass).
 
+## Defensive UI pass (auditability + boundary visibility)
+
+Three glanceability/guard components built on the type-safe triage foundation:
+
+- **Classifier confidence gauge** — the LLM classifier's self-reported confidence
+  is surfaced in the Case Drawer's execution trace as a coloured gauge (audited at
+  the boundary as `classifier_confidence`; shows only on the LLM path).
+- **Dual-label override** — when a case sits in a human re-route queue, the drawer
+  shows the *machine* category badge **and** a red "Manual → <queue>" tag with a
+  "machine label kept for drift tracking" note. The original classification is
+  never overwritten — you can see model-vs-human divergence.
+- **Pre-flight input shield** — the Screener shows a live char/word counter +
+  validation badge under each input (mirrors the backend insufficiency guard and
+  the 20k-char `sanitize_text` cap), so a recruiter sees the boundary before
+  dispatch.
+
+Model EOL (`claude-sonnet-4-20250514`, 2026-06-15) is now documented in
+`.env.example` / `.env.production.example`; the in-code default is deliberately
+left unchanged (no guessed/older model ID shipped).
+
+## Triage → type-safe Pydantic AI classification (with keyword fallback)
+
+Triage no longer string-scrapes a CrewAI text answer (`if cat in out`, brittle).
+It now classifies through a **Pydantic AI** agent with a `Literal`-typed result
+(`TriageDecision`: category / confidence / rationale) — the model is
+schema-constrained and *cannot* return an arbitrary category. The validated
+`rationale` + `confidence` flow straight into the decision dossier.
+
+- **Unified request-scoped factory** (`core/llm_factory.py`): `AnthropicModel(name,
+  provider=AnthropicProvider(api_key=effective_api_key()))` — the only way to
+  inject a per-request BYOK key in pydantic-ai 1.104 (no `api_key` kwarg; verified
+  by `tests/test_pydantic_ai_probe.py`). No network on construct → cheap per
+  request, key stays on the request frame.
+- **Fixed a latent bug:** `chat_agent` previously called the unsupported
+  `AnthropicModel(api_key=…)`, which 1.104 rejects — so chat silently degraded
+  even with a key. It now uses the shared factory and actually builds.
+- **Cost guards** for the validation self-heal the user flagged: `retries=1`
+  (not the default 3–4) + a 4 000-char input cap + a wall-clock timeout, so a long
+  document can't multiply token spend on a routing check.
+- **Zero-secret default unchanged:** with no live key the deterministic keyword
+  classifier runs, so CI + demos are identical (eval goldens / pass^k all green).
+  CrewAI is still used by the Resume Screener; only triage moved off it.
+
 ## Triage override / re-route — keep misclassifications out of the resolution metric
 
 A misrouted case used to have only one human action — "Mark resolved" — which
@@ -442,6 +485,25 @@ explicit "gap must NOT be flagged" fairness test).
   compliance needs deterministic proxy scrubbing before any model sees the text.
 - **Keyword triage is bypassable.** The deterministic gateway is robust for the demo
   but not adversarial-injection-proof; prompt-injection guardrails are basic.
+
+### Agentic-behavior findings (measured, in `tests/test_agentic_behaviors.py`)
+These grade *behavior*, not schema. Two pass as real guarantees; three are
+asserted as **current behavior so a future fix breaks the test loudly**:
+
+- ✅ **Negative-space refusal** — an absent-policy query ("electric unicycles in
+  the server room") cleanly hits `no_context`, never fabricates a rule.
+- ✅ **Compliance escalation is register-invariant** — harassment/safety routes
+  URGENT whether phrased coldly or in panic.
+- ⚠️ **Triage can't separate urgency from emotional decoration.** On the keyword
+  path the *same* routine policy question dressed in panic words ("URGENT!! ASAP!!")
+  flips POLICY→URGENT. It errs toward escalation (safe for HR, but a false-positive).
+- ⚠️ **Screener doesn't discount negative context (buzzword laundering).** "Attempted
+  FastAPI but abandoned it / read books on LangGraph but never built" still counts
+  those as matched skills (scored 72/"hire"). No negation/context reasoning yet.
+- ⚠️ **Attrition under-weights quiet disengagement.** It's structured-features-only
+  by design (no sentiment — a deliberate bias guard), and even in feature-space a
+  quietly-stalled profile (4 yrs no promotion, low rating) scores *lower* (~0.12)
+  than a loud one-off absence spike (~0.29): the model leans on the visible signal.
 
 ## Run it
 

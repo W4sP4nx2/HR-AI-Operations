@@ -154,6 +154,13 @@ export default function CaseFeed() {
             >
               {c.category}
             </span>
+            {/* At-a-glance dual label: machine category above, + a "Manual" flag
+                when a human re-routed the case (the AI label is never overwritten). */}
+            {REROUTE_QUEUES.some((q) => q.value === c.assigned_agent) && (
+              <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-red-300 bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                <ArrowRightLeft size={9} /> Manual
+              </span>
+            )}
             <span className="w-20 text-xs text-ink-700/70">{c.status}</span>
             <span className="w-32 truncate text-xs text-ink-700/70">
               {c.assigned_agent}
@@ -220,9 +227,14 @@ function AuditOutput({ raw }: { raw: string }) {
       label: "Reasoning",
       value: o.mode === "llm" ? "LLM synthesis" : `deterministic (${String(o.mode)})`,
     });
+  if (o.rerouted_to) rows.push({ label: "Re-routed to", value: String(o.rerouted_to) });
   if (o.needs_review === true) rows.push({ label: "Flag", value: "Needs human review" });
 
-  if (rows.length === 0) {
+  // The type-safe classifier's confidence renders as a gauge, not a bare number.
+  const classifierConf =
+    typeof o.classifier_confidence === "number" ? (o.classifier_confidence as number) : null;
+
+  if (rows.length === 0 && classifierConf === null) {
     return (
       <pre className="mt-1 overflow-x-auto rounded-lg bg-brand-cream/50 p-2 text-[11px] leading-snug text-ink-700/80">
         {raw}
@@ -237,18 +249,35 @@ function AuditOutput({ raw }: { raw: string }) {
           <span className="text-ink-700/80">{r.value}</span>
         </div>
       ))}
+      {classifierConf !== null && (
+        <div className="pt-1">
+          <span className="font-semibold text-brand-purple/80">Classifier confidence</span>
+          <div className="mt-1">
+            <ConfidenceBar value={classifierConf} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/** A 0–1 confidence rendered as a coloured gauge (green ≥0.7, amber ≥0.4, red below). */
+/** A 0–1 confidence rendered as a coloured gauge (green ≥0.7, amber ≥0.4, red below).
+ *  The fill animates from 0 → pct on mount so the gauge "reveals" cleanly. */
 function ConfidenceBar({ value }: { value: number }) {
   const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
   const color = value >= 0.7 ? "bg-green-500" : value >= 0.4 ? "bg-amber-400" : "bg-red-500";
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setW(pct));
+    return () => cancelAnimationFrame(id);
+  }, [pct]);
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-700/10">
-        <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
+        <div
+          className={`h-full ${color} transition-[width] duration-700 ease-out`}
+          style={{ width: `${w}%` }}
+        />
       </div>
       <span className="shrink-0 text-xs font-semibold text-ink-700/70">{pct}%</span>
     </div>
@@ -367,7 +396,14 @@ function CaseDrawer({
   const [busy, setBusy] = useState(false);
   const [showReroute, setShowReroute] = useState(false);
   const [queue, setQueue] = useState(REROUTE_QUEUES[0].value);
+  const [shown, setShown] = useState(false); // drives the slide-in animation
   const toast = useToast();
+
+  // Trigger the entrance transition on the next frame after mount.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const setStatus = async (status: string) => {
     setBusy(true);
@@ -415,15 +451,25 @@ function CaseDrawer({
     };
   }, [caseRow.id]);
 
+  // Dual-label state: if the case now sits in a human re-route queue, its AI
+  // category is the *machine* label and the queue is the *manual* override.
+  const overrideQueue = REROUTE_QUEUES.find((q) => q.value === detail.assigned_agent);
+
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
       {/* backdrop */}
       <div
-        className="absolute inset-0 bg-ink-900/30 backdrop-blur-sm"
+        className={`absolute inset-0 bg-ink-900/30 backdrop-blur-sm transition-opacity duration-300 ${
+          shown ? "opacity-100" : "opacity-0"
+        }`}
         onClick={onClose}
       />
-      {/* panel */}
-      <aside className="relative z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
+      {/* panel — slides in from the right on mount */}
+      <aside
+        className={`relative z-50 flex h-full w-full max-w-md flex-col bg-white shadow-2xl transition-transform duration-300 ease-out ${
+          shown ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <header className="flex items-start justify-between border-b border-brand-purple/10 bg-brand-cream/60 px-6 py-4">
           <div>
             <p className="font-mono text-xs text-ink-700/60">{detail.id}</p>
@@ -441,8 +487,21 @@ function CaseDrawer({
               <span className="rounded-full bg-brand-purple/10 px-2 py-0.5 text-xs text-brand-purple">
                 {detail.status}
               </span>
-              <span className="text-xs text-ink-700/60">→ {detail.assigned_agent}</span>
+              {overrideQueue ? (
+                <span className="flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                  <ArrowRightLeft size={11} /> Manual → {overrideQueue.label}
+                </span>
+              ) : (
+                <span className="text-xs text-ink-700/60">→ {detail.assigned_agent}</span>
+              )}
             </div>
+            {overrideQueue && (
+              <p className="mt-1.5 text-[11px] text-ink-700/55">
+                AI classified <span className="font-semibold">{detail.category}</span>; a human
+                re-routed it to <span className="font-semibold">{overrideQueue.label}</span>. The
+                machine label is kept for drift tracking.
+              </p>
+            )}
           </div>
           <button
             aria-label="Close case detail"

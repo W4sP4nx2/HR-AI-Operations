@@ -187,6 +187,7 @@ export default function ResumeScreener() {
             placeholder="Paste the role's requirements…"
             className="w-full resize-y rounded-xl border border-brand-purple/15 px-3 py-2 text-sm outline-none focus:border-brand-magenta"
           />
+          <InputShieldBadge text={jd} minWords={3} />
         </label>
 
         <div>
@@ -225,6 +226,7 @@ export default function ResumeScreener() {
             placeholder="…or paste the candidate's resume text"
             className="w-full resize-y rounded-xl border border-brand-purple/15 px-3 py-2 text-sm outline-none focus:border-brand-magenta"
           />
+          <InputShieldBadge text={resume} minWords={8} />
         </div>
 
         <div className="flex items-center gap-3">
@@ -346,6 +348,34 @@ export default function ResumeScreener() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Pre-flight input shield — a live character/word counter + validation badge.
+ *  Mirrors the backend's "insufficient input" guard and the defensive input
+ *  truncation, so a recruiter sees the boundary before dispatching. */
+function InputShieldBadge({ text, minWords }: { text: string; minWords: number }) {
+  const chars = text.length;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const MAX = 20000; // mirrors backend MAX_TEXT_CHARS (sanitize_text cap)
+
+  let state: { label: string; cls: string };
+  if (chars === 0) state = { label: "awaiting input", cls: "text-ink-700/40" };
+  else if (words < minWords)
+    state = { label: `too short — need ≥ ${minWords} words for a reliable read`, cls: "text-amber-600" };
+  else if (chars > MAX)
+    state = { label: `over ${MAX.toLocaleString()} chars — will be truncated`, cls: "text-amber-600" };
+  else state = { label: "ready", cls: "text-green-600" };
+
+  return (
+    <div className="mt-1 flex items-center justify-between text-[10px]">
+      <span className="text-ink-700/40">
+        {chars.toLocaleString()} chars · {words} words
+      </span>
+      <span className={`flex items-center gap-1 font-medium ${state.cls}`}>
+        <ShieldCheck size={11} /> {state.label}
+      </span>
     </div>
   );
 }
