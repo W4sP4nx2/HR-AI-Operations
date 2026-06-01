@@ -271,6 +271,29 @@ distributed event bus / message broker, because that would break the headline
 Covered by `tests/test_policy_resolver.py` (6 cases: accept-first-pass, bounded
 retry, retry-recovers, reformulation, no-LangGraph fallback, timeout→single-pass).
 
+## Triage → type-safe Pydantic AI classification (with keyword fallback)
+
+Triage no longer string-scrapes a CrewAI text answer (`if cat in out`, brittle).
+It now classifies through a **Pydantic AI** agent with a `Literal`-typed result
+(`TriageDecision`: category / confidence / rationale) — the model is
+schema-constrained and *cannot* return an arbitrary category. The validated
+`rationale` + `confidence` flow straight into the decision dossier.
+
+- **Unified request-scoped factory** (`core/llm.py`): `AnthropicModel(name,
+  provider=AnthropicProvider(api_key=effective_api_key()))` — the only way to
+  inject a per-request BYOK key in pydantic-ai 1.104 (no `api_key` kwarg; verified
+  by `tests/test_pydantic_ai_probe.py`). No network on construct → cheap per
+  request, key stays on the request frame.
+- **Fixed a latent bug:** `chat_agent` previously called the unsupported
+  `AnthropicModel(api_key=…)`, which 1.104 rejects — so chat silently degraded
+  even with a key. It now uses the shared factory and actually builds.
+- **Cost guards** for the validation self-heal the user flagged: `retries=1`
+  (not the default 3–4) + a 4 000-char input cap + a wall-clock timeout, so a long
+  document can't multiply token spend on a routing check.
+- **Zero-secret default unchanged:** with no live key the deterministic keyword
+  classifier runs, so CI + demos are identical (eval goldens / pass^k all green).
+  CrewAI is still used by the Resume Screener; only triage moved off it.
+
 ## Triage override / re-route — keep misclassifications out of the resolution metric
 
 A misrouted case used to have only one human action — "Mark resolved" — which

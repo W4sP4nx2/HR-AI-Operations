@@ -129,12 +129,15 @@ def build_pydantic_ai_agent(api_key: str):
     """
     try:
         from pydantic_ai import Agent
-        from pydantic_ai.models.anthropic import AnthropicModel
 
-        if not api_key:
+        from core.llm import anthropic_model_for_key
+
+        # 1.104 has no AnthropicModel(api_key=...) kwarg — go through the shared
+        # provider factory (the previous direct kwarg silently failed → degraded).
+        model = anthropic_model_for_key(api_key)
+        if model is None:
             return None
 
-        model = AnthropicModel(settings.claude_model, api_key=api_key)
         agent: Agent[ChatDeps, str] = Agent(
             model,
             system_prompt=_SYSTEM_PROMPT,
