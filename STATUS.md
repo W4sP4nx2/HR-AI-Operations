@@ -486,6 +486,25 @@ explicit "gap must NOT be flagged" fairness test).
 - **Keyword triage is bypassable.** The deterministic gateway is robust for the demo
   but not adversarial-injection-proof; prompt-injection guardrails are basic.
 
+### Agentic-behavior findings (measured, in `tests/test_agentic_behaviors.py`)
+These grade *behavior*, not schema. Two pass as real guarantees; three are
+asserted as **current behavior so a future fix breaks the test loudly**:
+
+- ✅ **Negative-space refusal** — an absent-policy query ("electric unicycles in
+  the server room") cleanly hits `no_context`, never fabricates a rule.
+- ✅ **Compliance escalation is register-invariant** — harassment/safety routes
+  URGENT whether phrased coldly or in panic.
+- ⚠️ **Triage can't separate urgency from emotional decoration.** On the keyword
+  path the *same* routine policy question dressed in panic words ("URGENT!! ASAP!!")
+  flips POLICY→URGENT. It errs toward escalation (safe for HR, but a false-positive).
+- ⚠️ **Screener doesn't discount negative context (buzzword laundering).** "Attempted
+  FastAPI but abandoned it / read books on LangGraph but never built" still counts
+  those as matched skills (scored 72/"hire"). No negation/context reasoning yet.
+- ⚠️ **Attrition under-weights quiet disengagement.** It's structured-features-only
+  by design (no sentiment — a deliberate bias guard), and even in feature-space a
+  quietly-stalled profile (4 yrs no promotion, low rating) scores *lower* (~0.12)
+  than a loud one-off absence spike (~0.29): the model leans on the visible signal.
+
 ## Run it
 
 ```bash
