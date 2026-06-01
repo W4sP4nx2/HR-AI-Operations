@@ -224,6 +224,9 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  /** Per-driver aggregate of manager feedback (the "what's working" signal). */
+  feedbackStats: () => request<FeedbackStat[]>(`/feedback/stats`),
+
   /**
    * Trigger an agent from typed text, a PDF attachment, or a URL to scrape.
    * Returns the full envelope (including `status`) so the caller can show
@@ -430,6 +433,15 @@ export interface AttritionFeatures {
   last_promotion_months: number;
   salary_band: number;
   manager_rating: number;
+}
+
+export interface FeedbackStat {
+  risk_driver: string;
+  accepted: number;
+  rejected: number;
+  edited: number;
+  total: number;
+  acceptance_rate: number;
 }
 
 export interface RetentionSuggestion {

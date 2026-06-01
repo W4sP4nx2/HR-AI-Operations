@@ -21,8 +21,25 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { CheckCircle2, AlertTriangle, Activity, Briefcase, ScanSearch } from "lucide-react";
-import { api, type Metrics } from "../../lib/api";
+import {
+  CheckCircle2,
+  AlertTriangle,
+  Activity,
+  Briefcase,
+  ScanSearch,
+  ThumbsUp,
+} from "lucide-react";
+import { api, type Metrics, type FeedbackStat } from "../../lib/api";
+
+// Humanise the snake_case attrition drivers for display.
+const DRIVER_LABELS: Record<string, string> = {
+  performance_score: "Performance",
+  manager_rating: "Manager rating",
+  absence_days: "Absence",
+  last_promotion_months: "Time since promotion",
+  salary_band: "Salary band",
+  tenure_months: "Tenure",
+};
 
 const BRAND = {
   purple: "#5D1C6A",
@@ -61,6 +78,7 @@ function StatCard({
 
 export default function Analytics() {
   const [m, setM] = useState<Metrics | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackStat[]>([]);
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
@@ -73,6 +91,13 @@ export default function Analytics() {
         setOffline(false);
       } catch {
         if (mounted) setOffline(true);
+      }
+      // Feedback stats are additive + role-gated; degrade quietly if absent.
+      try {
+        const fb = await api.feedbackStats();
+        if (mounted) setFeedback(fb);
+      } catch {
+        if (mounted) setFeedback([]);
       }
     };
     load();
@@ -168,6 +193,8 @@ export default function Analytics() {
         </div>
       </div>
 
+      <WhatsWorkingCard stats={feedback} />
+
       <div className="flex flex-wrap gap-3 text-xs text-ink-700/60">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 shadow-sm">
           <ScanSearch size={13} className="text-brand-magenta" /> {m.resume_screens} resume screens
@@ -184,6 +211,62 @@ export default function Analytics() {
           Derived live from the audit log · refreshes every 10s
         </span>
       </div>
+    </div>
+  );
+}
+
+/** "What's Working" — human-facing aggregate of manager feedback on retention
+ *  suggestions. Advisory: it informs a person; it never steers the agents. */
+function WhatsWorkingCard({ stats }: { stats: FeedbackStat[] }) {
+  const totalDecisions = stats.reduce((n, s) => n + s.total, 0);
+  return (
+    <div className="rounded-2xl border border-brand-purple/10 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-2 text-brand-purple">
+        <ThumbsUp size={16} />
+        <h3 className="font-semibold">What’s Working</h3>
+      </div>
+      <p className="mb-3 mt-0.5 text-xs text-ink-700/50">
+        How often managers accept each retention suggestion — advisory only; it informs you, it
+        never steers the model.
+      </p>
+
+      {totalDecisions === 0 ? (
+        <p className="rounded-lg bg-brand-cream/50 px-4 py-5 text-center text-sm text-ink-700/55">
+          No retention feedback captured yet. Accept or reject suggestions in the Attrition panel to
+          populate this.
+        </p>
+      ) : (
+        <ul className="space-y-2.5">
+          {stats.map((s) => {
+            const pct = Math.round(s.acceptance_rate * 100);
+            return (
+              <li key={s.risk_driver} className="text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-ink-800">
+                    {DRIVER_LABELS[s.risk_driver] ?? s.risk_driver}
+                  </span>
+                  <span className="text-xs text-ink-700/60">
+                    {pct}% accepted{" "}
+                    <span className="text-ink-700/40">
+                      · {s.accepted}/{s.total}
+                      {s.total < 5 ? " (small sample)" : ""}
+                    </span>
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink-700/10">
+                  <div className="h-full bg-brand-magenta" style={{ width: `${pct}%` }} />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {totalDecisions > 0 && (
+        <p className="mt-3 text-[10px] italic text-ink-700/40">
+          Based on {totalDecisions} manager decision{totalDecisions === 1 ? "" : "s"} · from the
+          append-only feedback ledger.
+        </p>
+      )}
     </div>
   );
 }
