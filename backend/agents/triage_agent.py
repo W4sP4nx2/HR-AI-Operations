@@ -160,7 +160,7 @@ class TriageAgent:
         long document can't multiply token cost; a wall-clock timeout guards the
         call. Runs in-request (await), keeping the BYOK key on the request frame.
         """
-        from core.llm import get_request_scoped_anthropic_model
+        from core.llm_factory import get_request_scoped_anthropic_model
 
         model = get_request_scoped_anthropic_model()
         if model is None:  # no live key / gated off → deterministic keyword path

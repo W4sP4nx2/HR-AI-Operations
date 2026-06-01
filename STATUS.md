@@ -279,7 +279,7 @@ It now classifies through a **Pydantic AI** agent with a `Literal`-typed result
 schema-constrained and *cannot* return an arbitrary category. The validated
 `rationale` + `confidence` flow straight into the decision dossier.
 
-- **Unified request-scoped factory** (`core/llm.py`): `AnthropicModel(name,
+- **Unified request-scoped factory** (`core/llm_factory.py`): `AnthropicModel(name,
   provider=AnthropicProvider(api_key=effective_api_key()))` — the only way to
   inject a per-request BYOK key in pydantic-ai 1.104 (no `api_key` kwarg; verified
   by `tests/test_pydantic_ai_probe.py`). No network on construct → cheap per

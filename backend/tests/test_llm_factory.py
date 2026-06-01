@@ -19,13 +19,13 @@ _FAKE = "sk-ant-FAKE-not-real"
 
 def test_factory_builds_model_from_key_without_network() -> None:
     pytest.importorskip("pydantic_ai")
-    from core.llm import anthropic_model_for_key
+    from core.llm_factory import anthropic_model_for_key
 
     assert anthropic_model_for_key(_FAKE) is not None
 
 
 def test_factory_returns_none_without_key() -> None:
-    from core.llm import anthropic_model_for_key
+    from core.llm_factory import anthropic_model_for_key
 
     assert anthropic_model_for_key("") is None
     assert anthropic_model_for_key(None) is None
@@ -33,7 +33,7 @@ def test_factory_returns_none_without_key() -> None:
 
 def test_request_scoped_model_is_none_when_gated_off() -> None:
     """No key / not mock in the test env → llm_active() False → no live model."""
-    from core.llm import get_request_scoped_anthropic_model
+    from core.llm_factory import get_request_scoped_anthropic_model
 
     assert get_request_scoped_anthropic_model() is None
 

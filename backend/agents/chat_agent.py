@@ -130,7 +130,7 @@ def build_pydantic_ai_agent(api_key: str):
     try:
         from pydantic_ai import Agent
 
-        from core.llm import anthropic_model_for_key
+        from core.llm_factory import anthropic_model_for_key
 
         # 1.104 has no AnthropicModel(api_key=...) kwarg — go through the shared
         # provider factory (the previous direct kwarg silently failed → degraded).
