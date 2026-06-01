@@ -1,0 +1,37 @@
+anthropic
+fastapi
+uvicorn[standard]
+langchain
+langgraph
+crewai
+sentence-transformers
+qdrant-client
+pypdf
+scikit-learn
+pandas
+numpy
+pydantic-settings
+python-dotenv
+websockets
+sqlalchemy[asyncio]>=2.0
+aiosqlite
+asyncpg
+python-multipart
+httpx
+beautifulsoup4
+pydantic-ai
+pyjwt
+bcrypt
+authlib
+itsdangerous
+email-validator
+pytest
+pytest-asyncio
+ruff
+black
+
+# Optional: NER-based PII redaction (PII_ENGINE=presidio). Heavy (pulls spaCy);
+# the default regex engine needs none of this. To enable:
+#   pip install presidio-analyzer presidio-anonymizer && python -m spacy download en_core_web_lg
+# presidio-analyzer
+# presidio-anonymizer

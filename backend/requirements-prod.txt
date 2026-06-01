@@ -1,0 +1,43 @@
+# Lean production runtime — deployable on small/free tiers (Render/Fly/Railway).
+#
+# The app degrades gracefully, so the heavy ML stack (torch via
+# sentence-transformers, CrewAI, LangGraph, LangChain) is intentionally EXCLUDED:
+# triage uses the keyword classifier, the resume screener uses the hashing
+# embedding, and RAG/LLM run via the Anthropic SDK directly when a key is set.
+# For full semantic RAG + CrewAI/LangGraph orchestration, install the dev
+# requirements.txt instead (much larger image).
+
+# --- Web / API ---
+fastapi
+uvicorn[standard]
+python-multipart
+websockets
+pydantic-settings
+python-dotenv
+
+# --- Data layer ---
+sqlalchemy[asyncio]>=2.0
+aiosqlite
+asyncpg
+
+# --- Auth / security ---
+pyjwt
+bcrypt
+authlib
+itsdangerous
+email-validator
+
+# --- LLM / agents (light) ---
+anthropic
+pydantic-ai
+
+# --- Documents / intake / scraping ---
+pypdf
+httpx
+beautifulsoup4
+
+# --- Models / RAG client (light) ---
+scikit-learn
+numpy
+pandas
+qdrant-client

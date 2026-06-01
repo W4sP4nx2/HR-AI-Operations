@@ -1,0 +1,49 @@
+# Render Blueprint — one-click deploy (https://render.com/docs/blueprint-spec).
+# Push to GitHub, then "New + → Blueprint" and point at this repo.
+# Qdrant is optional: leave QDRANT_URL unset to run RAG in graceful-degradation
+# mode, or point it at a managed/self-hosted Qdrant.
+databases:
+  - name: hr-db
+    databaseName: hrdb
+    user: hr
+    plan: free
+
+services:
+  - type: web
+    name: hr-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile.prod
+    dockerContext: ./backend
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hr-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true          # zero-touch: Render generates a strong secret
+      - key: AUTH_ENFORCE
+        value: "true"
+      - key: ENVIRONMENT
+        value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false                  # set in the dashboard (optional)
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false                  # e.g. ["https://hr-frontend.onrender.com"]
+
+  - type: web
+    name: hr-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile.prod
+    dockerContext: ./frontend
+    plan: free
+    envVars:
+      - key: NEXT_PUBLIC_API_BASE
+        sync: false                  # set to the hr-backend URL after first deploy
+      - key: NEXT_PUBLIC_WS_URL
+        sync: false                  # wss://<hr-backend>/ws/feed

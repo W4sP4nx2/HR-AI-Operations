@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-purple: #5d1c6a;
+  --brand-magenta: #ca5995;
+  --brand-peach: #ffb090;
+  --brand-cream: #fff1d3;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background: var(--brand-cream);
+  color: #2a0f32;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(93, 28, 106, 0.25);
+  border-radius: 8px;
+}
+
+/* Toast entrance animation */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-in {
+  animation: toastIn 0.18s ease-out;
+}

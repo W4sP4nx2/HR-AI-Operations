@@ -1,0 +1,65 @@
+# Production stack: Postgres + Qdrant + multi-stage backend/frontend images.
+# Usage:
+#   export ANTHROPIC_API_KEY=sk-ant-...   # optional
+#   export JWT_SECRET="$(openssl rand -hex 32)"
+#   docker compose -f docker-compose.prod.yml up --build -d
+services:
+  db:
+    # pgvector image = Postgres 16 with the `vector` extension preinstalled,
+    # so RAG runs inside the same datastore (no separate Qdrant service).
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: hr
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hr_dev_password}
+      POSTGRES_DB: hrdb
+    ports:
+      # Published for local validation (e.g. the pgvector round-trip test).
+      # In a real prod deploy, drop this or bind to 127.0.0.1 only.
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hr -d hrdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    environment:
+      DATABASE_URL: postgresql://hr:${POSTGRES_PASSWORD:-hr_dev_password}@db:5432/hrdb
+      # RAG runs inside Postgres via pgvector (VECTOR_BACKEND=auto). No Qdrant.
+      ENVIRONMENT: production
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:?set a strong JWT_SECRET for production}
+      AUTH_ENFORCE: "true"
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      CORS_ORIGINS: '["${FRONTEND_ORIGIN:-http://localhost:3000}"]'
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_BASE: ${PUBLIC_API_BASE:-http://localhost:8000}
+        NEXT_PUBLIC_WS_URL: ${PUBLIC_WS_URL:-ws://localhost:8000/ws/feed}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  pg_data:

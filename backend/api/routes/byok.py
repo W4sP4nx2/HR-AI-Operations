@@ -1,0 +1,58 @@
+"""BYOK key verification — a fast pre-flight check against the provider.
+
+The dashboard hits this the moment a visitor saves their key on the Launchpad so
+the pulse indicator can mean **"verified and authenticating"**, not merely
+"well-formed". The key is read from the request-scoped contextvar (set by the
+``_byok_key`` middleware from the ``X-Client-LLM-Key`` header) — it is never
+taken from the body, never logged, never persisted.
+
+Verification is a cheap, no-token-spend ``GET /v1/models`` against Anthropic with
+a short timeout. Outcomes:
+  * ``verified``     — provider accepted the key,
+  * ``rejected``     — provider rejected it (bad/expired key),
+  * ``malformed``    — fails a basic format check (don't even call out),
+  * ``missing``      — no key on the request,
+  * ``unverifiable`` — provider unreachable / SDK absent (network, offline demo).
+"""
+
+from __future__ import annotations
+
+import asyncio
+from typing import Any
+
+from fastapi import APIRouter
+
+from api.responses import ok
+from core.runtime_key import looks_like_key, request_api_key
+
+router = APIRouter(prefix="/byok", tags=["byok"])
+
+
+def _verify_sync(key: str) -> dict[str, Any]:
+    """Blocking provider check (runs in a thread). Never raises."""
+    try:
+        import anthropic
+    except Exception:  # noqa: BLE001 - SDK not installed in the lean image
+        return {"valid": False, "status": "unverifiable", "detail": "verification unavailable"}
+    try:
+        client = anthropic.Anthropic(api_key=key, timeout=6.0, max_retries=0)
+        client.models.list()  # GET /v1/models — auth-checked, no token spend
+        return {"valid": True, "status": "verified", "detail": "key accepted by provider"}
+    except Exception as exc:  # noqa: BLE001
+        name = type(exc).__name__.lower()
+        # Distinguish "the provider said no" from "we couldn't reach the provider".
+        if "auth" in name or "permission" in name or "401" in str(exc) or "403" in str(exc):
+            return {"valid": False, "status": "rejected", "detail": "provider rejected the key"}
+        return {"valid": False, "status": "unverifiable", "detail": "provider unreachable"}
+
+
+@router.get("/verify")
+async def verify() -> dict[str, Any]:
+    """Verify the request's BYOK key against the provider (no body, header only)."""
+    key = request_api_key()
+    if not key:
+        return ok({"valid": False, "status": "missing", "detail": "no key supplied"})
+    if not looks_like_key(key):
+        return ok({"valid": False, "status": "malformed", "detail": "key format looks invalid"})
+    result = await asyncio.to_thread(_verify_sync, key)
+    return ok(result)

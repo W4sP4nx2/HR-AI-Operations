@@ -1,0 +1,17 @@
+# Node / Next
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.local.example
+
+# Tooling / OS
+.git/
+.gitignore
+.DS_Store
+.claude/
+*.md
