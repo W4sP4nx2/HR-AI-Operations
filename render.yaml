@@ -23,27 +23,39 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true          # zero-touch: Render generates a strong secret
+      # Public BYOK sandbox: advisory auth so the persona Launchpad demo is
+      # explorable (no real data; RBAC advisory). Flip to "true" for a locked deploy.
       - key: AUTH_ENFORCE
+        value: "false"
+      # Server spends $0 on LLM (no server key); a visitor's BYOK key still
+      # activates the live LLM for their request (BYOK overrides MOCK_LLM/DEMO_MODE).
+      - key: MOCK_LLM
+        value: "true"
+      - key: DEMO_MODE
         value: "true"
       - key: ENVIRONMENT
         value: production
+      # BYOK SANDBOX: leave this UNSET in the dashboard — no global server key.
       - key: ANTHROPIC_API_KEY
-        sync: false                  # set in the dashboard (optional)
+        sync: false
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
       - key: CORS_ORIGINS
-        sync: false                  # e.g. ["https://hr-frontend.onrender.com"]
+        sync: false                  # set to ["https://hr-frontend.onrender.com"] after deploy
 
+  # Next.js as a Render Static Site (always-on CDN, no free-tier cold start).
+  # STATIC_EXPORT=1 makes next.config emit a static ./out (no server needed).
+  # NEXT_PUBLIC_* are inlined at BUILD time — set them, then trigger a rebuild.
   - type: web
     name: hr-frontend
-    runtime: docker
-    dockerfilePath: ./frontend/Dockerfile.prod
-    dockerContext: ./frontend
-    plan: free
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && STATIC_EXPORT=1 npm run build
+    staticPublishPath: out
     envVars:
       - key: NEXT_PUBLIC_API_BASE
-        sync: false                  # set to the hr-backend URL after first deploy
+        sync: false                  # https://hr-backend.onrender.com  (build-time)
       - key: NEXT_PUBLIC_WS_URL
-        sync: false                  # wss://<hr-backend>/ws/feed
+        sync: false                  # wss://hr-backend.onrender.com/ws/feed  (build-time)

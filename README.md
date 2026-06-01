@@ -5,12 +5,21 @@
 > orchestrate onboarding, and flag attrition risk — every action **audited**, every
 > sensitive step **human-approved**, and it runs on your laptop with **zero secrets**.
 
-<!-- Badges: replace OWNER/REPO once published. -->
-![CI](https://img.shields.io/badge/CI-lint%20%C2%B7%20test%20%C2%B7%20build-5D1C6A)
+> 🚀 **Live demo — BYOK sandbox:** **https://hr-frontend.onrender.com** *(URL finalized after Render deploy)*
+>
+> By design this public instance ships with **no server API key**. To see the live
+> LLM agents, **bring your own temporary Anthropic key** — it lives only in your
+> browser session frame (sent as `X-Client-LLM-Key`, held in a request-scoped
+> contextvar) and is **never stored, logged, or written to our database**. Without a
+> key, every feature still works in deterministic fallback mode. *That's the
+> zero-trust Provider Sandbox architecture — a security choice, not a missing feature.*
+
+<!-- CI badge points at the published repo's Actions. -->
+[![CI](https://github.com/W4sP4nx2/HR-AI-Operations/actions/workflows/ci.yml/badge.svg)](https://github.com/W4sP4nx2/HR-AI-Operations/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/License-MIT-CA5995)
 ![Backend](https://img.shields.io/badge/backend-FastAPI%20%C2%B7%20Pydantic%20AI-FFB090)
 ![Frontend](https://img.shields.io/badge/frontend-Next.js%2014-5D1C6A)
-![Tests](https://img.shields.io/badge/tests-76%20passing-CA5995)
+![Tests](https://img.shields.io/badge/tests-175%20passing-CA5995)
 
 A FastAPI backend orchestrates five specialised agents (LangGraph, CrewAI,
 scikit-learn) plus a Pydantic AI chat assistant over a RAG pipeline backed by
