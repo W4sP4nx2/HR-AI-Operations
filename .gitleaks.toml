@@ -1,5 +1,12 @@
 title = "HR AI Command Center gitleaks config"
 
+# Inherit gitleaks' full default ruleset — WITHOUT this, the config below would
+# replace all rules, leaving only the allowlist and detecting nothing (a scan
+# that's green even on a real leaked key). With it, defaults catch real secrets
+# and the allowlist suppresses only the documented fake test fixtures.
+[extend]
+useDefault = true
+
 [allowlist]
 description = "Allow only documented fake/placeholder API key examples in history."
 regexes = [
