@@ -61,12 +61,16 @@ contracts in [`backend/agents/contracts.py`](./backend/agents/contracts.py).
 - **Purpose:** flag retention risk to start a conversation — **advisory only**.
 - **Input → Output:** `AttritionInput` (6 job features) → `AttritionResult
   {attrition_risk_score, top_risk_factors, explanation, needs_review, advisory_only}`.
-- **Logic / data:** `RandomForestClassifier` (200 trees, depth 8). Ships trained on
+- **Logic / data:** `RandomForestClassifier` (240 trees, depth 8). Ships trained on
   **synthetic data** for the demo; replace with your governed dataset before real use.
 - **Features (no protected classes):** tenure, performance, absence days, months
   since promotion, salary band, manager rating. **No race/gender/age input.**
+  Internally, the model derives `disengagement_index = months_since_promotion /
+  manager_rating` so slow-burn stagnation is visible without adding text signals.
 - **Fairness / safety:** high risk → `needs_review` for human bias review before any
   action; output framed as a prompt to talk, never punitive.
+- **Calibration guard:** `test_attrition_prioritizes_quiet_disengagement_after_calibration`
+  requires a quietly stalled profile to outrank a one-off absence spike.
 - **Limitations / metrics:** synthetic-data accuracy is **not** indicative of real
   performance; validate + monitor drift on your data (Model Risk Management). Block
   deployment if validation accuracy is below your bar.

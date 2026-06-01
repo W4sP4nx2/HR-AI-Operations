@@ -120,15 +120,14 @@ def test_attrition_is_structured_features_only_not_sentiment() -> None:
         assert field.annotation in (int, float), f"{name} is not numeric"
 
 
-def test_KNOWN_LIMITATION_attrition_underweights_quiet_disengagement() -> None:
-    """KNOWN LIMITATION (measured): the 'quiet detachment > loud complaint'
-    intuition does NOT hold in feature-space either. A quietly-stalled profile
-    (4 years no promotion, low manager rating, low absence) scores **lower**
-    (~0.12) than a loud one-off absence spike (~0.29) — the RandomForest leans on
-    the visible ``absence_days`` signal and under-weights slow-burn disengagement.
-    So the structured model shares the compassion-trap's blind spot: it sees the
-    loud signal, not the quiet one. Documented (not tuned away) so re-weighting /
-    feature work re-evaluates this deliberately."""
+def test_attrition_prioritizes_quiet_disengagement_after_calibration() -> None:
+    """The calibrated model should not let absence spikes drown out slow-burn risk.
+
+    The public input boundary remains six numeric job signals, but the model now
+    adds an internal ``disengagement_index`` interaction term. A quietly stalled
+    profile (4 years no promotion + low manager rating) should score higher than
+    a one-off loud absence spike with otherwise healthier context.
+    """
     from models.attrition_model import attrition_model
 
     quiet_stalled = {
@@ -148,9 +147,11 @@ def test_KNOWN_LIMITATION_attrition_underweights_quiet_disengagement() -> None:
         "manager_rating": 3.5,
     }
     quiet = attrition_model.predict(quiet_stalled)["attrition_risk_score"]
+    quiet_factors = attrition_model.predict(quiet_stalled)["top_risk_factors"]
     loud = attrition_model.predict(loud_spike)["attrition_risk_score"]
-    # Current (counter-intuitive) ordering — the documented blind spot.
-    assert loud > quiet
+
+    assert quiet > loud
+    assert "disengagement_index" in {f["factor"] for f in quiet_factors}
 
 
 if __name__ == "__main__":  # pragma: no cover

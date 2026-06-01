@@ -36,7 +36,7 @@ counts them as matched skills.
 > Why it matters: shows how embeddings actually behave under the hood, and an
 > eval-discipline-first stance over blind optimism.
 
-## 2. "Availability Bias" in the RandomForest attrition model
+## 2. Slow-burn calibration in the RandomForest attrition model
 
 **JD:** Harden POCs into production-grade systems with reliability/security.
 
@@ -47,12 +47,16 @@ sentiment over employee communications**, by deliberate design. Parsing employee
 text trains models on hidden proxies for protected classes (age/region/gender) —
 a legal/privacy liability the system refuses to take on.
 
-- **Measured trade-off:** the model over-indexes a visible, high-variance one-off
-  signal (absence spike → **0.29**) and under-indexes a severe slow-burn profile
-  (4-year promotion freeze + declining manager rating → **0.12**). The "quiet
-  quitting > loud complaint" intuition does **not** hold in feature-space.
-- **Documented:** `test_KNOWN_LIMITATION_attrition_underweights_quiet_disengagement`,
-  and surfaced in STATUS so an HR operator never misreads the signal.
+- **Calibration fix:** the public model input remains those six structured job
+  signals, but training/prediction now appends one engineered interaction term:
+  `disengagement_index = months_since_promotion / manager_rating`. This gives the
+  forest a high-contrast split for quiet stagnation without adding sentiment/text.
+- **Measured after fix:** the severe slow-burn profile now outranks the loud
+  absence spike (**0.5198** vs **0.1221** in the regression scenario), and the top
+  drivers include `disengagement_index`.
+- **Documented:** `test_attrition_prioritizes_quiet_disengagement_after_calibration`
+  in [`tests/test_agentic_behaviors.py`](backend/tests/test_agentic_behaviors.py)
+  guards the ordering so the old availability-bias behavior cannot silently return.
 - **Related fix:** the `needs_review` gate originally reused the RAG cosine floor
   (0.7) — which this model's output never reaches (~0.45 max) — so high-risk flags
   *never fired*. Replaced with a dedicated, calibrated `attrition_review_threshold`
@@ -213,5 +217,5 @@ SQLite + Postgres) instead of shipping a migration framework into a zero-dep dem
 - **Live LLM path not CI-verified:** schema-constraint, gating, BYOK isolation, and
   fallback are all tested; an actual keyed round-trip is the one thing the suite
   can't cover without a key.
-- **Screener negation** and **attrition feature re-weighting** are tracked
-  limitations, not silent debt.
+- **Screener negation fallback** remains honest rather than hidden: the keyed path
+  validates context, while the keyless path explicitly reports keyword fallback.

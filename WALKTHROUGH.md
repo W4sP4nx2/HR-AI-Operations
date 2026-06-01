@@ -4,7 +4,8 @@ A guided tour of the **HR AI Command Center** — what it solves, how to run the
 full pipeline end-to-end, and how to pitch it. Companion to
 [README](./README.md), [USER_MANUAL](./USER_MANUAL.md),
 [OPERATIONS_MANUAL](./OPERATIONS_MANUAL.md), [SCALING](./SCALING.md) and
-[PITCH](./PITCH.md).
+[PITCH](./PITCH.md). For a formal QA matrix, see
+[TEST_PLANS](./TEST_PLANS.md).
 
 ---
 
@@ -193,3 +194,10 @@ uvicorn api.main:app --reload --port 8000      # API + docs at :8000/docs
 cd ../frontend && npm install && npm run dev   # dashboard at :3000
 ```
 Open **http://localhost:3000** → Policies, Chat, Cases, Fleet, Approvals, Audit.
+
+## 8. Prove it
+
+The scenario walkthroughs above are backed by a dedicated test plan:
+[TEST_PLANS.md](./TEST_PLANS.md). It covers per-agent golden paths, adversarial
+RAG cases, pipeline ingestion, BYOK ephemerality, attrition calibration, and UI
+honesty checks. Use it as the acceptance checklist before a demo, PR, or release.

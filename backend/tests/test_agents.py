@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import types
 
 import pytest
 
@@ -50,6 +51,33 @@ def test_api_response_envelope() -> None:
     assert una["success"] is False
     assert una["status"] == "unavailable"
     assert una["error"] == "no LLM key configured"
+
+
+def test_embedder_falls_back_when_sentence_transformer_model_load_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A present-but-unloadable HF model must degrade to hashing embeddings.
+
+    This is the offline circuit-breaker case: sentence-transformers may be
+    installed, but Hugging Face network/cache lookup can fail in CI or demos.
+    """
+    import core.embeddings as emb
+
+    class BrokenSentenceTransformer:
+        def __init__(self, *_args, **_kwargs) -> None:
+            raise RuntimeError("offline cache miss")
+
+    fake_module = types.SimpleNamespace(SentenceTransformer=BrokenSentenceTransformer)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", fake_module)
+    emb._load_model.cache_clear()
+    try:
+        assert emb._load_model() is None
+        vector = emb.Embedder().embed("annual leave policy")
+    finally:
+        emb._load_model.cache_clear()
+
+    assert len(vector) == emb._FALLBACK_DIM
+    assert any(v != 0.0 for v in vector)
 
 
 def test_triage_keyword_classifier() -> None:

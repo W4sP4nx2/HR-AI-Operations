@@ -57,7 +57,14 @@ const FACTOR_LABELS: Record<string, string> = {
   last_promotion_months: "Time since promotion",
   salary_band: "Salary band",
   manager_rating: "Manager rating",
+  disengagement_index: "Slow-burn disengagement",
 };
+
+function baselinePosition(field: (typeof FIELDS)[number]): string {
+  const value = DEFAULTS[field.key];
+  const pct = ((value - field.min) / (field.max - field.min)) * 100;
+  return `${Math.max(0, Math.min(100, pct))}%`;
+}
 
 function riskBand(score: number): { label: string; color: string; chip: string } {
   if (score >= 0.66) return { label: "High", color: "#ef4444", chip: "bg-red-100 text-red-600" };
@@ -70,6 +77,7 @@ export default function AttritionPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AttritionResult | null>(null);
+  const [baselineRisk, setBaselineRisk] = useState<number | null>(null);
 
   const set = (key: FieldKey, value: number) => setF((prev) => ({ ...prev, [key]: value }));
 
@@ -78,7 +86,9 @@ export default function AttritionPanel() {
     setBusy(true);
     setError(null);
     try {
-      setResult(await api.predictAttrition(f));
+      const prediction = await api.predictAttrition(f);
+      setResult(prediction);
+      setBaselineRisk((prev) => prev ?? prediction.attrition_risk_score);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -120,7 +130,14 @@ export default function AttritionPanel() {
                 onChange={(e) => set(field.key, Number(e.target.value))}
                 className="mt-1 w-full accent-brand-magenta"
               />
-              <span className="text-[11px] text-ink-700/40">{field.hint}</span>
+              <div className="relative mt-1 h-3">
+                <span
+                  className="absolute top-0 h-3 w-px bg-brand-purple/35"
+                  style={{ left: baselinePosition(field) }}
+                  title={`Baseline: ${DEFAULTS[field.key]}`}
+                />
+                <span className="text-[11px] text-ink-700/40">{field.hint}</span>
+              </div>
             </label>
           ))}
         </div>
@@ -179,6 +196,34 @@ export default function AttritionPanel() {
                 </div>
               </div>
             </div>
+
+            {baselineRisk !== null && (
+              <div className="rounded-lg border border-brand-purple/10 bg-brand-cream/60 p-3">
+                <div className="mb-2 flex items-center justify-between text-[11px] font-medium text-ink-700/60">
+                  <span>Snapshot baseline</span>
+                  <span>
+                    {Math.round(baselineRisk * 100)}% ·{" "}
+                    {result.attrition_risk_score >= baselineRisk ? "+" : ""}
+                    {Math.round((result.attrition_risk_score - baselineRisk) * 100)} pts
+                  </span>
+                </div>
+                <div className="relative h-2 rounded-full bg-brand-purple/10">
+                  <span
+                    className="absolute -top-1 h-4 w-0.5 rounded-full bg-brand-purple"
+                    style={{ left: `${Math.max(0, Math.min(100, baselineRisk * 100))}%` }}
+                    title={`Baseline ${Math.round(baselineRisk * 100)}%`}
+                  />
+                  <span
+                    className="absolute -top-1 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-white shadow-sm"
+                    style={{
+                      left: `${Math.max(0, Math.min(100, result.attrition_risk_score * 100))}%`,
+                      backgroundColor: band.color,
+                    }}
+                    title={`Current ${Math.round(result.attrition_risk_score * 100)}%`}
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
               <h4 className="mb-2 text-xs font-medium uppercase text-ink-700/60">Top risk factors</h4>

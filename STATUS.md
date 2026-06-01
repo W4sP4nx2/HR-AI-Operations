@@ -15,8 +15,8 @@ Postgres/Qdrant — intelligence is additive, not required.
 |---|---|---|
 | **Policy Q&A (RAG)** | ✅ end-to-end | Zero-dependency cosine retrieval on SQLite **and verified on Postgres+pgvector** (HNSW cosine); synonym-aware lexical embedder; cited answers with clickable source chips in chat. |
 | **Triage** | ✅ | Keyword/LLM classify → URGENT escalates to a human, POLICY auto-resolves, all audited. Gateway that creates cases. |
-| **Resume Screener** | ✅ + UI | Dedicated panel: paste text **or drag-drop a PDF** (client pre-flight: <2 MB + `%PDF-` magic-byte check, then an engineering status-log spinner) → fit score, advance/don't-advance, matched/missing skills. Demographics blinded before scoring. **Layout-aware PDF extraction** (pypdf layout mode) keeps two-column resumes from scrambling. |
-| **Attrition Predictor** | ✅ + UI | Dedicated panel (manager+): six job-signal sliders → advisory risk %, top-risk-factor chart, plain-English explanation. No protected attributes used; advisory-only + human-review framing. |
+| **Resume Screener** | ✅ + UI | Dedicated panel: paste text **or drag-drop a PDF** (client pre-flight: <2 MB + `%PDF-` magic-byte check, then an engineering status-log spinner) → fit score, advance/don't-advance, matched/missing skills. Demographics blinded before scoring. **Fallback-mode results render as review-required, not green-light recommendations.** |
+| **Attrition Predictor** | ✅ + UI | Dedicated panel (manager+): six job-signal sliders → advisory risk %, top-risk-factor chart, baseline snapshot marker, plain-English explanation. Public input stays six job signals; the model adds an internal `disengagement_index` interaction term. |
 | **Onboarding** | ✅ backend | LangGraph checkpoint pauses for human approval. |
 | **Live metrics** | ✅ | `GET /metrics` queries the audit log + cases (`COUNT … GROUP BY`); Analytics renders it; KPIs refresh every 10s. |
 | **Auth + RBAC** | ✅ | viewer→analyst→manager→admin. Demo "View as" role switcher (mints real per-role JWT; disabled when `AUTH_ENFORCE=true`). |
@@ -509,10 +509,11 @@ asserted as **current behavior so a future fix breaks the test loudly**:
   / `ensure_future` / `BackgroundTasks` is introduced into app code — a detached
   task would copy the request-scoped key past its `finally` reset. The fleet stays
   synchronous-to-the-caller by construction.
-- ⚠️ **Attrition under-weights quiet disengagement.** It's structured-features-only
-  by design (no sentiment — a deliberate bias guard), and even in feature-space a
-  quietly-stalled profile (4 yrs no promotion, low rating) scores *lower* (~0.12)
-  than a loud one-off absence spike (~0.29): the model leans on the visible signal.
+- ✅ **Attrition slow-burn calibration is now guarded.** The public input remains
+  six structured job signals (no sentiment/protected attributes), but the model
+  internally adds `disengagement_index = months_since_promotion / manager_rating`.
+  The regression test now requires a quietly-stalled profile to outrank a one-off
+  absence spike, and the top drivers surface the slow-burn signal explicitly.
 
 ## Run it
 

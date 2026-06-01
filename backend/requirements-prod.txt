@@ -29,7 +29,8 @@ email-validator
 
 # --- LLM / agents (light) ---
 anthropic
-pydantic-ai
+pydantic-ai==1.104.0
+pydantic-ai-slim[anthropic]==1.104.0
 
 # --- Documents / intake / scraping ---
 pypdf

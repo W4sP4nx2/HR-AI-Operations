@@ -6,6 +6,10 @@ contract, a required role, declared tools, and explicit guardrails — all defin
 [`backend/agents/contracts.py`](./backend/agents/contracts.py) (`AGENT_SPECS`) and
 enforced by contract tests (`tests/test_agent_contracts.py`).
 
+For executable scenario coverage — including negative-space RAG, BYOK
+ephemerality, fallback honesty, RAG datastore degradation, and attrition
+slow-burn calibration — use [TEST_PLANS.md](./TEST_PLANS.md).
+
 > **How to read this:** each agent card below maps 1:1 to its `AgentSpec`. The
 > "Validated output" is the Pydantic schema the agent's real output is checked
 > against on every run and in CI.

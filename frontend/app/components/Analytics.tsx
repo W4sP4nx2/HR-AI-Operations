@@ -39,6 +39,7 @@ const DRIVER_LABELS: Record<string, string> = {
   last_promotion_months: "Time since promotion",
   salary_band: "Salary band",
   tenure_months: "Tenure",
+  disengagement_index: "Slow-burn disengagement",
 };
 
 const BRAND = {

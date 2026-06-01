@@ -29,11 +29,12 @@ def _stub_rag(monkeypatch, *, mode="grounded_excerpt"):
 def test_maps_top_factors_to_policy_lookups(monkeypatch) -> None:
     _stub_rag(monkeypatch)
     factors = [
+        {"factor": "disengagement_index", "contribution": 0.4},
         {"factor": "last_promotion_months", "contribution": 0.3},
         {"factor": "salary_band", "contribution": 0.2},
     ]
     out = asyncio.run(RetentionResolver().suggest(0.8, factors))
-    assert [s["factor"] for s in out] == ["last_promotion_months", "salary_band"]
+    assert [s["factor"] for s in out] == ["disengagement_index", "last_promotion_months"]
     assert all(s["grounded"] for s in out)
     assert all("policy_query" in s and s["policy_answer"] for s in out)
 

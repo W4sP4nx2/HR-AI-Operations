@@ -46,7 +46,7 @@ class Settings(BaseSettings):
 
     # --- App -------------------------------------------------------------
     environment: str = "development"
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     # Shared secret for inbound webhooks. Empty in dev = no verification;
     # set in production and require it via the X-Webhook-Secret header.
     webhook_secret: str = ""

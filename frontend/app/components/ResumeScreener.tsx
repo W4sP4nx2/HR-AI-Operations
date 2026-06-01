@@ -163,6 +163,7 @@ export default function ResumeScreener() {
   };
 
   const hire = result?.recommendation?.toLowerCase() === "hire";
+  const keywordFallback = result?.skill_audit_mode === "keyword_fallback";
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -276,11 +277,25 @@ export default function ResumeScreener() {
               <div className="space-y-2">
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${
-                    hire ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+                    keywordFallback
+                      ? "bg-amber-100 text-amber-800"
+                      : hire
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-600"
                   }`}
                 >
-                  {hire ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
-                  {hire ? "Recommend: advance" : "Recommend: do not advance"}
+                  {keywordFallback ? (
+                    <AlertTriangle size={15} />
+                  ) : hire ? (
+                    <CheckCircle2 size={15} />
+                  ) : (
+                    <XCircle size={15} />
+                  )}
+                  {keywordFallback
+                    ? "Review required: fallback mode"
+                    : hire
+                      ? "Recommend: advance"
+                      : "Recommend: do not advance"}
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {result.blinded && (

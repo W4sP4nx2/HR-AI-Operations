@@ -48,6 +48,10 @@ _FACTOR_POLICY: dict[str, tuple[str, str]] = {
         "manager feedback and performance review policy",
         "Manager-relationship signal — review 1:1 cadence and management support.",
     ),
+    "disengagement_index": (
+        "career development manager support retention policy",
+        "Slow-burn disengagement signal — pair career-path review with manager support.",
+    ),
     "tenure_months": (
         "onboarding and employee engagement policy",
         "Short tenure — strengthen onboarding and early-engagement touchpoints.",

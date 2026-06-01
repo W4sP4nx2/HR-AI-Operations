@@ -105,15 +105,19 @@ def _load_model():
     does not pull the heavy transformer dependency until embeddings are first
     requested (keeps API startup fast and tests lightweight).
 
-    Returns ``None`` when sentence-transformers is unavailable, signalling
-    callers to use the deterministic hashing fallback.
+    Returns ``None`` when sentence-transformers is unavailable or when the model
+    cannot be loaded from the local Hugging Face cache, signalling callers to use
+    the deterministic hashing fallback.
     """
     try:
         from sentence_transformers import SentenceTransformer
     except Exception:  # noqa: BLE001 - degrade gracefully without the heavy dep
         return None
 
-    return SentenceTransformer(settings.embedding_model)
+    try:
+        return SentenceTransformer(settings.embedding_model)
+    except Exception:  # noqa: BLE001 - offline/cache/model errors degrade too
+        return None
 
 
 def _hash_embed(text: str) -> list[float]:

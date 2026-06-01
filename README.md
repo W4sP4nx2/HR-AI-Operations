@@ -48,6 +48,7 @@ enforced. See [SECURITY.md](./SECURITY.md).
 | [PRODUCT.md](./PRODUCT.md) | Thesis, competitive wedge, two-audience model |
 | [WALKTHROUGH.md](./WALKTHROUGH.md) | 5-minute guided tour + pitch |
 | [AGENT_PLAYBOOK.md](./AGENT_PLAYBOOK.md) | Per-agent contracts, use cases & workflows |
+| [TEST_PLANS.md](./TEST_PLANS.md) | Agent, RAG, pipeline, BYOK, UI and attrition scenario test plans |
 | [USER_MANUAL.md](./USER_MANUAL.md) · [OPERATIONS_MANUAL.md](./OPERATIONS_MANUAL.md) | End-user & operator guides |
 | [MISSION.md](./MISSION.md) | Mission & principles |
 | [SCALING.md](./SCALING.md) | Architecture & path to 1M+ req |

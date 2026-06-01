@@ -19,7 +19,8 @@ asyncpg
 python-multipart
 httpx
 beautifulsoup4
-pydantic-ai
+pydantic-ai==1.104.0
+pydantic-ai-slim[anthropic]==1.104.0
 pyjwt
 bcrypt
 authlib

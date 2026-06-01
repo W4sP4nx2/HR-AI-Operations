@@ -1,6 +1,6 @@
 """Employee attrition predictor.
 
-A scikit-learn ``RandomForestClassifier`` trained on the features:
+A scikit-learn ``RandomForestClassifier`` trained on the public features:
     tenure_months, performance_score, absence_days, last_promotion_months,
     salary_band, manager_rating
 
@@ -8,6 +8,11 @@ If no real dataset is supplied the model trains on synthetic data generated at
 startup. Predictions return an attrition risk score in [0, 1] plus the top
 contributing risk factors (from feature importances weighted by the input).
 Claude is used to produce a plain-English explanation of each prediction.
+
+The public contract deliberately remains six job-related numeric signals. The
+model internally adds one engineered interaction term, ``disengagement_index``,
+so slow-burn risk (long promotion stall + poor manager relationship) is visible
+to the tree splits without introducing free-text or protected attributes.
 """
 
 from __future__ import annotations
@@ -26,6 +31,47 @@ FEATURES = [
     "salary_band",
     "manager_rating",
 ]
+
+ENGINEERED_FEATURES = ["disengagement_index"]
+MODEL_FEATURES = [*FEATURES, *ENGINEERED_FEATURES]
+
+FACTOR_DISPLAY = {
+    "tenure_months": "tenure",
+    "performance_score": "performance",
+    "absence_days": "absence",
+    "last_promotion_months": "time since promotion",
+    "salary_band": "salary band",
+    "manager_rating": "manager relationship",
+    "disengagement_index": "slow-burn disengagement",
+}
+
+
+def disengagement_index(last_promotion_months: float, manager_rating: float) -> float:
+    """Return the engineered slow-burn disengagement signal.
+
+    Args:
+        last_promotion_months: Months since the employee's last promotion.
+        manager_rating: Manager-relationship score in the 1-5 range.
+
+    Returns:
+        A non-negative interaction term that rises when career stagnation and a
+        weak manager relationship co-occur.
+    """
+    return float(max(last_promotion_months, 0.0) / max(manager_rating, 0.1))
+
+
+def _augment_matrix(x: np.ndarray) -> np.ndarray:
+    """Append engineered model features to a six-column public feature matrix."""
+    if x.shape[1] == len(MODEL_FEATURES):
+        return x.astype(float)
+    if x.shape[1] != len(FEATURES):
+        raise ValueError(
+            f"Expected {len(FEATURES)} or {len(MODEL_FEATURES)} columns, got {x.shape[1]}"
+        )
+    di = x[:, FEATURES.index("last_promotion_months")] / np.maximum(
+        x[:, FEATURES.index("manager_rating")], 0.1
+    )
+    return np.column_stack([x, di]).astype(float)
 
 
 def generate_synthetic_data(n: int = 2000, seed: int = 42) -> tuple[np.ndarray, np.ndarray]:
@@ -50,19 +96,30 @@ def generate_synthetic_data(n: int = 2000, seed: int = 42) -> tuple[np.ndarray, 
     salary_band = rng.integers(1, 6, n)
     manager_rating = rng.uniform(1, 5, n)
 
-    x = np.column_stack(
+    public_x = np.column_stack(
         [tenure, performance, absence, last_promo, salary_band, manager_rating]
     ).astype(float)
+    disengagement = last_promo / np.maximum(manager_rating, 0.1)
+    x = _augment_matrix(public_x)
+
+    # Explicit slow-burn calibration: separately-common signals become higher
+    # risk when they intersect (promotion stall + weak manager relationship).
+    promotion_stall = np.clip((last_promo - 18) / 42, 0, 1)
+    manager_strain = np.clip((3.5 - manager_rating) / 2.5, 0, 1)
+    slow_burn = promotion_stall * manager_strain
 
     # Latent risk: higher with low performance, high absence, long since promo,
-    # low salary band and low manager rating.
+    # low salary band and low manager rating. The interaction term keeps a quiet
+    # stalled profile from being dominated by the louder absence spike signal.
     latent = (
         0.015 * last_promo
-        + 0.06 * absence
+        + 0.035 * absence
         - 0.45 * performance
         - 0.30 * manager_rating
         - 0.20 * salary_band
         + 0.004 * (60 - np.clip(tenure, 0, 60))
+        + 0.055 * disengagement
+        + 1.25 * slow_burn
     )
     prob = 1 / (1 + np.exp(-latent))
     y = (rng.uniform(0, 1, n) < prob).astype(int)
@@ -93,8 +150,21 @@ class AttritionModel:
         if x is None or y is None:
             x, y = generate_synthetic_data()
 
-        model = RandomForestClassifier(n_estimators=200, max_depth=8, random_state=42, n_jobs=-1)
-        model.fit(x, y)
+        x = _augment_matrix(np.asarray(x, dtype=float))
+
+        slow_burn_weight = np.clip(
+            ((x[:, MODEL_FEATURES.index("last_promotion_months")] - 18) / 42),
+            0,
+            1,
+        ) * np.clip(
+            (3.5 - x[:, MODEL_FEATURES.index("manager_rating")]) / 2.5,
+            0,
+            1,
+        )
+        sample_weight = 1 + (2.0 * slow_burn_weight)
+
+        model = RandomForestClassifier(n_estimators=240, max_depth=8, random_state=42, n_jobs=-1)
+        model.fit(x, y, sample_weight=sample_weight)
         self._model = model
         self._trained = True
         accuracy = float(model.score(x, y))
@@ -112,7 +182,8 @@ class AttritionModel:
         Returns:
             A list of the top three risk-factor dicts sorted by contribution.
         """
-        importances = dict(zip(FEATURES, self._model.feature_importances_, strict=False))
+        importances = dict(zip(MODEL_FEATURES, self._model.feature_importances_, strict=False))
+        di = disengagement_index(features["last_promotion_months"], features["manager_rating"])
         # Direction-aware "badness" of each feature in [0, 1].
         badness = {
             "tenure_months": 1 - min(features["tenure_months"], 60) / 60,
@@ -121,10 +192,16 @@ class AttritionModel:
             "last_promotion_months": min(features["last_promotion_months"], 60) / 60,
             "salary_band": 1 - (features["salary_band"] - 1) / 5,
             "manager_rating": 1 - (features["manager_rating"] - 1) / 4,
+            "disengagement_index": min(di, 30) / 30,
         }
-        contributions = {f: round(importances[f] * badness[f], 4) for f in FEATURES}
+        contributions = {f: float(round(importances[f] * badness[f], 4)) for f in MODEL_FEATURES}
         ranked = sorted(contributions.items(), key=lambda kv: kv[1], reverse=True)
         return [{"factor": f, "contribution": c} for f, c in ranked[:3]]
+
+    def _model_row(self, features: dict[str, float]) -> np.ndarray:
+        """Return the one-row model matrix including engineered features."""
+        public = np.array([[features[f] for f in FEATURES]], dtype=float)
+        return _augment_matrix(public)
 
     def _claude_explanation(
         self, score: float, factors: list[dict[str, Any]], features: dict[str, float]
@@ -140,7 +217,7 @@ class AttritionModel:
             A short natural-language explanation. Falls back to a templated
             string if the Anthropic client is unavailable.
         """
-        factor_names = ", ".join(f["factor"] for f in factors)
+        factor_names = ", ".join(FACTOR_DISPLAY.get(f["factor"], f["factor"]) for f in factors)
         from core.runtime_key import effective_api_key, llm_active
 
         if not llm_active():
@@ -184,7 +261,7 @@ class AttritionModel:
         """
         if not self._trained:
             self.train()
-        row = np.array([[features[f] for f in FEATURES]], dtype=float)
+        row = self._model_row(features)
         score = float(self._model.predict_proba(row)[0][1])
         factors = self._explain_factors(features)
         explanation = self._claude_explanation(score, factors, features)
