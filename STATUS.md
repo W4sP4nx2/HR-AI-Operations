@@ -497,9 +497,18 @@ asserted as **current behavior so a future fix breaks the test loudly**:
 - ⚠️ **Triage can't separate urgency from emotional decoration.** On the keyword
   path the *same* routine policy question dressed in panic words ("URGENT!! ASAP!!")
   flips POLICY→URGENT. It errs toward escalation (safe for HR, but a false-positive).
-- ⚠️ **Screener doesn't discount negative context (buzzword laundering).** "Attempted
-  FastAPI but abandoned it / read books on LangGraph but never built" still counts
-  those as matched skills (scored 72/"hire"). No negation/context reasoning yet.
+- ◑ **Screener negation (buzzword laundering) — now fixed on the keyed path.** An
+  opt-in, type-safe Pydantic AI `skill_validator` grades each match's context
+  (`demonstrated`/`aspirational`/`negated`/`absent`) and re-scores on demonstrated
+  skills only, surfacing the discounted ones. The **keyless fallback stays blind**
+  (the documented limitation persists there) but now reports
+  `skill_audit_mode="keyword_fallback"`, so the UI downgrades confidence — a keyword
+  score can never masquerade as context-validated.
+- ✅ **BYOK contextvar safety is CI-enforced.** A static AST guard
+  (`tests/test_no_detached_tasks.py`) fails the build if any `asyncio.create_task`
+  / `ensure_future` / `BackgroundTasks` is introduced into app code — a detached
+  task would copy the request-scoped key past its `finally` reset. The fleet stays
+  synchronous-to-the-caller by construction.
 - ⚠️ **Attrition under-weights quiet disengagement.** It's structured-features-only
   by design (no sentiment — a deliberate bias guard), and even in feature-space a
   quietly-stalled profile (4 yrs no promotion, low rating) scores *lower* (~0.12)

@@ -484,6 +484,10 @@ export interface ResumeScreenResult {
   needs_review: boolean;
   // Advisory timeline data-integrity flags (never affect the score).
   consistency_flags?: string[];
+  // Negation pass: "validated" = an LLM graded each match's context; "keyword_fallback"
+  // = keyword-only (blind to negation → confidence downgraded). Dropped matches listed.
+  skill_audit_mode?: "validated" | "keyword_fallback";
+  unverified_skills?: string[];
   _mode?: "full" | "degraded";
 }
 

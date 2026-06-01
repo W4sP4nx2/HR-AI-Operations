@@ -293,6 +293,10 @@ class ResumeScreenerAgent:
             "matched_skills": matched,
             "missing_skills": missing,
             "needs_review": False,
+            # Private — carried so the (optional) skill-audit pass can re-score on
+            # demonstrated skills only; popped before the result is returned.
+            "_semantic": semantic,
+            "_total": total,
         }
 
     # -- public API -------------------------------------------------------
@@ -318,6 +322,22 @@ class ResumeScreenerAgent:
             # Embedding-based scoring is always computed (deterministic contract).
             result = await asyncio.to_thread(self._embedding_score, job_description, resume)
             result["blinded"] = True  # protected attributes removed before scoring
+
+            # Negation pass (opt-in, LLM-gated): grade each MATCHED skill's context
+            # and drop keyword matches that are negated/aspirational, then re-score.
+            # In-request (BYOK-safe). When no live key, it returns None and we keep
+            # the keyword result but mark the mode so the UI downgrades confidence —
+            # it must never present an unvalidated score as validated.
+            from agents.skill_validator import apply_audit, skill_validator
+
+            audit = await skill_validator.validate(result.get("matched_skills", []), resume)
+            if audit is not None:
+                result = apply_audit(result, audit)
+            else:
+                result["skill_audit_mode"] = "keyword_fallback"
+                result.setdefault("unverified_skills", [])
+            result.pop("_semantic", None)
+            result.pop("_total", None)
 
             # Second node: cross-validate the résumé's timeline for data-integrity
             # anomalies (advisory). Flags never change the score — they only ask a

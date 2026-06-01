@@ -298,6 +298,19 @@ export default function ResumeScreener() {
                       <AlertTriangle size={11} /> Needs review
                     </span>
                   )}
+                  {/* Honesty signal: a keyword-only score is blind to negation —
+                      never let it look like a context-validated one. */}
+                  {result.skill_audit_mode === "validated" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700">
+                      <ShieldCheck size={11} /> Context-validated
+                    </span>
+                  ) : (
+                    result.skill_audit_mode === "keyword_fallback" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-ink-700/10 px-2 py-0.5 text-[11px] font-medium text-ink-700/70">
+                        <AlertTriangle size={11} /> Keyword match — context not verified
+                      </span>
+                    )
+                  )}
                 </div>
               </div>
             </div>
@@ -321,6 +334,25 @@ export default function ResumeScreener() {
                 <SkillChips skills={result.missing_skills} kind="missing" />
               </div>
             </div>
+
+            {result.unverified_skills && result.unverified_skills.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-xs font-medium uppercase text-amber-700">
+                  Discounted — keyword present, context not demonstrated (
+                  {result.unverified_skills.length})
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.unverified_skills.map((s) => (
+                    <span
+                      key={s}
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 line-through"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {result.consistency_flags && result.consistency_flags.length > 0 && (
               <div className="rounded-lg border border-amber-300/60 bg-amber-50 p-3">

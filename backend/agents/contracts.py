@@ -107,6 +107,11 @@ class ResumeScore(BaseModel):
     # (reversed/future date ranges, fully-overlapping roles). Never affects the
     # score; sets needs_review for a human to verify.
     consistency_flags: list[str] = []
+    # Skill-context validation (negation pass): "validated" when an LLM graded each
+    # match's context, "keyword_fallback" when it ran on keywords only (blind to
+    # negation — the UI must downgrade confidence). Dropped matches are listed.
+    skill_audit_mode: str = "keyword_fallback"
+    unverified_skills: list[str] = []
 
     model_config = {"extra": "ignore"}
 
