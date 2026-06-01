@@ -211,6 +211,19 @@ export const api = {
       body: JSON.stringify({ input: "", payload: features }),
     }),
 
+  /** Record a manager's decision on a retention suggestion (append-only). */
+  submitRetentionFeedback: (payload: {
+    case_id: string;
+    suggestion_id: string;
+    risk_driver: string;
+    action_taken: "accepted" | "rejected" | "edited";
+    manager_notes?: string;
+  }) =>
+    request<{ id: string }>(`/feedback`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   /**
    * Trigger an agent from typed text, a PDF attachment, or a URL to scrape.
    * Returns the full envelope (including `status`) so the caller can show
@@ -436,6 +449,7 @@ export interface AttritionResult {
   advisory_only: boolean;
   // Policy-grounded retention suggestions, composed from Policy Q&A on high risk.
   retention_context?: RetentionSuggestion[];
+  case_id?: string;
   _mode?: "full" | "degraded";
 }
 
