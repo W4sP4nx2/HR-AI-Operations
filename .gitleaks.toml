@@ -15,4 +15,8 @@ regexes = [
   '''sk-ant-fake-key[-A-Za-z0-9_]*''',
   '''sk-server-key-[0-9]+''',
   '''sk-visitor[-A-Za-z0-9_]*''',
+  # Test fixtures (no real secrets): a fake BYOK key + the JWT secret used by the
+  # test client. Matched on the exact placeholder pattern so real keys still trip.
+  '''fixture-anthropic-key[-A-Za-z0-9_]*''',
+  '''test-secret-key-that-is-long-enough[-A-Za-z0-9_]*''',
 ]
