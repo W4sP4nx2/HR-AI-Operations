@@ -65,6 +65,12 @@ async def get_metrics(_: dict[str, Any] = Depends(require_role("analyst"))) -> d
             "resume_screens": by_action.get("resume_screen", 0),
             "policy_queries": by_action.get("policy_query", 0),
             "injection_blocks": by_action.get("prompt_injection_blocked", 0),
+            # Triage override telemetry: of all triaged cases, how often a human
+            # rejected the AI's routing and re-routed it (a pure audit query).
+            "triage_overrides": by_action.get("triage_override", 0),
+            "triage_override_rate": _rate(
+                by_action.get("triage_override", 0), by_action.get("triage", 0)
+            ),
             # Auto-resolution rate: of all triaged cases, how many the system
             # resolved without a human (the headline efficiency number).
             "auto_resolution_rate": _rate(resolved, cases_total),

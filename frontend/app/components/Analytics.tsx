@@ -207,6 +207,11 @@ export default function Analytics() {
             {m.injection_blocks} prompt-injection attempts blocked
           </span>
         )}
+        {m.triage_overrides > 0 && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 shadow-sm">
+            {Math.round(m.triage_override_rate * 100)}% triage override rate ({m.triage_overrides})
+          </span>
+        )}
         <span className="ml-auto self-center text-ink-700/40">
           Derived live from the audit log · refreshes every 10s
         </span>

@@ -271,6 +271,13 @@ export const api = {
       body: JSON.stringify({ status, note }),
     }),
 
+  /** Reject the AI's triage routing → hand off to a human queue (override telemetry). */
+  rerouteCase: (caseId: string, queue: string, reason = "") =>
+    request<HRCase>(`/cases/${caseId}/reroute`, {
+      method: "PATCH",
+      body: JSON.stringify({ queue, reason }),
+    }),
+
   /** Pending human-in-the-loop approval tasks. */
   pendingApprovals: () => request<PendingTask[]>("/cases/pending"),
 
@@ -422,6 +429,8 @@ export interface Metrics {
   injection_blocks: number;
   auto_resolution_rate: number;
   escalation_rate: number;
+  triage_overrides: number;
+  triage_override_rate: number;
   cases_by_status: { status: string; count: number }[];
   cases_by_category: { category: string; count: number }[];
 }

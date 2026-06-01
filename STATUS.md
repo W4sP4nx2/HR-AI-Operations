@@ -271,6 +271,20 @@ distributed event bus / message broker, because that would break the headline
 Covered by `tests/test_policy_resolver.py` (6 cases: accept-first-pass, bounded
 retry, retry-recovers, reformulation, no-LangGraph fallback, timeout→single-pass).
 
+## Triage override / re-route — keep misclassifications out of the resolution metric
+
+A misrouted case used to have only one human action — "Mark resolved" — which
+logged a broken triage path as a *success*. The Case Drawer now offers a **split
+action**: **Mark resolved** (green) or **Re-route** (red) → a closed-enum queue
+dropdown (Payroll / Legal / Employee Relations / Benefits / IT / People Partner).
+
+- Re-routing re-opens + re-assigns the case to the human queue and writes an
+  immutable `triage_override` audit row (from_category, to_queue, reason, actor).
+- **Triage Override Rate** is therefore a pure audit query: `triage_override ÷
+  triage` — exposed in `/metrics` and as an Analytics chip. No agent-stored number.
+- `PATCH /cases/{id}/reroute` (analyst+); the queue is a `Literal` → 422 on
+  anything else, before the data layer. Covered by `tests/test_cases.py`.
+
 ## Retention feedback telemetry — capture, NOT a reward loop (honest by design)
 
 Managers can now accept/reject each retention suggestion (Attrition panel). Those
