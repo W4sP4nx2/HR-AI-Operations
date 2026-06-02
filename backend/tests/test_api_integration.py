@@ -75,6 +75,71 @@ async def test_health_envelope_and_security_headers(client) -> None:
 
 
 @pytest.mark.asyncio
+async def test_showcase_cors_allows_render_frontend_preflight(client) -> None:
+    """Showcase CORS accepts the deployed frontend origin cleanly."""
+    r = await client.options(
+        "/health",
+        headers={
+            "Origin": "https://hr-frontend-sve4.onrender.com",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization,x-client-llm-key",
+        },
+    )
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") == "https://hr-frontend-sve4.onrender.com"
+    assert "authorization" in r.headers.get("access-control-allow-headers", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_showcase_cors_rejects_unknown_origin_preflight(client) -> None:
+    """Unknown browser origins are not granted CORS access."""
+    r = await client.options(
+        "/health",
+        headers={
+            "Origin": "https://example.invalid",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert r.status_code == 400
+    assert r.headers.get("access-control-allow-origin") is None
+
+
+def test_websocket_feed_accepts_browser_connection() -> None:
+    """The live feed route accepts a standard browser WebSocket handshake."""
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+
+    with TestClient(app) as client:
+        with client.websocket_connect(
+            "/ws/feed",
+            headers={"Origin": "https://hr-frontend-sve4.onrender.com"},
+        ) as websocket:
+            assert websocket.receive_json() == {
+                "type": "connected",
+                "message": "feed online",
+            }
+
+
+def test_websocket_feed_rejects_unknown_browser_origin() -> None:
+    """The live feed does not accept WebSocket upgrades from random origins."""
+    import pytest
+    from starlette.websockets import WebSocketDisconnect
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+
+    with TestClient(app) as client:
+        with pytest.raises(WebSocketDisconnect) as exc:
+            with client.websocket_connect(
+                "/ws/feed",
+                headers={"Origin": "https://example.invalid"},
+            ):
+                pass
+        assert exc.value.code == 1008
+
+
+@pytest.mark.asyncio
 async def test_register_login_and_me(client) -> None:
     """First user becomes admin; the token authenticates /auth/me."""
     r = await client.post(

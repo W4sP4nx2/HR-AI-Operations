@@ -16,7 +16,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -77,9 +77,34 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+SHOWCASE_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://hr-frontend-sve4.onrender.com",
+    "https://hr-frontend.onrender.com",
+]
+
+
+def _allowed_origins() -> list[str]:
+    """Return concrete browser origins allowed for HTTP and WebSocket traffic."""
+    configured = settings.cors_origins or SHOWCASE_ORIGINS
+    # Render's dashboard may temporarily carry ["*"] during showcase debugging.
+    # Keep the deployed service safe by expanding that to known frontend origins.
+    if "*" in configured:
+        return SHOWCASE_ORIGINS
+    return configured
+
+
+def _origin_allowed(origin: str | None) -> bool:
+    """Browser WebSocket origin check matching the CORS allowlist."""
+    if not origin:
+        return True
+    normalized = origin.rstrip("/")
+    return normalized in {item.rstrip("/") for item in _allowed_origins()}
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -207,6 +232,10 @@ async def feed(websocket: WebSocket) -> None:
     The client may send pings; the server echoes a heartbeat. All real events
     are pushed by agents/routes via the connection manager.
     """
+    if not _origin_allowed(websocket.headers.get("origin")):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await manager.connect(websocket)
     try:
         await websocket.send_json({"type": "connected", "message": "feed online"})
