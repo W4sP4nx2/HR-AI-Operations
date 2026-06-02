@@ -241,12 +241,13 @@ async def feed(websocket: WebSocket) -> None:
     try:
         await websocket.send_json({"type": "connected", "message": "feed online"})
         while True:
-            # Keep the connection open; treat any inbound message as a ping.
+            # Keep Render's gateway proxy from treating this upgraded TCP
+            # connection as idle; any inbound client message is also a ping.
             try:
-                await asyncio.wait_for(websocket.receive_text(), timeout=30)
+                await asyncio.wait_for(websocket.receive_text(), timeout=8)
                 await websocket.send_json({"type": "pong"})
             except asyncio.TimeoutError:
-                await websocket.send_json({"type": "heartbeat"})
+                await websocket.send_json({"type": "heartbeat", "interval_seconds": 8})
     except WebSocketDisconnect:
         await manager.disconnect(websocket)
     except Exception:  # noqa: BLE001

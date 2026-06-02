@@ -8,8 +8,8 @@
  *   - Top bar: system health indicator + active agent count.
  *   - Main area: renders the active panel based on the selected nav item.
  *
- * Polls /health every 10s for the top-bar indicator; individual panels manage
- * their own data (WebSocket for the case feed, polling fallback elsewhere).
+ * The top bar uses a resilient live-status hook: WebSocket nudges plus HTTP
+ * polling fallback, so active case counters keep moving through proxy drops.
  */
 
 import { useEffect, useState } from "react";
@@ -26,7 +26,6 @@ import {
   ScanSearch,
   Gauge,
 } from "lucide-react";
-import { api } from "../lib/api";
 import AgentFleet from "./components/AgentFleet";
 import CaseFeed from "./components/CaseFeed";
 import Analytics from "./components/Analytics";
@@ -43,6 +42,7 @@ import LoginScreen from "./auth/LoginScreen";
 import Launchpad from "./auth/Launchpad";
 import UserMenu from "./auth/UserMenu";
 import RoleSwitcher from "./auth/RoleSwitcher";
+import { useSystemStatus } from "./hooks/useSystemStatus";
 import type { Role } from "../lib/api";
 
 type Panel = "fleet" | "cases" | "analytics" | "audit" | "approvals" | "policies" | "chat" | "screener" | "attrition";
@@ -70,13 +70,15 @@ export default function Page() {
   const { loading, isAuthed, user } = useAuth();
   const [guest, setGuest] = useState(false);
   const [panel, setPanel] = useState<Panel>("chat");
-  const [healthy, setHealthy] = useState(false);
-  const [activeCases, setActiveCases] = useState(0);
-  // Default to demo posture (not enforced) so the Launchpad shows immediately;
-  // /health flips this to the real value within the first poll.
-  const [enforced, setEnforced] = useState(false);
-  const [llmOn, setLlmOn] = useState(true);
-  const [byokActive, setByokActive] = useState(false);
+  const {
+    activeCases,
+    byokActive,
+    enforced,
+    healthy,
+    liveTransport,
+    llmOn,
+    setByokActive,
+  } = useSystemStatus();
   // A template prompt handed from the Fleet "Open Conversation" button to seed
   // the Chat input; cleared once the ChatPanel consumes it (one-shot).
   const [chatSeed, setChatSeed] = useState("");
@@ -98,36 +100,6 @@ export default function Page() {
       setPanel(visibleNav[0]?.key ?? "chat");
     }
   }, [visibleNav, panel]);
-
-  // Poll health every 10 seconds for the top-bar indicator.
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const h = await api.health();
-        if (!mounted) return;
-        setHealthy(h.status === "healthy");
-        setEnforced(h.auth_enforced ?? true);
-        setLlmOn(h.llm_enabled ?? true);
-        // Active = open + escalated cases (real work in flight), from the
-        // audit-derived metrics — not idle agent process count.
-        try {
-          const m = await api.metrics();
-          if (mounted) setActiveCases(m.active_cases);
-        } catch {
-          /* metrics optional for the header */
-        }
-      } catch {
-        if (mounted) setHealthy(false);
-      }
-    };
-    load();
-    const id = setInterval(load, 10_000);
-    return () => {
-      mounted = false;
-      clearInterval(id);
-    };
-  }, []);
 
   // Auth gate: show the login screen until the user signs in or chooses guest.
   // (Backend advisory mode means guest is fully functional for demos.)
@@ -214,6 +186,22 @@ export default function Page() {
                 {healthy ? "System Healthy" : "System Offline"}
               </span>
             </div>
+            <span
+              title="Realtime transport state. Polling keeps metrics fresh when WebSocket is unavailable."
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                liveTransport === "live"
+                  ? "bg-green-100 text-green-700"
+                  : liveTransport === "connecting"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-ink-700/10 text-ink-700/70"
+              }`}
+            >
+              {liveTransport === "live"
+                ? "live sync"
+                : liveTransport === "connecting"
+                ? "syncing"
+                : "polling sync"}
+            </span>
             <div className="rounded-full bg-brand-magenta/15 px-3 py-1 font-medium text-brand-magenta">
               {activeCases} active {activeCases === 1 ? "case" : "cases"}
             </div>
