@@ -15,7 +15,7 @@ services:
     dockerfilePath: ./backend/Dockerfile.prod
     dockerContext: ./backend
     healthCheckPath: /health
-    plan: free
+    plan: standard
     envVars:
       - key: DATABASE_URL
         fromDatabase:
