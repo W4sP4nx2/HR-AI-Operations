@@ -12,11 +12,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { UploadCloud, FileText, Trash2, Loader2, CheckCircle, AlertCircle } from "lucide-react";
-import { api, type PolicyDoc } from "../../lib/api";
+import { UploadCloud, FileText, Trash2, Loader2, CheckCircle, AlertCircle, Lock } from "lucide-react";
+import { api, type PolicyDoc, type Role } from "../../lib/api";
+import { useAuth } from "../auth/AuthContext";
 import { useToast } from "./Toast";
 
 type UploadState = { status: "idle" } | { status: "uploading"; name: string } | { status: "done"; doc: PolicyDoc; qdrant: boolean } | { status: "error"; name: string; message: string };
+
+const ROLE_RANK: Record<Role, number> = { viewer: 0, analyst: 1, manager: 2, admin: 3 };
 
 export default function PoliciesPanel() {
   const [policies, setPolicies] = useState<PolicyDoc[]>([]);
@@ -24,6 +27,8 @@ export default function PoliciesPanel() {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const toast = useToast();
+  const { user, isAuthed } = useAuth();
+  const canMutatePolicies = isAuthed && ROLE_RANK[user?.role ?? "viewer"] >= ROLE_RANK.manager;
 
   const load = useCallback(async () => {
     try { setPolicies(await api.policies()); } catch { /* keep */ }
@@ -32,6 +37,15 @@ export default function PoliciesPanel() {
   useEffect(() => { load(); }, [load]);
 
   const ingest = async (file: File) => {
+    if (!canMutatePolicies) {
+      setUpload({
+        status: "error",
+        name: file.name,
+        message: "Uploads disabled in Showcase Demo to prevent DB abuse.",
+      });
+      toast.notify("Uploads disabled in Showcase Demo to prevent DB abuse.", "warning");
+      return;
+    }
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       setUpload({ status: "error", name: file.name, message: "Only PDF files are accepted." });
       return;
@@ -79,6 +93,7 @@ export default function PoliciesPanel() {
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDragging(false);
+    if (!canMutatePolicies) return;
     const file = e.dataTransfer.files?.[0];
     if (file) ingest(file);
   };
@@ -87,12 +102,15 @@ export default function PoliciesPanel() {
     <div className="space-y-6">
       {/* Upload zone */}
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
-        onClick={() => inputRef.current?.click()}
+        onDragOver={canMutatePolicies ? (e) => { e.preventDefault(); setDragging(true); } : undefined}
+        onDragLeave={canMutatePolicies ? () => setDragging(false) : undefined}
+        onDrop={canMutatePolicies ? onDrop : undefined}
+        onClick={canMutatePolicies ? () => inputRef.current?.click() : undefined}
+        aria-disabled={!canMutatePolicies}
         className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-8 py-12 transition ${
-          dragging
+          !canMutatePolicies
+            ? "pointer-events-none cursor-not-allowed border-ink-700/10 bg-ink-700/5 opacity-75"
+            : dragging
             ? "border-brand-magenta bg-brand-magenta/5"
             : "border-brand-purple/20 bg-white hover:border-brand-magenta/50"
         }`}
@@ -101,16 +119,27 @@ export default function PoliciesPanel() {
           ref={inputRef}
           type="file"
           accept="application/pdf"
+          disabled={!canMutatePolicies}
           className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) ingest(f); e.target.value = ""; }}
         />
-        <UploadCloud size={36} className={dragging ? "text-brand-magenta" : "text-brand-purple/40"} />
+        {canMutatePolicies ? (
+          <UploadCloud size={36} className={dragging ? "text-brand-magenta" : "text-brand-purple/40"} />
+        ) : (
+          <Lock size={36} className="text-ink-700/35" />
+        )}
         <div className="text-center">
           <p className="font-medium text-brand-purple">
-            {dragging ? "Drop to ingest" : "Drag & drop a PDF, or click to browse"}
+            {!canMutatePolicies
+              ? "Uploads disabled in Showcase Demo"
+              : dragging
+              ? "Drop to ingest"
+              : "Drag & drop a PDF, or click to browse"}
           </p>
           <p className="mt-1 text-xs text-ink-700/60">
-            Policy documents are extracted, chunked and loaded into the vector store
+            {canMutatePolicies
+              ? "Policy documents are extracted, chunked and loaded into the vector store"
+              : "Switch to an active HR Manager or Admin persona to ingest policy PDFs."}
           </p>
         </div>
       </div>
@@ -179,9 +208,10 @@ export default function PoliciesPanel() {
                 </p>
                 <button
                   onClick={() => remove(p.doc_id, p.filename)}
+                  disabled={!canMutatePolicies}
                   title="Remove from registry (restorable)"
                   aria-label={`Remove policy ${p.filename}`}
-                  className="shrink-0 rounded-lg p-1.5 text-ink-700/40 hover:bg-red-50 hover:text-red-500 transition"
+                  className="shrink-0 rounded-lg p-1.5 text-ink-700/40 transition hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-ink-700/40"
                 >
                   <Trash2 size={14} />
                 </button>
