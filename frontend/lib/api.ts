@@ -4,7 +4,8 @@
  * Most backend endpoints return the envelope:
  *   { success: boolean; data: T | null; error: string | null }
  *
- * Operational probe endpoints such as /health and /metrics return raw JSON.
+ * Operational probe endpoints such as /health and /metrics may be raw JSON or
+ * the standard envelope, depending on which backend build is deployed.
  */
 
 export const API_BASE =
@@ -171,7 +172,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
-async function rawRequest<T>(path: string, init?: RequestInit): Promise<T> {
+async function probeRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: authHeaders({ "Content-Type": "application/json" }),
     cache: "no-store",
@@ -180,13 +181,21 @@ async function rawRequest<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     throw new Error(`request failed: ${res.status}`);
   }
-  return (await res.json()) as T;
+  const body = (await res.json()) as T | ApiEnvelope<T>;
+  if (body && typeof body === "object" && "success" in body) {
+    const envelope = body as ApiEnvelope<T>;
+    if (!envelope.success) {
+      throw new Error(envelope.error ?? "request failed");
+    }
+    return envelope.data as T;
+  }
+  return body as T;
 }
 
 export const api = {
   /** Backend health snapshot. */
   health: () =>
-    rawRequest<{
+    probeRequest<{
       status: string;
       environment: string;
       agents_registered: number;
@@ -199,7 +208,7 @@ export const api = {
   agents: () => request<Agent[]>("/agents"),
 
   /** Operational metrics derived from the audit log + cases. */
-  metrics: () => rawRequest<Metrics>("/metrics"),
+  metrics: () => probeRequest<Metrics>("/metrics"),
 
   /** Manually trigger an agent. */
   triggerAgent: (name: string, input: string, payload?: unknown) =>
