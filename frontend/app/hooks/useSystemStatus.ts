@@ -28,17 +28,32 @@ export function useSystemStatus(): SystemStatus {
   const wsRef = useRef<WebSocket | null>(null);
 
   const refresh = useCallback(async () => {
-    const h = await api.health();
-    setHealthy(h.status === "healthy");
-    setEnforced(h.auth_enforced ?? true);
-    setLlmOn(h.llm_enabled ?? true);
+    try {
+      const h = await api.health();
+      setHealthy(h.status === "healthy" || h.status === "ok");
+      setEnforced(h.auth_enforced ?? true);
+      setLlmOn(h.llm_enabled ?? true);
+    } catch {
+      setHealthy(false);
+    }
 
     try {
       const m = await api.metrics();
-      setActiveCases(m.active_cases);
+      if (typeof m.active_cases === "number") {
+        setActiveCases(m.active_cases);
+        return;
+      }
     } catch {
+      // Fall through to the case-list fallback.
+    }
+
+    try {
       const cases = await api.cases();
-      setActiveCases(cases.filter((c) => ACTIVE_STATUSES.has(c.status)).length);
+      setActiveCases(
+        cases.filter((c) => ACTIVE_STATUSES.has(c.status.toLowerCase())).length
+      );
+    } catch {
+      // Keep the last known count if the fallback is also unavailable.
     }
   }, []);
 
