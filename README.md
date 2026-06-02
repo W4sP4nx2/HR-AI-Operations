@@ -5,7 +5,7 @@
 > orchestrate onboarding, and flag attrition risk — every action **audited**, every
 > sensitive step **human-approved**, and it runs on your laptop with **zero secrets**.
 
-> 🚀 **Live demo — BYOK sandbox:** **https://hr-frontend.onrender.com** *(URL finalized after Render deploy)*
+> 🚀 **Live demo — BYOK sandbox:** **https://hr-frontend-sve4.onrender.com**
 >
 > By design this public instance ships with **no server API key**. To see the live
 > LLM agents, **bring your own temporary Anthropic key** — it lives only in your
