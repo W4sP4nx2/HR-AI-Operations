@@ -1,8 +1,10 @@
 /**
  * Typed fetch wrappers around the FastAPI backend.
  *
- * Every backend endpoint returns the envelope:
+ * Most backend endpoints return the envelope:
  *   { success: boolean; data: T | null; error: string | null }
+ *
+ * Operational probe endpoints such as /health and /metrics return raw JSON.
  */
 
 export const API_BASE =
@@ -169,10 +171,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data as T;
 }
 
+async function rawRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    cache: "no-store",
+    ...init,
+  });
+  if (!res.ok) {
+    throw new Error(`request failed: ${res.status}`);
+  }
+  return (await res.json()) as T;
+}
+
 export const api = {
   /** Backend health snapshot. */
   health: () =>
-    request<{
+    rawRequest<{
       status: string;
       environment: string;
       agents_registered: number;
@@ -185,7 +199,7 @@ export const api = {
   agents: () => request<Agent[]>("/agents"),
 
   /** Operational metrics derived from the audit log + cases. */
-  metrics: () => request<Metrics>("/metrics"),
+  metrics: () => rawRequest<Metrics>("/metrics"),
 
   /** Manually trigger an agent. */
   triggerAgent: (name: string, input: string, payload?: unknown) =>
