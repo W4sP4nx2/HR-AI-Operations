@@ -28,18 +28,23 @@ export function useSystemStatus(): SystemStatus {
   const wsRef = useRef<WebSocket | null>(null);
 
   const refresh = useCallback(async () => {
+    let backendReachable = false;
+
     try {
       const h = await api.health();
       setHealthy(h.status === "healthy" || h.status === "ok");
       setEnforced(h.auth_enforced ?? true);
       setLlmOn(h.llm_enabled ?? true);
+      backendReachable = true;
     } catch {
-      setHealthy(false);
+      // Other telemetry probes below can still prove the backend is reachable.
     }
 
     try {
       const m = await api.metrics();
       if (typeof m.active_cases === "number") {
+        backendReachable = true;
+        setHealthy(true);
         setActiveCases(m.active_cases);
         return;
       }
@@ -49,11 +54,13 @@ export function useSystemStatus(): SystemStatus {
 
     try {
       const cases = await api.cases();
+      backendReachable = true;
+      setHealthy(true);
       setActiveCases(
         cases.filter((c) => ACTIVE_STATUSES.has(c.status.toLowerCase())).length
       );
     } catch {
-      // Keep the last known count if the fallback is also unavailable.
+      if (!backendReachable) setHealthy(false);
     }
   }, []);
 
