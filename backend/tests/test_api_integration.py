@@ -124,8 +124,8 @@ def test_websocket_feed_accepts_browser_connection() -> None:
 def test_websocket_feed_rejects_unknown_browser_origin() -> None:
     """The live feed does not accept WebSocket upgrades from random origins."""
     import pytest
-    from starlette.websockets import WebSocketDisconnect
     from fastapi.testclient import TestClient
+    from starlette.websockets import WebSocketDisconnect
 
     from api.main import app
 

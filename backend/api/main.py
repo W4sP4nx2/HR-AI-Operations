@@ -102,6 +102,7 @@ def _origin_allowed(origin: str | None) -> bool:
     normalized = origin.rstrip("/")
     return normalized in {item.rstrip("/") for item in _allowed_origins()}
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins(),
