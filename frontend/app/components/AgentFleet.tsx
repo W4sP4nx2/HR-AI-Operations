@@ -173,7 +173,7 @@ export default function AgentFleet({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="w-full max-w-full space-y-4">
       {!canControl && (
         <div className="flex items-center gap-2 rounded-xl border border-brand-purple/15 bg-brand-cream/50 px-4 py-2.5 text-sm text-ink-700/70">
           <Eye size={15} className="text-brand-purple" />
@@ -181,139 +181,139 @@ export default function AgentFleet({
           agents requires the <strong className="mx-1 font-semibold">HR Manager</strong> role.
         </div>
       )}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-      {agents.map((agent) => {
-        const file = files[agent.name];
-        return (
-          <div
-            key={agent.name}
-            className="rounded-2xl border border-brand-purple/10 bg-white p-5 shadow-sm"
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-brand-purple">{agent.label}</h3>
-                <p className="text-xs text-ink-700/60">{agent.framework}</p>
-              </div>
-              <StatusBadge status={agent.status} />
-            </div>
-
-            <dl className="mt-4 space-y-1 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-ink-700/60">Last action</dt>
-                <dd className="max-w-[55%] truncate text-right">
-                  {agent.last_action ?? "—"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-ink-700/60">Last run</dt>
-                <dd>
-                  {agent.last_run
-                    ? new Date(agent.last_run).toLocaleTimeString()
-                    : "—"}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-ink-700/60">Total runs</dt>
-                <dd className="font-medium">{agent.total_runs}</dd>
-              </div>
-            </dl>
-
-            {/* Control surface — manager+ only. Read-only roles see status above. */}
-            {canControl && ROUTED_AGENTS[agent.name] ? (
-              // A chat box is the wrong control for this agent — hand off instead:
-              // structured agents → their panel; Policy Q&A → a seeded conversation.
-              <button
-                onClick={() => {
-                  const cfg = ROUTED_AGENTS[agent.name];
-                  if (cfg.panel) onOpenPanel?.(cfg.panel);
-                  else if (cfg.chatSeed !== undefined) onOpenChat?.(cfg.chatSeed);
-                }}
-                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-purple/20 px-3 py-2 text-sm font-medium text-brand-purple transition hover:border-brand-magenta hover:bg-brand-cream/50"
-              >
-                {ROUTED_AGENTS[agent.name].label}
-                <ArrowRight size={15} />
-              </button>
-            ) : canControl ? (
-              <>
-                <div className="mt-4 flex gap-2">
-                  <input
-                    value={inputs[agent.name] ?? ""}
-                    onChange={(e) =>
-                      setInputs((i) => ({ ...i, [agent.name]: e.target.value }))
-                    }
-                    placeholder="Type text or paste a URL…"
-                    className="flex-1 rounded-lg border border-brand-purple/15 px-3 py-1.5 text-sm outline-none focus:border-brand-magenta"
-                  />
-                  {/* PDF attach */}
-                  <input
-                    ref={(el) => {
-                      fileRefs.current[agent.name] = el;
-                    }}
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={(e) =>
-                      setFiles((f) => ({
-                        ...f,
-                        [agent.name]: e.target.files?.[0] ?? null,
-                      }))
-                    }
-                  />
-                  <button
-                    title="Attach a PDF"
-                    aria-label={`Attach a PDF for ${agent.label}`}
-                    onClick={() => fileRefs.current[agent.name]?.click()}
-                    className={`rounded-lg border px-2 py-1.5 transition ${
-                      file
-                        ? "border-brand-magenta text-brand-magenta"
-                        : "border-brand-purple/15 text-ink-700/60 hover:border-brand-magenta"
-                    }`}
-                  >
-                    <Paperclip size={15} />
-                  </button>
-                  <button
-                    onClick={() => trigger(agent.name)}
-                    disabled={busy[agent.name]}
-                    className="flex items-center gap-1 rounded-lg bg-brand-magenta px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-                  >
-                    {busy[agent.name] ? (
-                      <Loader2 size={15} className="animate-spin" />
-                    ) : (
-                      <Play size={15} />
-                    )}
-                    Trigger
-                  </button>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {agents.map((agent) => {
+          const file = files[agent.name];
+          return (
+            <div
+              key={agent.name}
+              className="min-w-0 rounded-2xl border border-brand-purple/10 bg-white p-5 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-brand-purple">{agent.label}</h3>
+                  <p className="text-xs text-ink-700/60">{agent.framework}</p>
                 </div>
+                <StatusBadge status={agent.status} />
+              </div>
 
-                {/* Selected file chip */}
-                {file && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-ink-700/70">
-                    <Paperclip size={12} />
-                    <span className="max-w-[70%] truncate">{file.name}</span>
-                    <button
-                      onClick={() =>
-                        setFiles((f) => ({ ...f, [agent.name]: null }))
+              <dl className="mt-4 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-ink-700/60">Last action</dt>
+                  <dd className="max-w-[55%] truncate text-right">
+                    {agent.last_action ?? "—"}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-ink-700/60">Last run</dt>
+                  <dd>
+                    {agent.last_run
+                      ? new Date(agent.last_run).toLocaleTimeString()
+                      : "—"}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-ink-700/60">Total runs</dt>
+                  <dd className="font-medium">{agent.total_runs}</dd>
+                </div>
+              </dl>
+
+              {/* Control surface — manager+ only. Read-only roles see status above. */}
+              {canControl && ROUTED_AGENTS[agent.name] ? (
+                // A chat box is the wrong control for this agent — hand off instead:
+                // structured agents → their panel; Policy Q&A → a seeded conversation.
+                <button
+                  onClick={() => {
+                    const cfg = ROUTED_AGENTS[agent.name];
+                    if (cfg.panel) onOpenPanel?.(cfg.panel);
+                    else if (cfg.chatSeed !== undefined) onOpenChat?.(cfg.chatSeed);
+                  }}
+                  className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-purple/20 px-3 py-2 text-sm font-medium text-brand-purple transition hover:border-brand-magenta hover:bg-brand-cream/50"
+                >
+                  {ROUTED_AGENTS[agent.name].label}
+                  <ArrowRight size={15} />
+                </button>
+              ) : canControl ? (
+                <>
+                  <div className="mt-4 flex gap-2">
+                    <input
+                      value={inputs[agent.name] ?? ""}
+                      onChange={(e) =>
+                        setInputs((i) => ({ ...i, [agent.name]: e.target.value }))
                       }
-                      className="text-ink-700/50 hover:text-red-500"
+                      placeholder="Type text or paste a URL…"
+                      className="min-w-0 flex-1 rounded-lg border border-brand-purple/15 px-3 py-1.5 text-sm outline-none focus:border-brand-magenta"
+                    />
+                    {/* PDF attach */}
+                    <input
+                      ref={(el) => {
+                        fileRefs.current[agent.name] = el;
+                      }}
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      onChange={(e) =>
+                        setFiles((f) => ({
+                          ...f,
+                          [agent.name]: e.target.files?.[0] ?? null,
+                        }))
+                      }
+                    />
+                    <button
+                      title="Attach a PDF"
+                      aria-label={`Attach a PDF for ${agent.label}`}
+                      onClick={() => fileRefs.current[agent.name]?.click()}
+                      className={`rounded-lg border px-2 py-1.5 transition ${
+                        file
+                          ? "border-brand-magenta text-brand-magenta"
+                          : "border-brand-purple/15 text-ink-700/60 hover:border-brand-magenta"
+                      }`}
                     >
-                      <X size={13} />
+                      <Paperclip size={15} />
+                    </button>
+                    <button
+                      onClick={() => trigger(agent.name)}
+                      disabled={busy[agent.name]}
+                      className="flex items-center gap-1 rounded-lg bg-brand-magenta px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                    >
+                      {busy[agent.name] ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : (
+                        <Play size={15} />
+                      )}
+                      Trigger
                     </button>
                   </div>
-                )}
 
-                {outcomes[agent.name] && <OutcomeChip outcome={outcomes[agent.name]} />}
-              </>
-            ) : (
-              <p className="mt-4 flex items-center gap-1.5 text-xs text-ink-700/45">
-                <Eye size={12} /> Monitoring only
-              </p>
-            )}
-          </div>
-        );
-      })}
-      {agents.length === 0 && (
-        <p className="text-sm text-ink-700/60">No agents reporting yet…</p>
-      )}
+                  {/* Selected file chip */}
+                  {file && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-ink-700/70">
+                      <Paperclip size={12} />
+                      <span className="max-w-[70%] truncate">{file.name}</span>
+                      <button
+                        onClick={() =>
+                          setFiles((f) => ({ ...f, [agent.name]: null }))
+                        }
+                        className="text-ink-700/50 hover:text-red-500"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  )}
+
+                  {outcomes[agent.name] && <OutcomeChip outcome={outcomes[agent.name]} />}
+                </>
+              ) : (
+                <p className="mt-4 flex items-center gap-1.5 text-xs text-ink-700/45">
+                  <Eye size={12} /> Monitoring only
+                </p>
+              )}
+            </div>
+          );
+        })}
+        {agents.length === 0 && (
+          <p className="text-sm text-ink-700/60">No agents reporting yet…</p>
+        )}
       </div>
     </div>
   );

@@ -52,7 +52,7 @@ export default function AuditLog() {
   };
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-x-hidden">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <select
           value={agent}
@@ -79,53 +79,55 @@ export default function AuditLog() {
         />
         <a
           href={api.auditExportUrl(agent || undefined)}
-          className="ml-auto flex items-center gap-1 rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          className="flex w-full items-center justify-center gap-1 rounded-lg bg-brand-purple px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 sm:ml-auto sm:w-auto"
         >
           <Download size={15} />
           Export CSV
         </a>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-brand-purple/10 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-brand-cream/60 text-xs uppercase text-ink-700/70">
-            <tr>
-              <th className="px-4 py-2.5">Timestamp</th>
-              <th className="px-4 py-2.5">Agent</th>
-              <th className="px-4 py-2.5">Action</th>
-              <th className="px-4 py-2.5">Input</th>
-              <th className="px-4 py-2.5">Output</th>
-              <th className="px-4 py-2.5">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r) => (
-              <tr key={r.id} className="border-t border-brand-purple/5">
-                <td className="px-4 py-2 text-xs text-ink-700/70">
-                  {new Date(r.timestamp).toLocaleString()}
-                </td>
-                <td className="px-4 py-2">{r.agent_name}</td>
-                <td className="px-4 py-2">{r.action_type}</td>
-                <td className="px-4 py-2 text-ink-700/70">
-                  <div className="max-w-[240px] truncate" title={r.input}>{r.input}</div>
-                </td>
-                <td className="px-4 py-2 text-ink-700/70">
-                  <div className="max-w-[240px] truncate" title={r.output}>{r.output}</div>
-                </td>
-                <td className={`px-4 py-2 font-medium ${statusColor[r.status] ?? ""}`}>
-                  {r.status}
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
+      <div className="w-full max-w-full overflow-hidden rounded-2xl border border-brand-purple/10 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-[900px] w-full text-left text-sm">
+            <thead className="bg-brand-cream/60 text-xs uppercase text-ink-700/70">
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-ink-700/60">
-                  No audit entries.
-                </td>
+                <th className="px-4 py-2.5">Timestamp</th>
+                <th className="px-4 py-2.5">Agent</th>
+                <th className="px-4 py-2.5">Action</th>
+                <th className="px-4 py-2.5">Input</th>
+                <th className="px-4 py-2.5">Output</th>
+                <th className="px-4 py-2.5">Status</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id} className="border-t border-brand-purple/5">
+                  <td className="px-4 py-2 text-xs text-ink-700/70">
+                    {new Date(r.timestamp).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-2">{r.agent_name}</td>
+                  <td className="px-4 py-2">{r.action_type}</td>
+                  <td className="px-4 py-2 text-ink-700/70">
+                    <div className="max-w-[240px] truncate" title={r.input}>{r.input}</div>
+                  </td>
+                  <td className="px-4 py-2 text-ink-700/70">
+                    <div className="max-w-[240px] truncate" title={r.output}>{r.output}</div>
+                  </td>
+                  <td className={`px-4 py-2 font-medium ${statusColor[r.status] ?? ""}`}>
+                    {r.status}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-ink-700/60">
+                    No audit entries.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

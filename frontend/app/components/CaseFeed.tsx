@@ -108,7 +108,7 @@ export default function CaseFeed() {
   );
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-x-hidden">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <span
           className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -137,43 +137,47 @@ export default function CaseFeed() {
         </select>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-brand-purple/10 bg-white shadow-sm">
-        {filtered.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setSelected(c)}
-            className={`flex w-full items-center gap-4 border-b border-brand-purple/5 px-5 py-3 text-left text-sm last:border-0 hover:bg-brand-cream/50 ${
-              selected?.id === c.id ? "bg-brand-cream/60" : ""
-            }`}
-          >
-            <span className="w-28 font-mono text-xs text-ink-700/70">{c.id}</span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                CATEGORY_COLORS[c.category] ?? "bg-ink-700/15 text-ink-800"
-              }`}
-            >
-              {c.category}
-            </span>
-            {/* At-a-glance dual label: machine category above, + a "Manual" flag
-                when a human re-routed the case (the AI label is never overwritten). */}
-            {REROUTE_QUEUES.some((q) => q.value === c.assigned_agent) && (
-              <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-red-300 bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
-                <ArrowRightLeft size={9} /> Manual
-              </span>
+      <div className="w-full max-w-full overflow-hidden rounded-2xl border border-brand-purple/10 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <div className="min-w-[760px]">
+            {filtered.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setSelected(c)}
+                className={`flex w-full items-center gap-4 border-b border-brand-purple/5 px-5 py-3 text-left text-sm last:border-0 hover:bg-brand-cream/50 ${
+                  selected?.id === c.id ? "bg-brand-cream/60" : ""
+                }`}
+              >
+                <span className="w-28 font-mono text-xs text-ink-700/70">{c.id}</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    CATEGORY_COLORS[c.category] ?? "bg-ink-700/15 text-ink-800"
+                  }`}
+                >
+                  {c.category}
+                </span>
+                {/* At-a-glance dual label: machine category above, + a "Manual" flag
+                    when a human re-routed the case (the AI label is never overwritten). */}
+                {REROUTE_QUEUES.some((q) => q.value === c.assigned_agent) && (
+                  <span className="flex shrink-0 items-center gap-0.5 rounded-full border border-red-300 bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                    <ArrowRightLeft size={9} /> Manual
+                  </span>
+                )}
+                <span className="w-20 text-xs text-ink-700/70">{c.status}</span>
+                <span className="w-32 truncate text-xs text-ink-700/70">
+                  {c.assigned_agent}
+                </span>
+                <span className="flex-1 truncate">{c.summary}</span>
+                <span className="text-xs text-ink-700/50">
+                  {new Date(c.created_at).toLocaleTimeString()}
+                </span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-5 py-6 text-sm text-ink-700/60">No cases match the filters.</p>
             )}
-            <span className="w-20 text-xs text-ink-700/70">{c.status}</span>
-            <span className="w-32 truncate text-xs text-ink-700/70">
-              {c.assigned_agent}
-            </span>
-            <span className="flex-1 truncate">{c.summary}</span>
-            <span className="text-xs text-ink-700/50">
-              {new Date(c.created_at).toLocaleTimeString()}
-            </span>
-          </button>
-        ))}
-        {filtered.length === 0 && (
-          <p className="px-5 py-6 text-sm text-ink-700/60">No cases match the filters.</p>
-        )}
+          </div>
+        </div>
       </div>
 
       {selected && (
