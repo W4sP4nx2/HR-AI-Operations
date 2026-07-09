@@ -20,6 +20,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from agents.chat_agent import chat
+from agents.pydantic_chat_agent import governed_chat
 from api.responses import fail, ok
 from core.memory import memory
 from core.security import get_current_user
@@ -62,7 +63,7 @@ async def chat_turn(
     """
     session_id = await _ensure_session(body.session_id, body.message, user)
     await memory.add_chat_message(session_id, "user", body.message)
-    result = await chat(body.message, body.history, session_id)
+    result = await governed_chat(body.message, body.history, session_id)
     await memory.add_chat_message(
         session_id,
         "assistant",
