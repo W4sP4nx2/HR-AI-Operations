@@ -44,6 +44,20 @@ def test_text_agents_pass_through_sanitized() -> None:
     assert payload == {}
 
 
+def test_external_text_agents_redact_pii_before_dispatch() -> None:
+    from services.input_shield import prepare
+
+    text, payload = prepare(
+        "resume_screener_agent",
+        "SSN 123-45-6789",
+        {"resume": "Contact jane@example.com or 415-555-1212"},
+    )
+
+    assert "123-45-6789" not in text
+    assert "jane@example.com" not in payload["resume"]
+    assert "415-555-1212" not in payload["resume"]
+
+
 def test_dispatch_attrition_with_text_returns_unavailable_not_crash() -> None:
     """End-to-end: the JSON trigger path degrades gracefully on free text."""
     from api.routes.agents import dispatch_agent
@@ -129,6 +143,28 @@ def test_demo_persona_rejected_when_enforced(monkeypatch) -> None:
     )
 
 
+def test_open_access_role_switch_mints_no_login_session(monkeypatch) -> None:
+    """Open-access role switching gives reviewers a scoped session without a password."""
+    from fastapi.testclient import TestClient
+
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "auth_enforce", False)
+    monkeypatch.setattr(settings, "jwt_secret", "test-secret-key-that-is-long-enough-0123456789")
+
+    from api.main import app
+
+    client = TestClient(app)
+    response = client.post("/auth/open-access/switch", json={"role": "manager"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["token"]
+    assert body["data"]["user"]["name"] == "HR Manager"
+    assert body["data"]["user"]["role"] == "manager"
+
+
 def test_agent_trigger_enforces_per_agent_min_role(monkeypatch) -> None:
     """Under enforcement, triggering an agent needs its contract min_role."""
     from fastapi.testclient import TestClient
@@ -154,7 +190,10 @@ def test_agent_trigger_enforces_per_agent_min_role(monkeypatch) -> None:
     # Analyst CAN trigger the analyst-tier resume screener…
     r1 = client.post(
         "/agents/resume_screener_agent/trigger",
-        json={"input": "x", "payload": {"job_description": "Python", "resume": "Python dev " * 5}},
+        json={
+            "input": "x",
+            "payload": {"job_description": "Python", "resume": "Python dev " * 5},
+        },
         headers=a,
     )
     assert r1.status_code == 200

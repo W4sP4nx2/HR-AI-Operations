@@ -1,0 +1,73 @@
+# AMD inference overlay for docker-compose.prod.yml.
+#
+# The image is published by AMD's verified `rocm` organization and includes
+# ROCm, PyTorch, and vLLM for gfx94X data-center GPUs such as MI300X.
+#
+# Usage:
+#   export AMD_VLLM_MODEL=<model path or registry id>
+#   export AMD_VLLM_SERVED_MODEL=<allowlisted served name>
+#   export AMD_VLLM_API_KEY=<random internal service key>
+#   export AMD_VLLM_BASE_URL=http://amd-vllm:8000/v1
+#   export ALLOWED_MODELS=$AMD_VLLM_SERVED_MODEL
+#   docker compose -f docker-compose.prod.yml -f docker-compose.amd.yml \
+#     --profile amd up -d
+services:
+  backend:
+    environment:
+      LLM_PROVIDER: amd_vllm
+      AMD_VLLM_API_KEY: ${AMD_VLLM_API_KEY:?set AMD_VLLM_API_KEY}
+      AMD_VLLM_BASE_URL: ${AMD_VLLM_BASE_URL:?set AMD_VLLM_BASE_URL}
+      ALLOWED_MODELS: ${ALLOWED_MODELS:?set ALLOWED_MODELS}
+    depends_on:
+      amd-vllm:
+        condition: service_healthy
+
+  amd-vllm:
+    image: ${AMD_VLLM_IMAGE:-rocm/vllm:rocm7.13.0_gfx94X-dcgpu_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1}
+    platform: linux/amd64
+    profiles: ["amd"]
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        exec python3 -m vllm.entrypoints.openai.api_server
+        --host 0.0.0.0
+        --port 8000
+        --model "$${AMD_VLLM_MODEL}"
+        --served-model-name "$${AMD_VLLM_SERVED_MODEL}"
+        --api-key "$${AMD_VLLM_API_KEY}"
+        --enable-prefix-caching
+    environment:
+      AMD_VLLM_MODEL: ${AMD_VLLM_MODEL:?set AMD_VLLM_MODEL}
+      AMD_VLLM_SERVED_MODEL: ${AMD_VLLM_SERVED_MODEL:?set AMD_VLLM_SERVED_MODEL}
+      AMD_VLLM_API_KEY: ${AMD_VLLM_API_KEY:?set AMD_VLLM_API_KEY}
+      HF_HOME: /models/huggingface
+      VLLM_CACHE_ROOT: /models/vllm
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    ipc: host
+    shm_size: 16gb
+    volumes:
+      - amd_model_cache:/models
+    ports:
+      - "${AMD_VLLM_PORT:-8001}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=3)
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  amd_model_cache:

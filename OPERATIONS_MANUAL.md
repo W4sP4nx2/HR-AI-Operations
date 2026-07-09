@@ -10,11 +10,13 @@ the system in an HR or financial enterprise. End-user guidance is in the
 ## 1. System overview
 
 - **Backend** — FastAPI (async), 5 agents, RAG pipeline, audit/case/approval store.
-- **Frontend** — Next.js 14 dashboard.
+- **Frontend** — Next.js 16 dashboard.
 - **State** — async SQLAlchemy: **SQLite** for dev, **PostgreSQL** for production
   (chosen by `DATABASE_URL`, no code change).
-- **Vector search** — Qdrant (optional; degrades gracefully if absent).
-- **LLM** — Anthropic Claude (optional; deterministic fallbacks if no key).
+- **Vector search** — Postgres + pgvector HNSW in production; local and Qdrant
+  adapters are optional.
+- **Inference** — deterministic fallback, Fireworks online/Batch, or an
+  environment-injected AMD/vLLM endpoint.
 
 The guiding principle is **graceful degradation**: the control plane, audit,
 approvals and UI always work; AI depth is additive. Nothing fails closed — when a
@@ -29,7 +31,7 @@ capability is missing the system reports `unavailable`, never silently drops wor
 # Backend
 cd backend && python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env            # set ANTHROPIC_API_KEY (optional)
+cp .env.example .env            # no secrets required for fallback mode
 uvicorn api.main:app --reload --port 8000
 
 # Frontend
@@ -40,12 +42,11 @@ npm run dev                     # http://localhost:3000
 
 ### Docker (full stack)
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...      # optional
 docker compose up --build
-# Dashboard :3000 · API :8000/docs · Qdrant :6333/dashboard
+# Dashboard :3000 · API :8000/docs · Postgres/pgvector :5432
 ```
 The compose stack has healthchecks and ordered startup (frontend waits for a
-healthy backend, backend waits for Qdrant).
+healthy backend, backend waits for Postgres).
 
 ---
 
@@ -56,10 +57,12 @@ All settings load from the environment / `.env` via `pydantic-settings`
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `ANTHROPIC_API_KEY` | — | Claude API key. Absent ⇒ deterministic fallback mode. |
+| `LLM_PROVIDER` | `fireworks` | Live provider: `fireworks`, `anthropic`, or `amd_vllm`. |
+| `FIREWORKS_API_KEY` | — | Fireworks key. Absent means deterministic fallback mode. |
+| `FIREWORKS_BASE_URL` | — | Injected Fireworks OpenAI-compatible base URL. |
+| `ALLOWED_MODELS` | — | Comma-separated model allow-list. |
 | `DATABASE_URL` | `sqlite:///./hr_command_center.db` | `sqlite:///…` (dev) or `postgresql://…` (prod). |
-| `QDRANT_URL` | `http://localhost:6333` | Vector DB endpoint. |
-| `QDRANT_COLLECTION` | `hr_policies` | Policy collection name. |
+| `VECTOR_BACKEND` | auto | `pgvector`, `local`, or explicitly pinned `qdrant`. |
 | `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` | Embedding model (falls back to a hashing embedding if not installed). |
 | `WEBHOOK_SECRET` | — | Shared secret required on inbound webhooks (see §6). |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | Allowed dashboard origins. |
@@ -118,11 +121,11 @@ Every trigger response carries a machine-readable `status` the UI button maps to
 | `error` | `false` | Attempted but failed: bad input, unreadable PDF, wrong URL scheme, unknown agent. | Surface the `error` message to the user. |
 | `unavailable` | `false` | A capability/dependency is missing or unreachable: scraper libs absent, URL fetch failed, vector DB down. The `data.capability` names it. | Enable the capability or check the dependency. |
 
-Successful results also include `_mode: "degraded" | "full"` — `degraded` means no
-LLM key, so answers are deterministic fallbacks rather than Claude-grounded.
+Successful results also include `_mode: "degraded" | "full"` — `degraded` means
+no active provider, so answers use deterministic fallbacks.
 
 > **Monitoring tip:** alert on a rising rate of `unavailable` — it usually means a
-> dependency (Qdrant, scraper egress, LLM quota) needs attention, distinct from
+> dependency (Postgres/vector search, scraper egress, provider quota) needs attention, distinct from
 > user `error`s.
 
 ---
@@ -220,7 +223,7 @@ than erroring. **Re-ingest** whenever policies change so citations stay current.
 |---------|-------|-----------|
 | Dashboard shows **System Offline** | Backend down or CORS blocked | Check `/health`; confirm `CORS_ORIGINS` includes the dashboard origin. |
 | Triggers return **unavailable: scrape** | `httpx`/`beautifulsoup4` missing or egress blocked | `pip install -r requirements.txt`; allow outbound to the target. |
-| Answers always "degraded" / no AI text | `ANTHROPIC_API_KEY` not set | Set the key and restart; verify quota. |
+| Answers always "degraded" / no AI text | Fireworks key/base URL/model allow-list incomplete | Check `/health.llm_config_issues`, set the missing values, restart, and verify quota. |
 | "No relevant policy found" | No documents ingested / Qdrant down | Ingest policies (§7); check `QDRANT_URL`. |
 | `database is locked` (SQLite) | High write concurrency on SQLite | Move to Postgres (`DATABASE_URL`); WAL+busy-timeout already mitigate. |
 | Webhook returns **signature verification failed** | Wrong/missing `X-Webhook-Secret` | Send the configured `WEBHOOK_SECRET`. |

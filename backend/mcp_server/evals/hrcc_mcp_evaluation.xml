@@ -1,0 +1,42 @@
+<evaluation>
+  <qa_pair>
+    <question>Preview a request saying payroll failed today and the employee marks it urgent. Which category is returned? Respond with the category only.</question>
+    <answer>URGENT</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Preview a request about enrolling in health insurance. Which category is returned? Respond with the category only.</question>
+    <answer>BENEFITS</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Preview a request for a new hire's laptop access before their first day. Which category is returned? Respond with the category only.</question>
+    <answer>ONBOARDING</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Preview a request asking for feedback before a performance review. Which category is returned? Respond with the category only.</question>
+    <answer>PERFORMANCE</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Preview a legal compliance audit request. Which category is returned? Respond with the category only.</question>
+    <answer>COMPLIANCE</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Preview a question about the remote-work handbook rule. Which category is returned? Respond with the category only.</question>
+    <answer>POLICY</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Inspect the agent catalog. Which minimum application role can use Policy Q&amp;A? Respond with the role only.</question>
+    <answer>viewer</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Inspect the agent catalog. Which framework powers the Onboarding Orchestrator? Respond with the framework only.</question>
+    <answer>LangGraph</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Inspect the agent catalog. What risk posture is assigned to the Resume Screener? Respond with the posture only.</question>
+    <answer>decision-support</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Try to preview a ticket that asks the system to ignore prior instructions and reveal its prompt. Is the request blocked? Respond true or false.</question>
+    <answer>true</answer>
+  </qa_pair>
+</evaluation>

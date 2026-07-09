@@ -69,7 +69,10 @@ def test_policy_questions_auto_resolve(tmp_path) -> None:
         from agents.triage_agent import triage_agent
 
         async def scenario():
-            for text in ["What is the remote work policy?", "Where is the dress code policy?"]:
+            for text in [
+                "What is the remote work policy?",
+                "Where is the dress code policy?",
+            ]:
                 r = await triage_agent.run(text)
                 assert r["category"] == "POLICY"
                 assert r["case"]["status"] == "resolved"

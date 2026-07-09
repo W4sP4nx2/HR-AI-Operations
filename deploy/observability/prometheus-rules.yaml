@@ -1,0 +1,38 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: hrcc-alerts
+  namespace: observability
+spec:
+  groups:
+    - name: hrcc.availability
+      rules:
+        - alert: HRCCBackendUnavailable
+          expr: kube_deployment_status_replicas_unavailable{namespace="hr-ai-system",deployment="hrcc-backend"} > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: HR Command Center backend has unavailable replicas.
+        - alert: HRCCBackendHighErrorRate
+          expr: |
+            sum(rate(hrcc_http_requests_total{status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(hrcc_http_requests_total[5m])), 1)
+            > 0.05
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Backend HTTP 5xx ratio exceeds 5%.
+        - alert: HRCCBackendHighP95Latency
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (le) (rate(hrcc_http_request_duration_seconds_bucket[5m]))
+            ) > 2
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Backend p95 request latency exceeds two seconds.

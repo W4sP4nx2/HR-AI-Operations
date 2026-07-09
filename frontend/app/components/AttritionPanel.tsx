@@ -231,7 +231,9 @@ export default function AttritionPanel() {
                 <BarChart data={factorData} layout="vertical" margin={{ left: 20, right: 16 }}>
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: number) => [`${v}`, "contribution"]} />
+                  <Tooltip
+                    formatter={(value) => [String(value ?? ""), "contribution"]}
+                  />
                   <Bar dataKey="contribution" radius={[0, 6, 6, 0]}>
                     {factorData.map((_, i) => (
                       <Cell key={i} fill={band.color} fillOpacity={1 - i * 0.25} />

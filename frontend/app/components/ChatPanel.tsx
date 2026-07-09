@@ -281,7 +281,7 @@ export default function ChatPanel({
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             {msg.role === "assistant" && (
-              <div className="mt-1 shrink-0 rounded-full bg-brand-magenta p-1.5">
+              <div className="mt-1 self-start shrink-0 rounded-full bg-brand-magenta p-1.5">
                 <Bot size={14} className="text-white" />
               </div>
             )}

@@ -9,6 +9,12 @@ useDefault = true
 
 [allowlist]
 description = "Allow only documented fake/placeholder API key examples in history."
+paths = [
+  '''(^|/)\.next/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)(\.pytest_cache|\.ruff_cache|__pycache__)/''',
+]
 regexes = [
   '''sk-ant-\.\.\.''',
   '''sk-ant-FAKE[-A-Za-z0-9_]*''',

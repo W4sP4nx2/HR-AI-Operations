@@ -91,6 +91,29 @@ export interface PendingTask {
   created_at: string;
 }
 
+export interface FireworksBatchStatus {
+  job_id: string;
+  status:
+    | "validating"
+    | "pending"
+    | "running"
+    | "completed"
+    | "failed"
+    | "expired"
+    | "cancelled"
+    | "unknown";
+  label: string;
+  provider_state: string;
+  explanation: string;
+  provider_message: string;
+  progress_percent: number | null;
+  processed_requests: number | null;
+  total_requests: number | null;
+  failed_requests: number | null;
+  terminal: boolean;
+  poll_after_seconds: number | null;
+}
+
 const TOKEN_KEY = "hr_access_token";
 
 /** Read/write the JWT access token from localStorage (browser only). */
@@ -209,6 +232,12 @@ export const api = {
 
   /** Operational metrics derived from the audit log + cases. */
   metrics: () => probeRequest<Metrics>("/metrics"),
+
+  /** Inspect a known Fireworks Batch job (manager+ in enforced deployments). */
+  fireworksBatchStatus: (jobId: string) =>
+    request<FireworksBatchStatus>(
+      `/lifecycle/fireworks/batch/${encodeURIComponent(jobId)}`
+    ),
 
   /** Manually trigger an agent. */
   triggerAgent: (name: string, input: string, payload?: unknown) =>
@@ -378,9 +407,9 @@ export const api = {
 
   me: () => request<AuthUser>("/auth/me"),
 
-  /** Demo-mode role switch: mint a token for a pre-seeded persona (no password). */
-  demoSwitch: (role: Role) =>
-    request<AuthSession>("/auth/demo/switch", {
+  /** Open-access role switch: mint a scoped token for a pre-seeded role. */
+  switchPersona: (role: Role) =>
+    request<AuthSession>("/auth/open-access/switch", {
       method: "POST",
       body: JSON.stringify({ role }),
     }),

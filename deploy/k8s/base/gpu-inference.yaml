@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hrcc-gpu-inference
+  labels:
+    hrcc.openai-compatible: "true"
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hrcc-gpu-inference
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hrcc-gpu-inference
+        app.kubernetes.io/component: inference
+        hrcc.workload-isolation: dedicated-gpu
+    spec:
+      serviceAccountName: hrcc-gpu-inference
+      automountServiceAccountToken: false
+      nodeSelector:
+        accelerator: amd-instinct-mi300x
+      tolerations:
+        - key: amd.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: inference
+          image: rocm/vllm:rocm7.13.0_gfx94X-dcgpu_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - python3
+            - -m
+            - vllm.entrypoints.openai.api_server
+          args:
+            - --host=0.0.0.0
+            - --port=8000
+            - --model=$(MODEL_ID)
+            - --served-model-name=$(SERVED_MODEL_NAME)
+            - --api-key=$(AMD_VLLM_API_KEY)
+            - --enable-prefix-caching
+          env:
+            - name: MODEL_ID
+              valueFrom:
+                secretKeyRef:
+                  name: hrcc-secrets
+                  key: GPU_MODEL_ID
+            - name: SERVED_MODEL_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: hrcc-secrets
+                  key: GPU_SERVED_MODEL_NAME
+            - name: AMD_VLLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hrcc-secrets
+                  key: AMD_VLLM_API_KEY
+            - name: HF_HOME
+              value: /models/huggingface
+            - name: VLLM_CACHE_ROOT
+              value: /models/vllm
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "4"
+              memory: 32Gi
+              amd.com/gpu: "1"
+            limits:
+              cpu: "16"
+              memory: 128Gi
+              amd.com/gpu: "1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+            - name: shm
+              mountPath: /dev/shm
+            - name: runtime-cache
+              mountPath: /tmp
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: hrcc-model-cache
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+        - name: runtime-cache
+          emptyDir:
+            sizeLimit: 8Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hrcc-gpu-inference
+spec:
+  selector:
+    app.kubernetes.io/name: hrcc-gpu-inference
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: hrcc-gpu-inference
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hrcc-gpu-inference
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hrcc-model-cache
+spec:
+  accessModes: ["ReadOnlyMany"]
+  resources:
+    requests:
+      storage: 500Gi

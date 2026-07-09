@@ -35,8 +35,22 @@ services:
         value: "true"
       - key: ENVIRONMENT
         value: production
+      - key: LLM_PROVIDER
+        value: fireworks
       # BYOK SANDBOX: leave this UNSET in the dashboard — no global server key.
-      - key: ANTHROPIC_API_KEY
+      - key: FIREWORKS_API_KEY
+        sync: false
+      - key: FIREWORKS_BASE_URL
+        sync: false
+      - key: FIREWORKS_CONTROL_BASE_URL
+        sync: false
+      - key: FIREWORKS_ACCOUNT_ID
+        sync: false
+      - key: FIREWORKS_VISION_MODEL
+        sync: false
+      - key: ENABLE_RESUME_VLM
+        value: "false"
+      - key: ALLOWED_MODELS
         sync: false
       - key: ADMIN_EMAIL
         sync: false

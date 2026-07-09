@@ -191,6 +191,20 @@ chat_messages_t = Table(
     Index("idx_chat_messages_session", "session_id", "created_at"),
 )
 
+batch_jobs_t = Table(
+    "batch_jobs",
+    metadata,
+    Column("job_id", String(128), primary_key=True),
+    Column("status", String(32), nullable=False),
+    Column("provider_state", String(64), nullable=False),
+    Column("processed_requests", Integer),
+    Column("total_requests", Integer),
+    Column("failed_requests", Integer),
+    Column("output_dataset_id", String(128)),
+    Column("updated_at", String(40), nullable=False),
+    Index("idx_batch_jobs_status", "status", "updated_at"),
+)
+
 
 def _utcnow() -> str:
     """Return the current UTC timestamp as an ISO-8601 string."""
@@ -473,7 +487,9 @@ class Memory:
                 {
                     "id": r["id"],
                     "agent_name": r["agent_name"],
-                    "decision": "approved" if r["action_type"] == "human_approved" else "rejected",
+                    "decision": (
+                        "approved" if r["action_type"] == "human_approved" else "rejected"
+                    ),
                     "step": inp.get("step"),
                     "reason": inp.get("reason") or "",
                     "decided_by_id": inp.get("decided_by_id"),
@@ -746,7 +762,12 @@ class Memory:
         for r in rows:
             d = agg.setdefault(
                 r["risk_driver"],
-                {"risk_driver": r["risk_driver"], "accepted": 0, "rejected": 0, "edited": 0},
+                {
+                    "risk_driver": r["risk_driver"],
+                    "accepted": 0,
+                    "rejected": 0,
+                    "edited": 0,
+                },
             )
             if r["action_taken"] in ("accepted", "rejected", "edited"):
                 d[r["action_taken"]] = int(r["n"])
@@ -759,6 +780,59 @@ class Memory:
             out.append(d)
         out.sort(key=lambda d: d["total"], reverse=True)
         return out
+
+    # ------------------------------------------------------------------ #
+    # Fireworks Batch job ledger (metadata only; no resume/provider output)
+    # ------------------------------------------------------------------ #
+    async def upsert_batch_job(
+        self,
+        *,
+        job_id: str,
+        status: str,
+        provider_state: str,
+        processed_requests: int | None = None,
+        total_requests: int | None = None,
+        failed_requests: int | None = None,
+        output_dataset_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Persist normalized Batch progress without candidate content."""
+        await self._ensure_schema()
+        record = {
+            "job_id": job_id,
+            "status": status,
+            "provider_state": provider_state,
+            "processed_requests": processed_requests,
+            "total_requests": total_requests,
+            "failed_requests": failed_requests,
+            "output_dataset_id": output_dataset_id,
+            "updated_at": _utcnow(),
+        }
+        async with self._engine.begin() as conn:
+            exists = (
+                await conn.execute(
+                    select(batch_jobs_t.c.job_id).where(batch_jobs_t.c.job_id == job_id)
+                )
+            ).first()
+            if exists:
+                await conn.execute(
+                    update(batch_jobs_t)
+                    .where(batch_jobs_t.c.job_id == job_id)
+                    .values(**{key: value for key, value in record.items() if key != "job_id"})
+                )
+            else:
+                await conn.execute(insert(batch_jobs_t).values(**record))
+        return record
+
+    async def get_batch_job(self, job_id: str) -> dict[str, Any] | None:
+        """Return one locally reconciled Batch job."""
+        await self._ensure_schema()
+        async with self._engine.connect() as conn:
+            row = (
+                (await conn.execute(select(batch_jobs_t).where(batch_jobs_t.c.job_id == job_id)))
+                .mappings()
+                .first()
+            )
+        return dict(row) if row else None
 
     # ------------------------------------------------------------------ #
     # Policy registry (tracks documents ingested into the vector store)

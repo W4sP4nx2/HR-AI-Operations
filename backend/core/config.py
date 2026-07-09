@@ -15,8 +15,13 @@ class Settings(BaseSettings):
     """Central settings object for the HR AI Command Center backend.
 
     Attributes:
+        llm_provider: LLM backend ("anthropic", "fireworks", or empty/mock).
         anthropic_api_key: API key for Anthropic Claude. Loaded from env.
-        claude_model: Claude model identifier used for all LLM calls.
+        claude_model: Claude model identifier used for Anthropic calls.
+        fireworks_api_key: API key for Fireworks. Loaded from env.
+        fireworks_base_url: OpenAI-compatible Fireworks base URL. Loaded from env.
+        amd_vllm_base_url: Self-hosted AMD vLLM OpenAI-compatible base URL.
+        allowed_models: Comma-separated model allow-list injected by the harness.
         qdrant_url: URL of the running Qdrant vector database.
         qdrant_collection: Name of the Qdrant collection for HR policy chunks.
         database_url: SQLAlchemy-style URL for the SQLite database.
@@ -35,14 +40,36 @@ class Settings(BaseSettings):
     )
 
     # --- Secrets / external services -------------------------------------
+    llm_provider: str = "fireworks"
     anthropic_api_key: str = ""
     claude_model: str = "claude-sonnet-4-20250514"
+    fireworks_api_key: str = ""
+    fireworks_base_url: str = ""
+    fireworks_control_base_url: str = ""
+    fireworks_account_id: str = ""
+    fireworks_max_retries: int = 4
+    fireworks_session_affinity: bool = True
+    fireworks_serving_mode: str = "serverless"
+    fireworks_batch_timeout_seconds: float = 30.0
+    fireworks_vision_model: str = ""
+    amd_vllm_api_key: str = ""
+    amd_vllm_base_url: str = ""
+    allowed_models: str = ""
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "hr_policies"
     database_url: str = "sqlite:///./hr_command_center.db"
 
     # --- Models ----------------------------------------------------------
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_provider: str = "local"
+    fireworks_embedding_model: str = ""
+    embedding_batch_size: int = 32
+    embedding_device: str = "auto"
+    vector_write_batch_size: int = 128
+    enable_gpu_kernels: bool = False
+    gpu_kernel_min_corpus: int = 10_000
+    gpu_kernel_min_speedup: float = 1.5
+    gpu_kernel_measured_speedup: float = 0.0
 
     # --- App -------------------------------------------------------------
     environment: str = "development"
@@ -86,6 +113,9 @@ class Settings(BaseSettings):
     policy_cache_size: int = 32
     # How long (seconds) a cached RAG answer stays fresh. 0 = no expiry.
     semantic_cache_ttl: int = 3600
+    # Bound chat policy search so a cold embedder or unavailable vector backend
+    # cannot leave the browser streaming forever.
+    chat_policy_timeout_seconds: float = 15.0
 
     # --- Cost / abuse controls -------------------------------------------
     # Per-IP request budget over a rolling window. 0 disables the limiter
@@ -94,6 +124,8 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 3600
     # Reject uploads larger than this (PDF policies / resumes). DoS + cost guard.
     max_upload_size_mb: int = 10
+    enable_resume_vlm: bool = False
+    resume_vlm_max_pages: int = 10
 
     # --- Safety / observability ------------------------------------------
     # Redact emails / phone / common IDs from text written to audit + chat + tools.

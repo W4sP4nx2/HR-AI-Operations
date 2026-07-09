@@ -17,8 +17,8 @@ export default function UserMenu() {
   const { user, isAuthed, logout } = useAuth();
   const [open, setOpen] = useState(false);
 
-  // No signed-in persona → render nothing. The Launchpad sets the initial
-  // persona and the sidebar "View as" switcher handles changes; a separate
+  // No signed-in role → render nothing. The Launchpad sets the initial
+  // role and the sidebar "View as" switcher handles changes; a separate
   // sign-in button here would be redundant.
   if (!isAuthed || !user) return null;
 

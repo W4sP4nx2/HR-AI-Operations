@@ -37,6 +37,14 @@ def test_synthesis_prompt_forbids_training_knowledge() -> None:
     assert "training" in p.lower()  # explicitly bans parametric knowledge
 
 
+def test_policy_synthesis_rejects_missing_or_invalid_citations() -> None:
+    from pipelines.rag_pipeline import RAGPipeline
+
+    assert RAGPipeline._citations_valid("Leave is 12 weeks [1].", 2) is True
+    assert RAGPipeline._citations_valid("Leave is 12 weeks.", 2) is False
+    assert RAGPipeline._citations_valid("Leave is 12 weeks [3].", 2) is False
+
+
 def test_rag_query_empty_db_flags_review_and_refuses() -> None:
     """End-to-end on an empty index: honest refusal + needs_review."""
     from services import rag

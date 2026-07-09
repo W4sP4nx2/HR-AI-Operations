@@ -36,19 +36,35 @@ class Golden:
 GOLDENS: list[Golden] = [
     # --- URGENT must escalate to a human ---
     Golden("I'm being harassed by my manager", category="URGENT", escalated=True),
-    Golden("There is a safety violation on the warehouse floor", category="URGENT", escalated=True),
     Golden(
-        "Payroll is broken and pay runs in an hour — urgent!", category="URGENT", escalated=True
+        "There is a safety violation on the warehouse floor",
+        category="URGENT",
+        escalated=True,
     ),
-    Golden("I want to report retaliation after my complaint", category="URGENT", escalated=True),
+    Golden(
+        "Payroll is broken and pay runs in an hour — urgent!",
+        category="URGENT",
+        escalated=True,
+    ),
+    Golden(
+        "I want to report retaliation after my complaint",
+        category="URGENT",
+        escalated=True,
+    ),
     Golden("urgent outage", category="URGENT", escalated=True),  # real Cases-ledger case
     # --- POLICY auto-resolves ---
     Golden("What is the remote work policy?", category="POLICY"),
     Golden("Where can I find the dress code policy?", category="POLICY"),
     # --- Other categories route, but never escalate as URGENT ---
-    Golden("How do I enroll in health insurance benefits?", category="BENEFITS", not_urgent=True),
     Golden(
-        "My laptop access isn't set up for my first day", category="ONBOARDING", not_urgent=True
+        "How do I enroll in health insurance benefits?",
+        category="BENEFITS",
+        not_urgent=True,
+    ),
+    Golden(
+        "My laptop access isn't set up for my first day",
+        category="ONBOARDING",
+        not_urgent=True,
     ),
     Golden("When is my next performance review?", category="PERFORMANCE", not_urgent=True),
     # --- Negatives: routine requests must NOT be flagged urgent ---

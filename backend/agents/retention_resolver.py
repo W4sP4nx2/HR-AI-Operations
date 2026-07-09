@@ -62,6 +62,23 @@ _FACTOR_POLICY: dict[str, tuple[str, str]] = {
     ),
 }
 
+_POLICY_HANDOFF_OBJECTIVES: dict[str, Any] = {
+    "schema": {
+        "type": "object",
+        "properties": {
+            "answer": {"type": "string"},
+            "mode": {"type": "string"},
+            "source_documents": {"type": "array", "items": {"type": "object"}},
+            "confidence_score": {"type": "number", "minimum": 0, "maximum": 1},
+            "needs_review": {"type": "boolean"},
+            "prompt_version": {"type": "string"},
+        },
+        "required": ["answer", "source_documents", "confidence_score", "needs_review"],
+        "additionalProperties": True,
+    },
+    "require_pii_free": True,
+}
+
 
 class RetentionResolver:
     """Maps attrition drivers to grounded, policy-cited retention suggestions."""
@@ -92,10 +109,24 @@ class RetentionResolver:
                 continue
             policy_query, suggestion = mapping
             try:
-                res = await asyncio.wait_for(rag.query(policy_query), timeout=self.TIMEOUT_S)
+                from core.a2a_envelope import certified_handoff
+
+                envelope = await asyncio.wait_for(
+                    certified_handoff(
+                        source_agent="policy_qa_agent",
+                        target_agent="retention_resolver",
+                        func=lambda payload: rag.query(str(payload["query"])),
+                        payload={"query": policy_query},
+                        objectives=_POLICY_HANDOFF_OBJECTIVES,
+                    ),
+                    timeout=self.TIMEOUT_S,
+                )
             except Exception:  # noqa: BLE001 — advisory: a lookup must never block prediction
                 continue
-            grounded = res.get("mode") != "no_context"
+            if not envelope.certification.is_valid:
+                continue
+            res = envelope.payload
+            grounded = bool(res) and res.get("mode") != "no_context"
             out.append(
                 {
                     "factor": name,

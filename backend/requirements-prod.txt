@@ -3,7 +3,7 @@
 # The app degrades gracefully, so the heavy ML stack (torch via
 # sentence-transformers, CrewAI, LangGraph, LangChain) is intentionally EXCLUDED:
 # triage uses the keyword classifier, the resume screener uses the hashing
-# embedding, and RAG/LLM run via the Anthropic SDK directly when a key is set.
+# embedding, and RAG/LLM run via the configured Pydantic AI provider when set.
 # For full semantic RAG + CrewAI/LangGraph orchestration, install the dev
 # requirements.txt instead (much larger image).
 
@@ -30,10 +30,11 @@ email-validator
 # --- LLM / agents (light) ---
 anthropic
 pydantic-ai==1.104.0
-pydantic-ai-slim[anthropic]==1.104.0
+pydantic-ai-slim[anthropic,openai]==1.104.0
 
 # --- Documents / intake / scraping ---
 pypdf
+pypdfium2>=4.30,<5
 httpx
 beautifulsoup4
 
@@ -41,4 +42,6 @@ beautifulsoup4
 scikit-learn
 numpy
 pandas
+prometheus-client
+pyyaml
 qdrant-client

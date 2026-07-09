@@ -10,17 +10,40 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
 from typing import Any
 
-DEFAULT_MODEL = "accounts/fireworks/models/llama-v3p1-8b-instruct"
 DEFAULT_SYSTEM_PROMPT = (
     "You are an HR resume screening assistant. Return concise JSON evidence for "
     "human recruiter review. Do not make autonomous hiring decisions."
 )
 MAX_BATCH_BYTES = 1024 * 1024 * 1024
+BATCH_OBJECTIVES: dict[str, Any] = {
+    "schema": {
+        "type": "object",
+        "properties": {
+            "score": {"type": "integer", "minimum": 0, "maximum": 100},
+            "recommendation": {"type": "string"},
+            "matched_skills": {"type": "array", "items": {"type": "string"}},
+            "missing_skills": {"type": "array", "items": {"type": "string"}},
+            "reasoning": {"type": "string"},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        },
+        "required": [
+            "score",
+            "recommendation",
+            "matched_skills",
+            "missing_skills",
+            "reasoning",
+        ],
+        "additionalProperties": True,
+    },
+    "min_confidence": 0.0,
+    "require_pii_free": True,
+}
 
 
 class BatchPreparationError(RuntimeError):
@@ -192,6 +215,99 @@ def _read_job_description(args: argparse.Namespace) -> str:
     return args.job_description or ""
 
 
+def _resolve_model_id(model: str) -> str:
+    model = model.strip()
+    if model:
+        return model
+    allowed = [
+        item.strip() for item in os.environ.get("ALLOWED_MODELS", "").split(",") if item.strip()
+    ]
+    if allowed:
+        return allowed[0]
+    raise SystemExit(
+        "Model ID required. Pass --model or set ALLOWED_MODELS. "
+        "No defaults allowed for governed inference."
+    )
+
+
+def _response_text_from_record(record: dict[str, Any]) -> str:
+    for key in ("response", "output", "content"):
+        value = record.get(key)
+        if isinstance(value, str):
+            return value
+        if isinstance(value, dict):
+            nested = _response_text_from_record(value)
+            if nested:
+                return nested
+
+    choices = record.get("choices")
+    if isinstance(choices, list) and choices:
+        first = choices[0]
+        if isinstance(first, dict):
+            message = first.get("message")
+            if isinstance(message, dict) and isinstance(message.get("content"), str):
+                return message["content"]
+            if isinstance(first.get("text"), str):
+                return first["text"]
+    body = record.get("body")
+    if isinstance(body, dict):
+        return _response_text_from_record(body)
+    return ""
+
+
+def _certify_batch_results(
+    records: list[dict[str, Any]],
+    *,
+    objectives: dict[str, Any] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    from pydantic import ValidationError
+
+    from core.fireworks_certifier import FireworksOutputCertifier
+
+    certifier = FireworksOutputCertifier()
+    objectives = objectives or BATCH_OBJECTIVES
+    certified_rows: list[dict[str, Any]] = []
+    failed_rows: list[dict[str, Any]] = []
+    for record in records:
+        response = _response_text_from_record(record)
+        if not response:
+            failed_rows.append(
+                {
+                    **record,
+                    "certified": False,
+                    "violations": ["missing_response"],
+                }
+            )
+            continue
+        result = certifier.certify(response, objectives)
+        if isinstance(result, ValidationError):
+            failed_rows.append(
+                {
+                    **record,
+                    "certified": False,
+                    "violations": ["schema_validation_failed"],
+                    "validation_errors": result.errors(),
+                }
+            )
+            continue
+        output = {
+            **record,
+            "certified": result.is_valid,
+            "confidence": result.confidence,
+            "certification": result.model_dump(),
+        }
+        if result.is_valid:
+            certified_rows.append(output)
+        else:
+            failed_rows.append({**output, "violations": result.violations})
+    return certified_rows, failed_rows
+
+
+def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
+    payload = "\n".join(json.dumps(record, ensure_ascii=False) for record in records)
+    path.write_text(payload + ("\n" if payload else ""), encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Convert a folder of PDF resumes into Fireworks Batch JSONL."
@@ -204,15 +320,43 @@ def main(argv: list[str] | None = None) -> int:
         default=Path("output.jsonl"),
         help="Output JSONL path (default: output.jsonl)",
     )
-    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument(
+        "--model",
+        default="",
+        help="Fireworks model id. Required unless ALLOWED_MODELS supplies one.",
+    )
     parser.add_argument("--system-prompt", default=DEFAULT_SYSTEM_PROMPT)
     parser.add_argument("--max-tokens", type=int, default=800)
     parser.add_argument("--job-description", default="")
     parser.add_argument("--job-description-file", type=Path)
+    parser.add_argument(
+        "--certify-results",
+        action="store_true",
+        help="Treat input as Fireworks Batch results and split certified/failed JSONL.",
+    )
+    parser.add_argument(
+        "--failed-output",
+        type=Path,
+        help="Failed-result JSONL path when --certify-results is used.",
+    )
     args = parser.parse_args(argv)
 
     if not args.input.exists():
         raise SystemExit(f"input not found: {args.input}")
+    if args.certify_results:
+        if args.input.is_dir():
+            raise SystemExit("--certify-results expects a JSON or JSONL result file")
+        records = _load_json_records(args.input)
+        certified, failed = _certify_batch_results(records)
+        failed_output = args.failed_output or args.output.with_suffix(".failed.jsonl")
+        _write_jsonl(args.output, certified)
+        _write_jsonl(failed_output, failed)
+        print(
+            f"certified {len(certified)} records to {args.output}; "
+            f"wrote {len(failed)} failures to {failed_output}"
+        )
+        return 0
+
     if args.input.is_dir():
         records = _text_records_from_directory(
             args.input,
@@ -222,9 +366,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         records = _load_json_records(args.input)
 
+    model_id = _resolve_model_id(args.model)
     payload = _build_batch_jsonl(
         records,
-        model=args.model,
+        model=model_id,
         system_prompt=args.system_prompt,
         max_tokens=args.max_tokens,
     )

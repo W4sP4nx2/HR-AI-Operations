@@ -101,7 +101,8 @@ async def get_current_user(request: Request) -> dict[str, Any]:
     if not token:
         if settings.auth_enforce:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="authentication required"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="authentication required",
             )
         return ANONYMOUS
 
@@ -109,7 +110,8 @@ async def get_current_user(request: Request) -> dict[str, Any]:
     if not claims:
         if settings.auth_enforce:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid or expired token"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid or expired token",
             )
         return ANONYMOUS
 

@@ -77,7 +77,14 @@ class ResumeResolver:
             end_raw = m.group(2).lower()
             open_ended = not end_raw.isdigit()
             end = cur if open_ended else int(end_raw)
-            spans.append({"start": start, "end": end, "open_ended": open_ended, "raw": m.group(0)})
+            spans.append(
+                {
+                    "start": start,
+                    "end": end,
+                    "open_ended": open_ended,
+                    "raw": m.group(0),
+                }
+            )
             if len(spans) >= _MAX_SPANS:
                 break
         state["spans"] = spans

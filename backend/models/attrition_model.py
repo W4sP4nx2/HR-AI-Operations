@@ -7,7 +7,7 @@ A scikit-learn ``RandomForestClassifier`` trained on the public features:
 If no real dataset is supplied the model trains on synthetic data generated at
 startup. Predictions return an attrition risk score in [0, 1] plus the top
 contributing risk factors (from feature importances weighted by the input).
-Claude is used to produce a plain-English explanation of each prediction.
+The configured live provider can produce a plain-English explanation.
 
 The public contract deliberately remains six job-related numeric signals. The
 model internally adds one engineered interaction term, ``disengagement_index``,
@@ -21,7 +21,9 @@ from typing import Any
 
 import numpy as np
 
+from agents.prompts import ATTRITION_EXPLANATION
 from core.config import settings
+from models.naive_baselines import attrition_rule_baseline
 
 FEATURES = [
     "tenure_months",
@@ -133,7 +135,11 @@ class AttritionModel:
         """Initialise and train the model on synthetic data by default."""
         self._model = None
         self._trained = False
-        self.train()
+        try:
+            self.train()
+        except ImportError:
+            # Lean/offline builds retain an explicit, interpretable fallback.
+            self._trained = False
 
     def train(self, x: np.ndarray | None = None, y: np.ndarray | None = None) -> dict[str, Any]:
         """Train (or retrain) the classifier.
@@ -163,7 +169,7 @@ class AttritionModel:
         )
         sample_weight = 1 + (2.0 * slow_burn_weight)
 
-        model = RandomForestClassifier(n_estimators=240, max_depth=8, random_state=42, n_jobs=-1)
+        model = RandomForestClassifier(n_estimators=240, max_depth=8, random_state=42, n_jobs=1)
         model.fit(x, y, sample_weight=sample_weight)
         self._model = model
         self._trained = True
@@ -203,10 +209,10 @@ class AttritionModel:
         public = np.array([[features[f] for f in FEATURES]], dtype=float)
         return _augment_matrix(public)
 
-    def _claude_explanation(
+    def _llm_explanation(
         self, score: float, factors: list[dict[str, Any]], features: dict[str, float]
     ) -> str:
-        """Generate a plain-English explanation via Claude.
+        """Generate a plain-English explanation via the configured live provider.
 
         Args:
             score: The attrition risk score.
@@ -215,10 +221,11 @@ class AttritionModel:
 
         Returns:
             A short natural-language explanation. Falls back to a templated
-            string if the Anthropic client is unavailable.
+            string if the provider is unavailable.
         """
         factor_names = ", ".join(FACTOR_DISPLAY.get(f["factor"], f["factor"]) for f in factors)
-        from core.runtime_key import effective_api_key, llm_active
+        from core.llm_factory import run_text_completion
+        from core.runtime_key import llm_active
 
         if not llm_active():
             return (
@@ -227,22 +234,19 @@ class AttritionModel:
                 f"recent recognition and growth opportunities."
             )
         try:
-            import anthropic
-
-            client = anthropic.Anthropic(api_key=effective_api_key())
             prompt = (
-                "You are an HR analytics assistant. In 2-3 sentences, explain this "
-                "attrition prediction in plain English for a manager. Be supportive "
-                "and action-oriented; do not expose raw model internals.\n\n"
                 f"Risk score: {score:.2f}\nTop factors: {factor_names}\n"
                 f"Employee features: {features}"
             )
-            msg = client.messages.create(
-                model=settings.claude_model,
+            answer = run_text_completion(
+                prompt,
+                role="attrition_explanation",
+                system_prompt=ATTRITION_EXPLANATION.text,
                 max_tokens=250,
-                messages=[{"role": "user", "content": prompt}],
             )
-            return msg.content[0].text
+            if answer is None:
+                raise RuntimeError("provider returned no completion")
+            return answer
         except Exception as exc:  # noqa: BLE001
             return (
                 f"Estimated attrition risk is {score:.0%}; key drivers: {factor_names}. "
@@ -260,11 +264,24 @@ class AttritionModel:
             ``explanation``.
         """
         if not self._trained:
-            self.train()
-        row = self._model_row(features)
-        score = float(self._model.predict_proba(row)[0][1])
-        factors = self._explain_factors(features)
-        explanation = self._claude_explanation(score, factors, features)
+            try:
+                self.train()
+            except ImportError:
+                baseline = attrition_rule_baseline.predict(features)
+                score = baseline.score
+                factors = [
+                    {"factor": factor, "contribution": contribution}
+                    for factor, contribution in baseline.contributions[:3]
+                ]
+            else:
+                row = self._model_row(features)
+                score = float(self._model.predict_proba(row)[0][1])
+                factors = self._explain_factors(features)
+        else:
+            row = self._model_row(features)
+            score = float(self._model.predict_proba(row)[0][1])
+            factors = self._explain_factors(features)
+        explanation = self._llm_explanation(score, factors, features)
         # High-risk predictions are flagged for human bias review before any
         # action (EEOC disparate-impact safeguard). The model takes NO protected
         # attributes (race/gender/age) as input — only the six job features.

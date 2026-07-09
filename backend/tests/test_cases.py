@@ -128,7 +128,10 @@ async def test_reroute_records_override_and_reassigns(reroute_client) -> None:
     """Re-routing hands the case to a human queue and writes a triage_override row."""
     c, mem = reroute_client
     case = await mem.create_case(
-        category="POLICY", summary="misrouted", assigned_agent="policy_qa_agent", status="resolved"
+        category="POLICY",
+        summary="misrouted",
+        assigned_agent="policy_qa_agent",
+        status="resolved",
     )
     r = await c.patch(
         f"/cases/{case['id']}/reroute",

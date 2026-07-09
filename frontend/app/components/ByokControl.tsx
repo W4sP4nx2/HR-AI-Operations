@@ -8,7 +8,7 @@
  * `/byok/verify`, which actually authenticates the key against the provider:
  *   • verified    → green pulse ("your key · verified"),
  *   • rejected    → cleared + error (bad/expired key — caught before any agent run),
- *   • unverifiable → kept, amber dot ("unverified" — provider unreachable / offline demo).
+ *   • unverifiable → kept, amber dot ("unverified" — provider unreachable / offline run).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -19,8 +19,10 @@ type State = "idle" | "verified" | "unverified";
 
 export default function ByokControl({
   onActiveChange,
+  placement = "down",
 }: {
   onActiveChange?: (active: boolean) => void;
+  placement?: "up" | "down";
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
@@ -94,7 +96,7 @@ export default function ByokControl({
       <button
         onClick={() => setOpen((o) => !o)}
         title={state === "idle" ? "Use your own API key" : "Manage your API key"}
-        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${chip.cls}`}
+        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-medium transition ${chip.cls}`}
       >
         {state === "verified" ? (
           <span className="relative flex h-2 w-2">
@@ -110,8 +112,14 @@ export default function ByokControl({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-brand-purple/10 bg-white p-3 shadow-xl">
-          <p className="mb-1 text-xs font-semibold text-brand-purple">Bring your own API key</p>
+        <div
+          className={`absolute right-0 z-50 w-72 rounded-xl border border-brand-purple/10 bg-white p-3 shadow-xl ${
+            placement === "up" ? "bottom-full mb-2" : "top-full mt-2"
+          }`}
+        >
+            <p className="mb-1 text-xs font-semibold text-brand-purple">
+              Bring your own Fireworks key
+            </p>
           <p className="mb-2 text-[11px] leading-snug text-ink-700/60">
             Verified against the provider on save. Stored only in this tab; sent
             per-request; <strong>never saved on the server</strong>.
@@ -121,7 +129,7 @@ export default function ByokControl({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && value.trim() && save()}
-            placeholder="sk-ant-…"
+            placeholder="Paste Fireworks API key"
             className="w-full rounded-lg border border-brand-purple/15 px-3 py-1.5 text-sm outline-none focus:border-brand-magenta"
           />
           {error && <p className="mt-1.5 text-[11px] text-red-500">{error}</p>}

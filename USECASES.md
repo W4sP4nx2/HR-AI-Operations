@@ -13,8 +13,9 @@ the **dashboard** shows.
 > # frontend (separate shell)
 > cd frontend && npm run dev    # → http://localhost:3000
 > ```
-> Everything works in **fallback mode** with no secrets. Add `ANTHROPIC_API_KEY`
-> (and run Qdrant) to upgrade answers from deterministic → LLM-grounded.
+> Everything works in **fallback mode** with no secrets. Ingest policies into
+> pgvector and configure an allowlisted Fireworks or AMD/vLLM endpoint to upgrade
+> answers from deterministic excerpts to model-grounded synthesis.
 
 ---
 
@@ -34,9 +35,9 @@ curl -s -X POST http://localhost:8000/agents/policy_qa_agent/trigger \
   "answer": "(LLM disabled — showing top retrieved policy excerpt)\n\nNo relevant policy found.",
   "source_documents": [], "confidence_score": 0.0 } }
 ```
-**With policies ingested + `ANTHROPIC_API_KEY`:** a grounded answer that cites the
-specific policy document and version, with a confidence score from the top
-retrieval cosine similarity. Every query is written to the audit log.
+**With policies ingested + an active provider:** a grounded answer that cites
+the specific policy document and version, with a confidence score from
+retrieval. Every query is written to the audit log.
 
 **In the UI:** the employee never sees raw JSON — HR ops watches Policy Q&A runs
 tick up in the **Fleet** panel and can spot-check answers in **Audit**.
@@ -230,12 +231,12 @@ curl -s http://localhost:8000/health      # {status, agents_registered, agents_a
 
 ## What changes when you add secrets / scale up
 
-| Capability | Fallback mode (today) | + `ANTHROPIC_API_KEY` | + Qdrant | + LangSmith |
+| Capability | Fallback mode (today) | + Fireworks configuration | + pgvector | + LangSmith |
 |------------|----------------------|----------------------|----------|-------------|
-| Policy Q&A | top retrieved excerpt | Claude-synthesised, cited answer | real top-k semantic retrieval | full trace + eval scores |
+| Policy Q&A | top retrieved excerpt | Fireworks-synthesised, cited answer | real top-k semantic retrieval | full trace + eval scores |
 | Triage     | keyword classifier | LLM classifier (CrewAI) | POLICY auto-resolve via RAG | per-run observability |
 | Resume     | hashing-embedding score | CrewAI 3-agent narrative review | — | — |
-| Attrition  | RandomForest + templated text | Claude plain-English explanation | — | — |
+| Attrition  | RandomForest + templated text | Fireworks plain-English explanation | — | — |
 
 Nothing about the **workflows, audit, approvals, or UI** changes — only the depth
 of the intelligence. That separation is what lets you demo the whole system on a

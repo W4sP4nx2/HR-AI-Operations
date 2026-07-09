@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * Launchpad — the demo's landing card (replaces the fake login gate).
+ * Launchpad — open-access landing card.
  *
- * A visitor picks a starting **persona** (which mints a real per-role demo JWT)
+ * A visitor picks a starting **workspace role** (which mints a scoped JWT)
  * and lands straight in the app; the sidebar "View as" switcher then lets them
- * swap personas in real time. The **BYOK affordance row** is surfaced here so
+ * swap roles in real time. The **BYOK affordance row** is surfaced here so
  * evaluators immediately see the zero-data-retention "use your own key" sandbox.
  *
- * Shown only in demo mode (AUTH_ENFORCE off). Enforced deployments fall back to
+ * Shown only in open-access mode (AUTH_ENFORCE off). Enforced deployments fall back to
  * the email/password LoginScreen.
  */
 
@@ -49,7 +49,7 @@ export default function Launchpad() {
           HR AI Command Center
         </div>
         <p className="mb-3 text-sm text-ink-700/60">
-          A safe, audited AI layer for HR. Pick a role to explore — no login, no setup.
+          A safe, audited AI layer for HR. Pick a workspace role — no login, no setup.
         </p>
 
         {/* Guardrails showcase — the safety posture as a feature, not fine print. */}
@@ -104,17 +104,19 @@ export default function Launchpad() {
         {/* BYOK affordance row — teaches the secure, zero-retention sandbox up front. */}
         <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/10 bg-brand-cream/40 p-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-brand-purple">Bring your own API key</p>
+            <p className="text-sm font-medium text-brand-purple">
+              Bring your own Fireworks key
+            </p>
             <p className="text-[11px] leading-snug text-ink-700/55">
               Optional — get real LLM answers. Used per-request, <strong>never stored</strong>.
               Runs fully without one in deterministic mode.
             </p>
           </div>
-          <ByokControl />
+          <ByokControl placement="up" />
         </div>
 
         <p className="mt-5 text-center text-[11px] text-ink-700/40">
-          Demo mode · roles are advisory · switch personas anytime with “View as”.
+          Open access · roles are advisory · switch roles anytime with “View as”.
         </p>
       </div>
     </div>

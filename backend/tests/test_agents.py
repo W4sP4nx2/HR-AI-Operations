@@ -156,6 +156,12 @@ def test_resume_screener_fallback_contract() -> None:
             "Experienced Python developer skilled in PyTorch and AWS.",
         )
     )
-    for key in ("score", "recommendation", "reasoning", "matched_skills", "missing_skills"):
+    for key in (
+        "score",
+        "recommendation",
+        "reasoning",
+        "matched_skills",
+        "missing_skills",
+    ):
         assert key in result
     assert 0 <= result["score"] <= 100

@@ -1,4 +1,4 @@
-# Scaling to 1M+ Requests — Architecture, Gaps & Roadmap
+# Scaling Architecture, Gaps and Evidence Gates
 
 This document reviews the current system against a **million+ requests** open-source
 production target, records the **gaps found** (and the ones already fixed), gives the
@@ -28,6 +28,7 @@ Grounded in the actual code, ordered by how hard they bite at scale.
 | G8 | **No caching** — `/health` + `/agents` polled every 10s by every browser | `api/main.py`, fleet panel | DB hit per poll × every open tab | ⏭ Redis read-through cache |
 | G9 | **`@app.on_event("startup")`** deprecated; CORS list hardcoded | `api/main.py` | Minor; lifespan + config | ⏭ lifespan + env config |
 | G10 | **No idempotency** on triage/case creation | triage flow | Agent retries create duplicate cases | ⏭ content-hash dedupe key |
+| G11 | **Multi-hop agentic latency** — planning, RAG, tools, guardrails, audit writes | agent routes, `pipelines/`, `core/guardrails.py` | Each hop compounds p95/p99 latency; slow LLM/vector/tool calls degrade chat feel | ⏭ cache retrieval, parallelize safe calls, queue non-BYOK work |
 
 ### Fixed in this pass (verified)
 - **G1 — WAL mode + `busy_timeout=5000` + `synchronous=NORMAL`** on every connection.
@@ -139,12 +140,22 @@ The architecture is the skeleton; these are the algorithms that make each hop ch
 8. **Connection pooling** (PgBouncer, transaction mode) so thousands of API/worker
    coroutines multiplex onto a small, bounded set of Postgres connections.
 
-9. **Vector search = HNSW** (Qdrant default): sub-linear ANN. **Shard by tenant**;
-   replicate shards for read throughput and HA.
+9. **Vector search = pgvector HNSW by default:** sub-linear ANN in the
+   authoritative datastore. Partition or shard only after measured tenant and
+   corpus growth requires it.
 
 10. **Autoscaling signals.** HPA on CPU for the API tier; **KEDA on queue depth**
     for workers (the correct signal when work is async). Scale-to-zero for idle
     tenants.
+
+11. **Agentic latency budget per hop.** Track each workflow as a chain of
+    measurable spans: LLM inference, vector retrieval, tool/API calls, guardrail
+    validation, audit writes, and HITL pauses. The optimization order is:
+    cache repeated retrievals, parallelize independent non-key-sensitive work,
+    move non-BYOK workloads to a bounded queue, and only then consider heavier
+    inference acceleration such as quantized runtimes or dedicated model
+    serving. BYOK-sensitive paths keep request-scoped custody unless the job
+    runner has an explicit key-custody design.
 
 ---
 
@@ -160,7 +171,7 @@ Employee ──▶ Gateway ──▶ FastAPI ──▶ [Redis semantic cache?]
                                             │
                                    Worker pool dequeues
                                             ▼
-                       embed(query) ─▶ Qdrant top-k ─▶ Claude synthesise
+                       embed(query) ─▶ pgvector top-k ─▶ provider synthesis
                                             ▼
                        write audit (batched) ─▶ Postgres
                        cache answer ─▶ Redis (by query embedding)
@@ -305,3 +316,22 @@ New deps: `sqlalchemy[asyncio]>=2.0`, `aiosqlite`, `asyncpg` (in `requirements.t
 
 **Next:** add a Postgres service to `docker-compose` (profile-gated so the default
 dev stack stays SQLite-only), then proceed to step 2 (Redis cache + rate limiting).
+
+---
+
+## 8. Optional GPU optimization path
+
+GPU kernels are not a prerequisite for production RAG. pgvector HNSW remains the
+default retrieval engine, and the lean image excludes Torch/Triton.
+
+The shipped optimization order is:
+
+1. bounded batch embedding;
+2. bounded SQL vector writes;
+3. ingestion and retrieval metrics;
+4. hardware-gated Triton benchmarks;
+5. optional local-GPU scoring only after the corpus and measured-speedup gates.
+
+GPU dependencies live in `backend/requirements-gpu.txt`. Normal CI remains
+CPU-only. See [GPU_OPTIMIZATION.md](./GPU_OPTIMIZATION.md) for launch geometry,
+benchmark commands, correctness requirements, and the integration guard.

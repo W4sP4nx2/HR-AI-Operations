@@ -158,7 +158,14 @@ async def delete_policy(
 
     removed = await rag.delete_policy(doc_id)  # purge vectors → excluded from RAG
     await memory.set_policy_status(doc_id, "deleted")
-    return ok({"doc_id": doc_id, "deleted": True, "chunks_purged": removed, "restorable": True})
+    return ok(
+        {
+            "doc_id": doc_id,
+            "deleted": True,
+            "chunks_purged": removed,
+            "restorable": True,
+        }
+    )
 
 
 @router.post("/{doc_id}/restore")

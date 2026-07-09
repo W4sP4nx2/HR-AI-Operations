@@ -1,0 +1,32 @@
+{
+  "correctness": {
+    "indices_match": true,
+    "max_abs_error": 0.0
+  },
+  "gate": {
+    "hardware_claim": "CPU fallback result",
+    "passed": true,
+    "target_p95_ms": 50.0
+  },
+  "hardware": {
+    "backend": "torch",
+    "device_type": "cpu",
+    "platform": "macOS-26.3-arm64-arm-64bit",
+    "python": "3.12.3",
+    "torch": "2.9.1"
+  },
+  "latency_ms": {
+    "maximum": 3.333833,
+    "median": 2.781354,
+    "minimum": 2.553,
+    "p95": 3.256292
+  },
+  "scope": "in-memory exact cosine scoring plus top-k; excludes embedding and database I/O",
+  "shape": {
+    "dimension": 384,
+    "queries": 30,
+    "rows": 10000,
+    "top_k": 5,
+    "warmup": 5
+  }
+}

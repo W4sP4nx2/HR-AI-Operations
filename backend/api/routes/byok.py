@@ -6,8 +6,8 @@ the pulse indicator can mean **"verified and authenticating"**, not merely
 ``_byok_key`` middleware from the ``X-Client-LLM-Key`` header) — it is never
 taken from the body, never logged, never persisted.
 
-Verification is a cheap, no-token-spend ``GET /v1/models`` against Anthropic with
-a short timeout. Outcomes:
+Verification is a cheap, no-token-spend model-list request against the configured
+provider with a short timeout. Outcomes:
   * ``verified``     — provider accepted the key,
   * ``rejected``     — provider rejected it (bad/expired key),
   * ``malformed``    — fails a basic format check (don't even call out),
@@ -18,32 +18,90 @@ a short timeout. Outcomes:
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any
 
 from fastapi import APIRouter
 
 from api.responses import ok
-from core.runtime_key import looks_like_key, request_api_key
+from core.config import settings
+from core.runtime_key import llm_provider, looks_like_key, request_api_key
 
 router = APIRouter(prefix="/byok", tags=["byok"])
 
 
 def _verify_sync(key: str) -> dict[str, Any]:
     """Blocking provider check (runs in a thread). Never raises."""
+    if llm_provider() == "fireworks":
+        base_url = os.environ.get("FIREWORKS_BASE_URL", settings.fireworks_base_url).rstrip("/")
+        if not base_url:
+            return {
+                "valid": False,
+                "status": "unverifiable",
+                "detail": "base URL missing",
+            }
+        try:
+            import httpx
+
+            resp = httpx.get(
+                f"{base_url}/models",
+                headers={"Authorization": f"Bearer {key}"},
+                timeout=6.0,
+            )
+            if resp.status_code < 400:
+                return {
+                    "valid": True,
+                    "status": "verified",
+                    "detail": "key accepted by provider",
+                }
+            if resp.status_code in (401, 403):
+                return {
+                    "valid": False,
+                    "status": "rejected",
+                    "detail": "provider rejected the key",
+                }
+            return {
+                "valid": False,
+                "status": "unverifiable",
+                "detail": "provider unreachable",
+            }
+        except Exception:  # noqa: BLE001
+            return {
+                "valid": False,
+                "status": "unverifiable",
+                "detail": "provider unreachable",
+            }
+
     try:
         import anthropic
     except Exception:  # noqa: BLE001 - SDK not installed in the lean image
-        return {"valid": False, "status": "unverifiable", "detail": "verification unavailable"}
+        return {
+            "valid": False,
+            "status": "unverifiable",
+            "detail": "verification unavailable",
+        }
     try:
         client = anthropic.Anthropic(api_key=key, timeout=6.0, max_retries=0)
         client.models.list()  # GET /v1/models — auth-checked, no token spend
-        return {"valid": True, "status": "verified", "detail": "key accepted by provider"}
+        return {
+            "valid": True,
+            "status": "verified",
+            "detail": "key accepted by provider",
+        }
     except Exception as exc:  # noqa: BLE001
         name = type(exc).__name__.lower()
         # Distinguish "the provider said no" from "we couldn't reach the provider".
         if "auth" in name or "permission" in name or "401" in str(exc) or "403" in str(exc):
-            return {"valid": False, "status": "rejected", "detail": "provider rejected the key"}
-        return {"valid": False, "status": "unverifiable", "detail": "provider unreachable"}
+            return {
+                "valid": False,
+                "status": "rejected",
+                "detail": "provider rejected the key",
+            }
+        return {
+            "valid": False,
+            "status": "unverifiable",
+            "detail": "provider unreachable",
+        }
 
 
 @router.get("/verify")
@@ -53,6 +111,12 @@ async def verify() -> dict[str, Any]:
     if not key:
         return ok({"valid": False, "status": "missing", "detail": "no key supplied"})
     if not looks_like_key(key):
-        return ok({"valid": False, "status": "malformed", "detail": "key format looks invalid"})
+        return ok(
+            {
+                "valid": False,
+                "status": "malformed",
+                "detail": "key format looks invalid",
+            }
+        )
     result = await asyncio.to_thread(_verify_sync, key)
     return ok(result)

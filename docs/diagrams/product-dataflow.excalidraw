@@ -1,0 +1,1049 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "mcp-excalidraw-server",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 60,
+      "y": 30,
+      "width": 880,
+      "height": 38,
+      "strokeColor": "#2a0f32",
+      "text": "Product dataflow",
+      "fontSize": 28,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "subtitle-72",
+      "type": "text",
+      "x": 60,
+      "y": 72,
+      "width": 1000,
+      "height": 24,
+      "strokeColor": "#495057",
+      "text": "Inputs become advisory outputs only after grounding, guardrails, and human review.",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "inputs-zone",
+      "type": "rectangle",
+      "x": 45,
+      "y": 120,
+      "width": 270,
+      "height": 580,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "inputs-zone-label",
+      "type": "text",
+      "x": 63,
+      "y": 134,
+      "width": 234,
+      "height": 26,
+      "strokeColor": "#2d5f94",
+      "text": "Product inputs",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "decision-zone",
+      "type": "rectangle",
+      "x": 355,
+      "y": 120,
+      "width": 360,
+      "height": 580,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "decision-zone-label",
+      "type": "text",
+      "x": 373,
+      "y": 134,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#5d1c6a",
+      "text": "Decision-support processing",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "outputs-zone",
+      "type": "rectangle",
+      "x": 755,
+      "y": 120,
+      "width": 340,
+      "height": 580,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "outputs-zone-label",
+      "type": "text",
+      "x": 773,
+      "y": 134,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#2f6f44",
+      "text": "User-visible outcomes",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "evidence-zone",
+      "type": "rectangle",
+      "x": 1135,
+      "y": 120,
+      "width": 280,
+      "height": 580,
+      "backgroundColor": "#d9f0ee",
+      "strokeColor": "#1d6b65",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "evidence-zone-label",
+      "type": "text",
+      "x": 1153,
+      "y": 134,
+      "width": 244,
+      "height": 26,
+      "strokeColor": "#1d6b65",
+      "text": "Evidence loop",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "question",
+      "type": "rectangle",
+      "x": 80,
+      "y": 180,
+      "width": 200,
+      "height": 64,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Employee policy question"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "ticket",
+      "type": "rectangle",
+      "x": 80,
+      "y": 285,
+      "width": 200,
+      "height": 64,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "HR service ticket"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "resume",
+      "type": "rectangle",
+      "x": 80,
+      "y": 390,
+      "width": 200,
+      "height": 64,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Resume + job description"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "signals",
+      "type": "rectangle",
+      "x": 80,
+      "y": 495,
+      "width": 200,
+      "height": 64,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Employee risk signals"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "policy-pdf",
+      "type": "rectangle",
+      "x": 80,
+      "y": 600,
+      "width": 200,
+      "height": 64,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Versioned policy corpus"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "guardrails",
+      "type": "rectangle",
+      "x": 395,
+      "y": 170,
+      "width": 280,
+      "height": 72,
+      "backgroundColor": "#fce8f2",
+      "strokeColor": "#a93372",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Sanitize · validate · blind PII"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "grounding",
+      "type": "rectangle",
+      "x": 395,
+      "y": 290,
+      "width": 280,
+      "height": 72,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Retrieve · grade · cite"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "decision",
+      "type": "rectangle",
+      "x": 395,
+      "y": 410,
+      "width": 280,
+      "height": 90,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Typed agent contract\nconfidence + review flag"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "human-gate",
+      "type": "rectangle",
+      "x": 395,
+      "y": 560,
+      "width": 280,
+      "height": 72,
+      "backgroundColor": "#ffe4d8",
+      "strokeColor": "#a54f2b",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Human approval for sensitive action"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "policy-answer",
+      "type": "rectangle",
+      "x": 795,
+      "y": 170,
+      "width": 260,
+      "height": 72,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Cited policy answer"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "case-route",
+      "type": "rectangle",
+      "x": 795,
+      "y": 285,
+      "width": 260,
+      "height": 72,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Case route or urgent escalation"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "resume-advice",
+      "type": "rectangle",
+      "x": 795,
+      "y": 400,
+      "width": 260,
+      "height": 72,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Blinded hiring recommendation"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "retention",
+      "type": "rectangle",
+      "x": 795,
+      "y": 515,
+      "width": 260,
+      "height": 72,
+      "backgroundColor": "#fce8f2",
+      "strokeColor": "#a93372",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Advisory retention conversation"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "audit-ledger",
+      "type": "rectangle",
+      "x": 1170,
+      "y": 190,
+      "width": 210,
+      "height": 78,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Audit ledger"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "feedback",
+      "type": "rectangle",
+      "x": 1170,
+      "y": 330,
+      "width": 210,
+      "height": 88,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Human feedback\naccepted · edited · rejected"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "evals",
+      "type": "rectangle",
+      "x": 1170,
+      "y": 490,
+      "width": 210,
+      "height": 88,
+      "backgroundColor": "#f1f3f5",
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Offline evals\nquality · bias · latency"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "model-change",
+      "type": "rectangle",
+      "x": 1170,
+      "y": 620,
+      "width": 210,
+      "height": 64,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Controlled model release"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "q-guard",
+      "type": "arrow",
+      "x": 287.9988576143121,
+      "y": 210.17466719525106,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          99.0022847713758,
+          -1.673278052473961
+        ]
+      ],
+      "start": {
+        "id": "question"
+      },
+      "end": {
+        "id": "guardrails"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "t-guard",
+      "type": "arrow",
+      "x": 287.63545701557916,
+      "y": 283.3449697782274,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          124.59395083370657,
+          -38.95754519025755
+        ]
+      ],
+      "start": {
+        "id": "ticket"
+      },
+      "end": {
+        "id": "guardrails"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "r-guard",
+      "type": "arrow",
+      "x": 239.42692443991533,
+      "y": 385.84164597458675,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          229.5720770460953,
+          -139.6832919491735
+        ]
+      ],
+      "start": {
+        "id": "resume"
+      },
+      "end": {
+        "id": "guardrails"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "s-guard",
+      "type": "arrow",
+      "x": 221.32327805143393,
+      "y": 489.63444435349214,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          267.9297678846711,
+          -242.26888870698428
+        ]
+      ],
+      "start": {
+        "id": "signals"
+      },
+      "end": {
+        "id": "guardrails"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "p-ground",
+      "type": "arrow",
+      "x": 223.18375377474538,
+      "y": 594.7768206899378,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          263.99196957469223,
+          -227.55364137987561
+        ]
+      ],
+      "start": {
+        "id": "policy-pdf"
+      },
+      "end": {
+        "id": "grounding"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "guard-ground",
+      "type": "arrow",
+      "x": 535,
+      "y": 250,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          32
+        ]
+      ],
+      "start": {
+        "id": "guardrails"
+      },
+      "end": {
+        "id": "grounding"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "ground-decision",
+      "type": "arrow",
+      "x": 535,
+      "y": 370,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          32
+        ]
+      ],
+      "start": {
+        "id": "grounding"
+      },
+      "end": {
+        "id": "decision"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "decision-human",
+      "type": "arrow",
+      "x": 535,
+      "y": 508,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          44
+        ]
+      ],
+      "start": {
+        "id": "decision"
+      },
+      "end": {
+        "id": "human-gate"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "decision-answer",
+      "type": "arrow",
+      "x": 612.2248048437837,
+      "y": 405.6949322920458,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          249.6467758546013,
+          -159.38986458409158
+        ]
+      ],
+      "start": {
+        "id": "decision"
+      },
+      "end": {
+        "id": "policy-answer"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "decision-case",
+      "type": "arrow",
+      "x": 673.5360147149249,
+      "y": 407.400446226154,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          139.12200042089626,
+          -47.80089245230795
+        ]
+      ],
+      "start": {
+        "id": "decision"
+      },
+      "end": {
+        "id": "case-route"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "decision-resume",
+      "type": "arrow",
+      "x": 682.9905231121662,
+      "y": 447.79020528427907,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          104.01895377566757,
+          -5.067590055737583
+        ]
+      ],
+      "start": {
+        "id": "decision"
+      },
+      "end": {
+        "id": "resume-advice"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "decision-retention",
+      "type": "arrow",
+      "x": 682.7681190314781,
+      "y": 491.3736908385177,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          104.46376193704373,
+          25.714156784503132
+        ]
+      ],
+      "start": {
+        "id": "decision"
+      },
+      "end": {
+        "id": "retention"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "out-audit",
+      "type": "arrow",
+      "x": 1062.737168691402,
+      "y": 284.79480137254575,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          99.52566261719585,
+          -26.161031316520052
+        ]
+      ],
+      "start": {
+        "id": "case-route"
+      },
+      "end": {
+        "id": "audit-ledger"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "human-feedback",
+      "type": "arrow",
+      "x": 1003.325466008753,
+      "y": 511.38969290414485,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          177.5298589429458,
+          -89.7793858082897
+        ]
+      ],
+      "start": {
+        "id": "retention"
+      },
+      "end": {
+        "id": "feedback"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "feedback-evals",
+      "type": "arrow",
+      "x": 1275,
+      "y": 426,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          56
+        ]
+      ],
+      "start": {
+        "id": "feedback"
+      },
+      "end": {
+        "id": "evals"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    },
+    {
+      "id": "evals-release",
+      "type": "arrow",
+      "x": 1275,
+      "y": 586,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          26
+        ]
+      ],
+      "start": {
+        "id": "evals"
+      },
+      "end": {
+        "id": "model-change"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:08.379Z",
+      "updatedAt": "2026-07-09T00:37:08.379Z",
+      "version": 1
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null
+  }
+}

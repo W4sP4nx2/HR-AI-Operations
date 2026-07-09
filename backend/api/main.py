@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -30,12 +31,15 @@ from api.routes import byok as byok_routes
 from api.routes import cases as cases_routes
 from api.routes import chat as chat_routes
 from api.routes import feedback as feedback_routes
+from api.routes import lifecycle as lifecycle_routes
 from api.routes import metrics as metrics_routes
 from api.routes import policies as policies_routes
 from api.routes import webhooks as webhooks_routes
 from api.websocket_manager import manager
 from core.config import settings
 from core.memory import memory
+from core.observability import record_http, render_metrics
+from core.runtime_key import llm_active, llm_config_issues, llm_provider
 
 
 @asynccontextmanager
@@ -66,6 +70,13 @@ async def lifespan(_app: FastAPI):
         logging.getLogger("uvicorn.error").warning(
             "AUTH_ENFORCE is on but JWT_SECRET is the insecure default — "
             "set a strong JWT_SECRET before exposing this publicly."
+        )
+    issues = llm_config_issues()
+    if llm_provider() in ("fireworks", "amd_vllm") and issues:
+        logging.getLogger("uvicorn.error").error(
+            "LLM_PROVIDER=%s but live inference is not configured: %s",
+            llm_provider(),
+            "; ".join(issues),
         )
     yield
 
@@ -118,6 +129,26 @@ app.add_middleware(SessionMiddleware, secret_key=settings.jwt_secret)
 
 
 @app.middleware("http")
+async def _request_metrics(request, call_next):
+    """Record bounded-cardinality latency/count metrics for every HTTP replica."""
+    started = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    finally:
+        route = request.scope.get("route")
+        route_path = getattr(route, "path", "unmatched")
+        record_http(
+            request.method,
+            route_path,
+            status_code,
+            time.perf_counter() - started,
+        )
+
+
+@app.middleware("http")
 async def _byok_key(request, call_next):
     """Bind a visitor's own LLM key (``X-Client-LLM-Key``) to the request only.
 
@@ -126,7 +157,11 @@ async def _byok_key(request, call_next):
     call-sites read ``core.runtime_key.effective_api_key()``; if no key is
     present (or it fails upstream) they fall back to the deterministic baseline.
     """
-    from core.runtime_key import looks_like_key, reset_request_api_key, set_request_api_key
+    from core.runtime_key import (
+        looks_like_key,
+        reset_request_api_key,
+        set_request_api_key,
+    )
 
     header_key = request.headers.get("x-client-llm-key") or request.headers.get("x-lm-key")
     # Bind the raw key for this request (so /byok/verify can report malformed vs
@@ -197,6 +232,7 @@ app.include_router(byok_routes.router)
 app.include_router(agents_routes.router)
 app.include_router(cases_routes.router)
 app.include_router(feedback_routes.router)
+app.include_router(lifecycle_routes.router)
 app.include_router(audit_routes.router)
 app.include_router(chat_routes.router)
 app.include_router(metrics_routes.router)
@@ -220,10 +256,21 @@ async def health() -> dict[str, Any]:
             "agents_registered": len(agent_rows),
             "agents_active": active,
             "auth_enforced": settings.auth_enforce,
-            "llm_enabled": bool(settings.anthropic_api_key) and not settings.mock_llm,
+            "llm_provider": llm_provider(),
+            "llm_enabled": llm_active(),
+            "llm_config_issues": llm_config_issues(),
             "demo_mode": settings.demo_mode,
         }
     )
+
+
+@app.get("/internal/metrics", include_in_schema=False)
+async def prometheus_metrics():
+    """Prometheus scrape endpoint; restrict it with cluster network policy."""
+    from fastapi.responses import Response
+
+    payload, content_type = render_metrics()
+    return Response(payload, media_type=content_type)
 
 
 @app.websocket("/ws/feed")

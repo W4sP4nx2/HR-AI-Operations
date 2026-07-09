@@ -27,7 +27,7 @@ slow-burn calibration — use [TEST_PLANS.md](./TEST_PLANS.md).
 | **Attrition Predictor** | manager+ | advisory | `AttritionInput` → `AttritionResult` |
 
 RBAC roles ascend: **viewer → analyst → manager → admin**. In advisory mode
-(`AUTH_ENFORCE=false`, the default) anyone can run anything for demos; in enforced
+(`AUTH_ENFORCE=false`, the default) seeded evaluation is open access; in enforced
 mode the "Role to use" column is required.
 
 ---
@@ -63,14 +63,14 @@ ticket ─▶ classify ─┬─ URGENT     ─▶ open case (status=escalated, 
 - **Framework:** LangGraph `StateGraph` over the RAG pipeline.
 - **Validated input:** `TicketInput { text }`
 - **Validated output:** `PolicyAnswer { answer, source_documents[], confidence_score 0..1 }`
-- **Tools:** `qdrant_search` · `get_policy_doc` · Claude synthesis.
+- **Tools:** vector search · policy document lookup · provider-neutral synthesis.
 - **Guardrails:** grounded in retrieved docs (cites `doc_id`); says "no relevant
   policy found" instead of hallucinating when the store is empty.
 
 **Workflow**
 ```
-question ─▶ embed ─▶ Qdrant top-k ─▶ [hit?] ─yes─▶ Claude synthesise + cite ─▶ answer ─▶ audit
-                                     └─no──▶ "No relevant policy found"        ─▶ answer ─▶ audit
+question ─▶ embed ─▶ pgvector top-k ─▶ [hit?] ─yes─▶ synthesise + cite ─▶ answer ─▶ audit
+                                      └─no──▶ "No relevant policy found" ─▶ answer ─▶ audit
 ```
 
 **Use cases**
@@ -133,17 +133,17 @@ new hire ─▶ validate ─▶ create_accounts ─▶ assign_training ─▶ �
 ## 5. Attrition Predictor
 
 - **Purpose:** score attrition risk and surface the top drivers.
-- **Framework:** scikit-learn `RandomForestClassifier` + Claude explanation.
+- **Framework:** scikit-learn `RandomForestClassifier` + optional provider explanation.
 - **Validated input:** `AttritionInput { tenure_months, performance_score 1..5, absence_days, last_promotion_months, salary_band 1..5, manager_rating 1..5 }`
 - **Validated output:** `AttritionResult { attrition_risk_score 0..1, top_risk_factors[3], explanation }`
-- **Tools:** random forest · feature attribution · Claude explanation.
+- **Tools:** random forest · feature attribution · provider or templated explanation.
 - **Guardrails:** **advisory only** — framed to start a retention conversation,
   never punitive; manager+ access; sensitive-data handling reviewed.
 
 **Workflow**
 ```
 employee features ─▶ RandomForest.predict_proba ─▶ risk score
-                  └─ feature attribution ─▶ top 3 drivers ─▶ Claude/templated explanation
+                  └─ feature attribution ─▶ top 3 drivers ─▶ provider/templated explanation
                                                           └─▶ AttritionResult (advisory)
 ```
 

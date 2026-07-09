@@ -1,6 +1,6 @@
 # Production stack: Postgres + Qdrant + multi-stage backend/frontend images.
 # Usage:
-#   export ANTHROPIC_API_KEY=sk-ant-...   # optional
+#   export FIREWORKS_API_KEY=...          # optional; omit for deterministic mode
 #   export JWT_SECRET="$(openssl rand -hex 32)"
 #   docker compose -f docker-compose.prod.yml up --build -d
 services:
@@ -33,6 +33,17 @@ services:
       DATABASE_URL: postgresql://hr:${POSTGRES_PASSWORD:-hr_dev_password}@db:5432/hrdb
       # RAG runs inside Postgres via pgvector (VECTOR_BACKEND=auto). No Qdrant.
       ENVIRONMENT: production
+      LLM_PROVIDER: ${LLM_PROVIDER:-fireworks}
+      FIREWORKS_API_KEY: ${FIREWORKS_API_KEY:-}
+      FIREWORKS_BASE_URL: ${FIREWORKS_BASE_URL:-}
+      FIREWORKS_CONTROL_BASE_URL: ${FIREWORKS_CONTROL_BASE_URL:-}
+      FIREWORKS_ACCOUNT_ID: ${FIREWORKS_ACCOUNT_ID:-}
+      FIREWORKS_VISION_MODEL: ${FIREWORKS_VISION_MODEL:-}
+      ENABLE_RESUME_VLM: ${ENABLE_RESUME_VLM:-false}
+      RESUME_VLM_MAX_PAGES: ${RESUME_VLM_MAX_PAGES:-10}
+      ALLOWED_MODELS: ${ALLOWED_MODELS:-}
+      FIREWORKS_MAX_RETRIES: ${FIREWORKS_MAX_RETRIES:-4}
+      FIREWORKS_SESSION_AFFINITY: ${FIREWORKS_SESSION_AFFINITY:-true}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       JWT_SECRET: ${JWT_SECRET:?set a strong JWT_SECRET for production}
       AUTH_ENFORCE: "true"

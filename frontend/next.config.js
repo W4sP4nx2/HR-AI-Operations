@@ -7,6 +7,7 @@ const staticExport = process.env.STATIC_EXPORT === "1";
 
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: __dirname,
   output: staticExport ? "export" : "standalone",
   ...(staticExport ? { images: { unoptimized: true } } : {}),
 };

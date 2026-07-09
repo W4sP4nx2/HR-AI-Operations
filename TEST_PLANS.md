@@ -310,6 +310,27 @@ detached background task, but it creates head-of-line blocking for large PDFs an
 slow live LLM passes. A future polling job runner must solve key custody first,
 not bolt on a queue casually.
 
+Agentic latency reminder:
+
+Agent workflows are not single-turn LLM calls. Planning, retrieval, tool
+execution, schema/guardrail validation, audit writes, and human-in-the-loop pauses
+each add a measurable hop. RAG paths also pay vector lookup and reranking costs,
+while external HR integrations can add network delay outside the app's control.
+The current BYOK-safe design favors request-scoped key custody over low p99
+latency, so test reports should call out slow live LLM/PDF/RAG paths as expected
+trade-offs rather than hidden defects.
+
+Future real-time optimizations to evaluate:
+
+- Accelerate inference with smaller models, quantized runtimes, or hosted
+  inference backends when a server-side key/model is acceptable.
+- Cache repeated retrievals and policy answers by query/document embedding.
+- Run independent retrieval/tool calls in parallel, while preserving awaited
+  request scope for BYOK-sensitive paths.
+- Move non-BYOK workloads to a bounded queue with job polling and backpressure.
+- Shard long-lived memory/vector state once tenant volume exceeds single-node
+  lookup budgets.
+
 ## Frontend Honesty Test Plan
 
 | Surface | Scenario | Expected result |
@@ -394,4 +415,3 @@ Use these as scripted demos or acceptance tests.
   - resume validation fallback rate,
   - attrition high-risk review outcomes,
   - RAG no-context rate.
-

@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * RoleSwitcher — demo-mode "view as" control in the sidebar.
+ * RoleSwitcher — open-access "view as" control in the sidebar.
  *
- * Instead of juggling three separate logins, a reviewer flips between personas
+ * Instead of juggling separate logins, a reviewer flips between workspace roles
  * (Employee / HR / Manager / Admin) and the dashboard surface changes to match.
- * Each switch mints a real JWT for a pre-seeded demo persona via
- * `/auth/demo/switch`, so role-gated API calls work too — not just UI visibility.
+ * Each switch mints a scoped JWT for a pre-seeded role, so role-gated API calls
+ * work too — not just UI visibility.
  *
- * Only rendered in advisory/demo mode (AUTH_ENFORCE off). When enforcement is on
+ * Only rendered in open-access mode (AUTH_ENFORCE off). When enforcement is on
  * the switcher is hidden because the backend disables the endpoint.
  */
 

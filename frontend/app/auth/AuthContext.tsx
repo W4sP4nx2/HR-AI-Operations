@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const switchRole = useCallback(async (role: Role) => {
-    const session = await api.demoSwitch(role);
+    const session = await api.switchPersona(role);
     tokenStore.set(session.token);
     setUser(session.user);
   }, []);

@@ -64,7 +64,11 @@ async def chat_turn(
     await memory.add_chat_message(session_id, "user", body.message)
     result = await chat(body.message, body.history, session_id)
     await memory.add_chat_message(
-        session_id, "assistant", result["reply"], result.get("tool_calls"), result.get("mode")
+        session_id,
+        "assistant",
+        result["reply"],
+        result.get("tool_calls"),
+        result.get("mode"),
     )
     result["session_id"] = session_id
     return ok(result)
@@ -76,7 +80,9 @@ async def chat_turn(
 
 
 @router.get("/sessions")
-async def list_sessions(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+async def list_sessions(
+    user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
     """List the caller's chat sessions (all sessions for admins/anonymous dev)."""
     uid = None if user.get("id") in (None, "anon") else user["id"]
     return ok(await memory.list_chat_sessions(user_id=uid))
@@ -144,23 +150,36 @@ async def chat_stream(
 
                     from agents.chat_agent import ChatDeps, get_agent
 
-                    agent = get_agent()
+                    agent = get_agent(session_id)
                     if agent is None:
                         raise RuntimeError("agent not initialised")
 
+                    from core.genai_lifecycle import controlled_parameters
+                    from core.safety import redact_pii
                     from services.input_shield import sanitize_text
 
-                    deps = ChatDeps(session_id=session_id, history=body.history)
-                    prompt = sanitize_text(body.message)
-                    if body.history:
+                    safe_history = [
+                        {
+                            **turn,
+                            "content": redact_pii(sanitize_text(turn.get("content", ""))),
+                        }
+                        for turn in body.history[-6:]
+                    ]
+                    deps = ChatDeps(session_id=session_id, history=safe_history)
+                    prompt = redact_pii(sanitize_text(body.message))
+                    if safe_history:
                         convo = "\n".join(
-                            f"{t.get('role', 'user')}: {t.get('content', '')}"
-                            for t in body.history[-6:]
+                            f"{turn.get('role', 'user')}: {turn.get('content', '')}"
+                            for turn in safe_history
                         )
-                        prompt = f"Conversation so far:\n{convo}\n\nUser: {body.message}"
+                        prompt = f"Conversation so far:\n{convo}\n\nUser: {prompt}"
 
                     seen: set[str] = set()
-                    async with agent.run_stream(prompt, deps=deps) as stream:
+                    async with agent.run_stream(
+                        prompt,
+                        deps=deps,
+                        model_settings=controlled_parameters("chat"),
+                    ) as stream:
                         async for chunk in stream.stream_text(delta=True):
                             reply_parts.append(chunk)
                             yield f"data: {json.dumps({'type': 'token', 'content': chunk})}\n\n"
@@ -178,12 +197,24 @@ async def chat_stream(
                     yield f"data: {json.dumps({'type': 'done', 'mode': 'full', 'session_id': session_id})}\n\n"
 
                 except Exception as exc:  # noqa: BLE001 — stream fallback
-                    result = await chat(body.message, body.history, session_id)
-                    mode = result.get("mode", "error")
-                    reply_parts = [result["reply"]]
-                    tools_used = result.get("tool_calls", [])
-                    yield f"data: {json.dumps({'type': 'token', 'content': result['reply']})}\n\n"
-                    yield f"data: {json.dumps({'type': 'done', 'mode': mode, 'session_id': session_id, 'error': str(exc)})}\n\n"
+                    from core.fireworks import is_scale_up_exception
+
+                    if is_scale_up_exception(exc):
+                        reply = (
+                            "AI capacity is starting and this request was not queued. "
+                            "Retry shortly, or continue in deterministic mode."
+                        )
+                        mode = "unavailable"
+                        reply_parts = [reply]
+                        yield f"data: {json.dumps({'type': 'token', 'content': reply})}\n\n"
+                        yield f"data: {json.dumps({'type': 'done', 'mode': mode, 'session_id': session_id, 'error_code': 'DEPLOYMENT_SCALING_UP'})}\n\n"
+                    else:
+                        result = await chat(body.message, body.history, session_id)
+                        mode = result.get("mode", "error")
+                        reply_parts = [result["reply"]]
+                        tools_used = result.get("tool_calls", [])
+                        yield f"data: {json.dumps({'type': 'token', 'content': result['reply']})}\n\n"
+                        yield f"data: {json.dumps({'type': 'done', 'mode': mode, 'session_id': session_id, 'error': str(exc)})}\n\n"
 
         except Exception as exc:  # noqa: BLE001
             yield f"data: {json.dumps({'type': 'error', 'content': str(exc)})}\n\n"

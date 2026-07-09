@@ -1,0 +1,1367 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "mcp-excalidraw-server",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 60,
+      "y": 30,
+      "width": 880,
+      "height": 38,
+      "strokeColor": "#2a0f32",
+      "text": "Agent workflows",
+      "fontSize": 28,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "subtitle-72",
+      "type": "text",
+      "x": 60,
+      "y": 72,
+      "width": 1000,
+      "height": 24,
+      "strokeColor": "#495057",
+      "text": "Five workload shapes share contracts and audit, but keep their own failure and review rules.",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "triage-lane",
+      "type": "rectangle",
+      "x": 45,
+      "y": 120,
+      "width": 1320,
+      "height": 105,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "triage-lane-label",
+      "type": "text",
+      "x": 63,
+      "y": 134,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#2d5f94",
+      "text": "Ticket triage",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "policy-lane",
+      "type": "rectangle",
+      "x": 45,
+      "y": 245,
+      "width": 1320,
+      "height": 150,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "policy-lane-label",
+      "type": "text",
+      "x": 63,
+      "y": 259,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#5d1c6a",
+      "text": "Policy RAG loop",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "resume-lane",
+      "type": "rectangle",
+      "x": 45,
+      "y": 415,
+      "width": 1320,
+      "height": 105,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "resume-lane-label",
+      "type": "text",
+      "x": 63,
+      "y": 429,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#2f6f44",
+      "text": "Resume screening",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "onboard-lane",
+      "type": "rectangle",
+      "x": 45,
+      "y": 540,
+      "width": 1320,
+      "height": 105,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "onboard-lane-label",
+      "type": "text",
+      "x": 63,
+      "y": 554,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#8a4b08",
+      "text": "Onboarding",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "attrition-lane",
+      "type": "rectangle",
+      "x": 45,
+      "y": 665,
+      "width": 1320,
+      "height": 105,
+      "backgroundColor": "#fce8f2",
+      "strokeColor": "#a93372",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "attrition-lane-label",
+      "type": "text",
+      "x": 63,
+      "y": 679,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#a93372",
+      "text": "Attrition + retention",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "triage-in",
+      "type": "rectangle",
+      "x": 210,
+      "y": 145,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Ticket"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "triage-classify",
+      "type": "rectangle",
+      "x": 450,
+      "y": 145,
+      "width": 200,
+      "height": 56,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Typed classification"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "triage-route",
+      "type": "rectangle",
+      "x": 710,
+      "y": 145,
+      "width": 220,
+      "height": 56,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Route / escalate"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "triage-audit",
+      "type": "rectangle",
+      "x": 990,
+      "y": 145,
+      "width": 200,
+      "height": 56,
+      "backgroundColor": "#d9f0ee",
+      "strokeColor": "#1d6b65",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Case + audit"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "policy-in",
+      "type": "rectangle",
+      "x": 210,
+      "y": 270,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Question"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "policy-retrieve",
+      "type": "rectangle",
+      "x": 450,
+      "y": 270,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Retrieve"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "policy-grade",
+      "type": "rectangle",
+      "x": 720,
+      "y": 270,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Grade"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "policy-rewrite",
+      "type": "rectangle",
+      "x": 720,
+      "y": 330,
+      "width": 180,
+      "height": 42,
+      "backgroundColor": "#ffe4d8",
+      "strokeColor": "#a54f2b",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Reformulate on low confidence"
+      },
+      "fontSize": 14,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "policy-answer",
+      "type": "rectangle",
+      "x": 1050,
+      "y": 270,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Cite"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "resume-in",
+      "type": "rectangle",
+      "x": 210,
+      "y": 440,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "JD + resume"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "resume-blind",
+      "type": "rectangle",
+      "x": 450,
+      "y": 440,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#fce8f2",
+      "strokeColor": "#a93372",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Blind PII"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "resume-score",
+      "type": "rectangle",
+      "x": 690,
+      "y": 440,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Score skills"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "resume-validate",
+      "type": "rectangle",
+      "x": 930,
+      "y": 440,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Validate evidence"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "resume-review",
+      "type": "rectangle",
+      "x": 1170,
+      "y": 440,
+      "width": 150,
+      "height": 56,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Advisory"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "onboard-in",
+      "type": "rectangle",
+      "x": 210,
+      "y": 565,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "New hire"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "onboard-setup",
+      "type": "rectangle",
+      "x": 450,
+      "y": 565,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Accounts + training"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "onboard-pause",
+      "type": "rectangle",
+      "x": 690,
+      "y": 565,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Pause"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "onboard-approve",
+      "type": "rectangle",
+      "x": 930,
+      "y": 565,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#ffe4d8",
+      "strokeColor": "#a54f2b",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Human approval"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "onboard-finish",
+      "type": "rectangle",
+      "x": 1170,
+      "y": 565,
+      "width": 150,
+      "height": 56,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Notify"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "attrition-in",
+      "type": "rectangle",
+      "x": 210,
+      "y": 690,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Six signals"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "attrition-score",
+      "type": "rectangle",
+      "x": 450,
+      "y": 690,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#fce8f2",
+      "strokeColor": "#a93372",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Risk model"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "attrition-factor",
+      "type": "rectangle",
+      "x": 690,
+      "y": 690,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Top factors"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "attrition-policy",
+      "type": "rectangle",
+      "x": 930,
+      "y": 690,
+      "width": 180,
+      "height": 56,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Policy grounding"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "attrition-review",
+      "type": "rectangle",
+      "x": 1170,
+      "y": 690,
+      "width": 150,
+      "height": 56,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Manager"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "t1",
+      "type": "arrow",
+      "x": 398,
+      "y": 173,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "triage-in"
+      },
+      "end": {
+        "id": "triage-classify"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "t2",
+      "type": "arrow",
+      "x": 658,
+      "y": 173,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "triage-classify"
+      },
+      "end": {
+        "id": "triage-route"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "t3",
+      "type": "arrow",
+      "x": 938,
+      "y": 173,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "triage-route"
+      },
+      "end": {
+        "id": "triage-audit"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "p1",
+      "type": "arrow",
+      "x": 398,
+      "y": 298,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "policy-in"
+      },
+      "end": {
+        "id": "policy-retrieve"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "p2",
+      "type": "arrow",
+      "x": 638,
+      "y": 298,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          74,
+          0
+        ]
+      ],
+      "start": {
+        "id": "policy-retrieve"
+      },
+      "end": {
+        "id": "policy-grade"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "p3",
+      "type": "arrow",
+      "x": 810,
+      "y": 334,
+      "strokeColor": "#a54f2b",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          -12
+        ]
+      ],
+      "start": {
+        "id": "policy-grade"
+      },
+      "end": {
+        "id": "policy-rewrite"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "p4",
+      "type": "arrow",
+      "x": 712.1498131086944,
+      "y": 331.7923707213363,
+      "strokeColor": "#a54f2b",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -74.29962621738878,
+          -14.584741442672566
+        ]
+      ],
+      "start": {
+        "id": "policy-rewrite"
+      },
+      "end": {
+        "id": "policy-retrieve"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "p5",
+      "type": "arrow",
+      "x": 908,
+      "y": 298,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          134,
+          0
+        ]
+      ],
+      "start": {
+        "id": "policy-grade"
+      },
+      "end": {
+        "id": "policy-answer"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "r1",
+      "type": "arrow",
+      "x": 398,
+      "y": 468,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "resume-in"
+      },
+      "end": {
+        "id": "resume-blind"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "r2",
+      "type": "arrow",
+      "x": 638,
+      "y": 468,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "resume-blind"
+      },
+      "end": {
+        "id": "resume-score"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "r3",
+      "type": "arrow",
+      "x": 878,
+      "y": 468,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "resume-score"
+      },
+      "end": {
+        "id": "resume-validate"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "r4",
+      "type": "arrow",
+      "x": 1118,
+      "y": 468,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "resume-validate"
+      },
+      "end": {
+        "id": "resume-review"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "o1",
+      "type": "arrow",
+      "x": 398,
+      "y": 593,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "onboard-in"
+      },
+      "end": {
+        "id": "onboard-setup"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "o2",
+      "type": "arrow",
+      "x": 638,
+      "y": 593,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "onboard-setup"
+      },
+      "end": {
+        "id": "onboard-pause"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "o3",
+      "type": "arrow",
+      "x": 878,
+      "y": 593,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "onboard-pause"
+      },
+      "end": {
+        "id": "onboard-approve"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "o4",
+      "type": "arrow",
+      "x": 1118,
+      "y": 593,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "onboard-approve"
+      },
+      "end": {
+        "id": "onboard-finish"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "a1",
+      "type": "arrow",
+      "x": 398,
+      "y": 718,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "attrition-in"
+      },
+      "end": {
+        "id": "attrition-score"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "a2",
+      "type": "arrow",
+      "x": 638,
+      "y": 718,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "attrition-score"
+      },
+      "end": {
+        "id": "attrition-factor"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "a3",
+      "type": "arrow",
+      "x": 878,
+      "y": 718,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "attrition-factor"
+      },
+      "end": {
+        "id": "attrition-policy"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    },
+    {
+      "id": "a4",
+      "type": "arrow",
+      "x": 1118,
+      "y": 718,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          44,
+          0
+        ]
+      ],
+      "start": {
+        "id": "attrition-policy"
+      },
+      "end": {
+        "id": "attrition-review"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:17.205Z",
+      "updatedAt": "2026-07-09T00:37:17.205Z",
+      "version": 1
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null
+  }
+}

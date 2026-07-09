@@ -59,7 +59,9 @@ AUTH_ENFORCE=false MOCK_LLM=true ENABLE_RAG=true uvicorn api.main:app --port 800
 ## 6. Ship it
 ```bash
 cd /Users/lwinnaingkyaw/Documents/Claude/Projects/Project\ Mario/hr-command-center
-ruff check backend && black --check backend && (cd backend && pytest -q) && (cd frontend && npm run build)
+ruff check backend && black --check backend \
+  && (cd backend && PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -p pytest_asyncio.plugin -q) \
+  && (cd frontend && npm run build)
 git add -A && git commit -m "RAG on pgvector (single datastore) + load test + compliance gate"
 git push                 # → GitHub Actions runs lint · test · compliance · build · secret-scan
 ```

@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: hrcc-backend
+  namespace: observability
+  labels:
+    app.kubernetes.io/part-of: hr-ai-command-center
+spec:
+  namespaceSelector:
+    matchNames: ["hr-ai-system"]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hrcc-backend
+  endpoints:
+    - port: http
+      path: /internal/metrics
+      interval: 30s
+      scrapeTimeout: 10s

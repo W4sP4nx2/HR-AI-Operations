@@ -1,0 +1,4 @@
+# Optional local MCP adapter. Kept out of the lean production image because the
+# authenticated FastAPI surface remains the deployed product boundary.
+-r requirements-prod.txt
+mcp>=1.12,<2

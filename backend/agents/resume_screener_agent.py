@@ -21,8 +21,35 @@ from agents.resume_resolver import resume_resolver
 from core.config import settings
 from core.embeddings import embedder
 from core.memory import memory
+from models.naive_baselines import resume_overlap_baseline
 
 AGENT_NAME = "resume_screener_agent"
+
+_SKILL_AUDIT_HANDOFF_OBJECTIVES: dict[str, Any] = {
+    "schema": {
+        "type": "object",
+        "properties": {
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "skill": {"type": "string"},
+                        "status": {
+                            "type": "string",
+                            "enum": ["demonstrated", "aspirational", "negated", "absent"],
+                        },
+                    },
+                    "required": ["skill", "status"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["items"],
+        "additionalProperties": False,
+    },
+    "require_pii_free": True,
+}
 
 # Candidate skill tokens: a letter-led term that may contain inner +/#/.-/digits
 # (c++, c#, node.js, ci-cd). Trailing punctuation is stripped separately so
@@ -167,7 +194,9 @@ class ResumeScreenerAgent:
         Returns:
             A configured ``Crew`` instance or ``None``.
         """
-        if not settings.anthropic_api_key:
+        from core.runtime_key import llm_provider
+
+        if llm_provider() != "anthropic" or not settings.anthropic_api_key:
             return None
         try:
             from crewai import Agent, Crew, Process, Task
@@ -230,25 +259,10 @@ class ResumeScreenerAgent:
             The structured screening result dict.
         """
         jd_skills = _extract_skill_terms(jd)
-        resume_terms = set(_extract_skill_terms(resume))
-
-        def _present(skill: str) -> bool:
-            """Match a JD skill against the resume, tolerating plurals/stems.
-
-            Exact match, or a prefix match for terms long enough that a shared
-            4+ char stem is meaningful (api↔apis, test↔testing) — without
-            collapsing short distinct tokens (go, ml).
-            """
-            if skill in resume_terms:
-                return True
-            if len(skill) < 4:
-                return False
-            return any(
-                rt.startswith(skill) or skill.startswith(rt) for rt in resume_terms if len(rt) >= 4
-            )
-
-        matched = [s for s in jd_skills if _present(s)]
-        missing = [s for s in jd_skills if not _present(s)]
+        resume_terms = _extract_skill_terms(resume)
+        overlap = resume_overlap_baseline.predict(jd_skills, resume_terms)
+        matched = list(overlap.matched_skills)
+        missing = list(overlap.missing_skills)
 
         # Input guard: a one-word "resume" (e.g. "john") or an empty JD is not a
         # valid assessment — flag for review instead of returning a confident score.
@@ -271,7 +285,7 @@ class ResumeScreenerAgent:
 
         semantic = embedder.similarity(jd, resume)  # 0..1
         total = len(jd_skills)
-        keyword_ratio = len(matched) / total if total else 0.0
+        keyword_ratio = overlap.score
         # Round half-up everywhere (matches JS Math.round) so the gauge, the
         # coverage % and the matched/total counts are all mutually consistent —
         # no banker's-rounding drift (e.g. 10/16 = 62.5% shows as 63%, not 62%).
@@ -328,11 +342,25 @@ class ResumeScreenerAgent:
             # In-request (BYOK-safe). When no live key, it returns None and we keep
             # the keyword result but mark the mode so the UI downgrades confidence —
             # it must never present an unvalidated score as validated.
-            from agents.skill_validator import apply_audit, skill_validator
+            from agents.skill_validator import SkillAudit, apply_audit, skill_validator
+            from core.a2a_envelope import certified_handoff
 
-            audit = await skill_validator.validate(result.get("matched_skills", []), resume)
-            if audit is not None:
-                result = apply_audit(result, audit)
+            async def _validate_skills(payload: dict[str, Any]) -> dict[str, Any] | None:
+                audit_result = await skill_validator.validate(
+                    list(payload.get("skills", [])),
+                    str(payload.get("resume", "")),
+                )
+                return audit_result.model_dump() if audit_result is not None else None
+
+            envelope = await certified_handoff(
+                source_agent=AGENT_NAME,
+                target_agent="skill_validator",
+                func=_validate_skills,
+                payload={"skills": result.get("matched_skills", []), "resume": resume},
+                objectives=_SKILL_AUDIT_HANDOFF_OBJECTIVES,
+            )
+            if envelope.certification.is_valid:
+                result = apply_audit(result, SkillAudit.model_validate(envelope.payload))
             else:
                 result["skill_audit_mode"] = "keyword_fallback"
                 result.setdefault("unverified_skills", [])

@@ -27,7 +27,12 @@ from api.responses import fail, ok, unavailable
 from core.config import settings
 from core.memory import memory
 from core.security import get_current_user, has_role
-from pipelines.intake import CapabilityUnavailable, enforce_upload_size, resolve_input
+from pipelines.intake import (
+    CapabilityUnavailable,
+    IntakeResult,
+    enforce_upload_size,
+    resolve_input,
+)
 from services.input_shield import InvalidAgentInput
 
 
@@ -44,7 +49,8 @@ def _enforce_agent_role(agent_name: str, user: dict[str, Any]) -> None:
     min_role = spec.min_role if spec else "manager"
     if settings.auth_enforce and not has_role(user, min_role):
         raise HTTPException(
-            status_code=403, detail=f"triggering '{agent_name}' requires '{min_role}' or higher"
+            status_code=403,
+            detail=f"triggering '{agent_name}' requires '{min_role}' or higher",
         )
 
 
@@ -53,10 +59,22 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 # Static registry describing each agent for the Fleet panel.
 AGENT_REGISTRY = [
     {"name": "policy_qa_agent", "label": "Policy Q&A", "framework": "LangGraph"},
-    {"name": "onboarding_agent", "label": "Onboarding Orchestrator", "framework": "LangGraph"},
-    {"name": "resume_screener_agent", "label": "Resume Screener", "framework": "CrewAI"},
+    {
+        "name": "onboarding_agent",
+        "label": "Onboarding Orchestrator",
+        "framework": "LangGraph",
+    },
+    {
+        "name": "resume_screener_agent",
+        "label": "Resume Screener",
+        "framework": "CrewAI",
+    },
     {"name": "triage_agent", "label": "Triage", "framework": "CrewAI"},
-    {"name": "attrition_agent", "label": "Attrition Predictor", "framework": "scikit-learn"},
+    {
+        "name": "attrition_agent",
+        "label": "Attrition Predictor",
+        "framework": "scikit-learn",
+    },
 ]
 
 
@@ -187,15 +205,44 @@ async def trigger_agent_upload(
     _enforce_agent_role(agent_name, user)
 
     # 1) Resolve the input into normalised text (this is "what gets passed in").
+    vision_meta: dict[str, Any] | None = None
     try:
         pdf_bytes = await file.read() if file is not None else None
         enforce_upload_size(pdf_bytes)
-        intake = resolve_input(
-            text=text,
-            pdf_bytes=pdf_bytes,
-            filename=file.filename if file is not None else None,
-            url=url,
-        )
+        try:
+            intake = resolve_input(
+                text=text,
+                pdf_bytes=pdf_bytes,
+                filename=file.filename if file is not None else None,
+                url=url,
+            )
+        except ValueError as exc:
+            if (
+                agent_name != "resume_screener_agent"
+                or not pdf_bytes
+                or "no extractable text" not in str(exc)
+            ):
+                raise
+            from services.resume_vlm import (
+                extraction_to_screening_text,
+                parse_resume_pdf,
+            )
+
+            extraction, vision_meta = await parse_resume_pdf(pdf_bytes)
+            extracted_text = extraction_to_screening_text(extraction)
+            intake = IntakeResult(
+                text=extracted_text,
+                source_type="pdf_vlm",
+                source_ref="scanned resume",
+                chars=len(extracted_text),
+            )
+            await memory.log_audit(
+                "resume_screener_agent",
+                "resume_vlm_extract",
+                {"pages": vision_meta["pages"]},
+                {"warnings": vision_meta["warnings"]},
+                "success",
+            )
     except CapabilityUnavailable as exc:
         return unavailable(str(exc), {"capability": exc.capability})
     except ValueError as exc:
@@ -225,7 +272,13 @@ async def trigger_agent_upload(
         return fail(str(exc), {"intake": intake.as_dict()})
 
     data = _attach_mode(result)
-    return ok({"result": data, "intake": intake.as_dict()})
+    return ok(
+        {
+            "result": data,
+            "intake": intake.as_dict(),
+            **({"vision": vision_meta} if vision_meta else {}),
+        }
+    )
 
 
 def _attach_mode(result: Any) -> Any:
@@ -235,7 +288,9 @@ def _attach_mode(result: Any) -> Any:
     but flagged ``degraded`` so operators know answers are deterministic
     fallbacks rather than LLM-grounded.
     """
-    degraded = not settings.anthropic_api_key
+    from core.runtime_key import llm_active
+
+    degraded = not llm_active()
     if isinstance(result, dict):
         return {**result, "_mode": "degraded" if degraded else "full"}
     return {"result": result, "_mode": "degraded" if degraded else "full"}

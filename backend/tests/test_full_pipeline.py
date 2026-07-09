@@ -57,6 +57,27 @@ def test_fallback_routes_list_cases_not_triage() -> None:
 
     result = asyncio.run(_fallback_chat("List all open urgent cases"))
     assert result["tool_calls"][0]["tool"] == "list_open_cases"
+    tool_result = result["tool_calls"][0]["result"]
+    assert tool_result["category"] == "URGENT"
+    assert all(case["category"] == "URGENT" for case in tool_result["cases"])
+    assert "open/escalated URGENT cases" in result["reply"]
+
+
+def test_policy_search_timeout_returns_actionable_result(monkeypatch) -> None:
+    """A stalled vector backend must not leave the chat stream pending forever."""
+    from agents import chat_agent
+    from services import rag
+
+    async def stalled_retrieve(*_args, **_kwargs):
+        await asyncio.sleep(0.05)
+        return []
+
+    monkeypatch.setattr(rag, "retrieve", stalled_retrieve)
+    monkeypatch.setattr(chat_agent.settings, "chat_policy_timeout_seconds", 0.001)
+    result = asyncio.run(chat_agent._search_policy_async("leave policy"))
+    assert result["found"] is False
+    assert result["timed_out"] is True
+    assert "timed out" in result["message"]
 
 
 def test_fallback_case_lookup_by_id() -> None:

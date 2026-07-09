@@ -37,7 +37,7 @@ import PoliciesPanel from "./components/PoliciesPanel";
 import ChatPanel from "./components/ChatPanel";
 import ResumeScreener from "./components/ResumeScreener";
 import AttritionPanel from "./components/AttritionPanel";
-import DemoBanner from "./components/DemoBanner";
+import OpenAccessBanner from "./components/OpenAccessBanner";
 import ByokControl from "./components/ByokControl";
 import { useAuth } from "./auth/AuthContext";
 import LoginScreen from "./auth/LoginScreen";
@@ -86,8 +86,8 @@ export default function Page() {
   // the Chat input; cleared once the ChatPanel consumes it (one-shot).
   const [chatSeed, setChatSeed] = useState("");
 
-  // Role-aware surfaces. Whenever a persona/account is active its role drives
-  // visibility — so flipping the demo role switcher visibly changes the surface
+  // Role-aware surfaces. Whenever a role/account is active its role drives
+  // visibility — so flipping the role switcher visibly changes the surface
   // (employee sees Chat-only self-service; HR roles unlock the operator console).
   // A not-signed-in guest sees everything so a reviewer can explore freely.
   const role: Role = user?.role ?? "viewer";
@@ -109,8 +109,8 @@ export default function Page() {
     setMobileNavOpen(false);
   };
 
-  // Auth gate: show the login screen until the user signs in or chooses guest.
-  // (Backend advisory mode means guest is fully functional for demos.)
+  // Auth gate: enforced deployments require sign-in. In open-access local mode,
+  // the launchpad lets a reviewer enter without credentials.
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-brand-purple text-brand-cream">
@@ -118,7 +118,7 @@ export default function Page() {
       </div>
     );
   }
-  // Demo (advisory) → the persona Launchpad replaces the login gate.
+  // Open access (advisory) → the role Launchpad replaces the login gate.
   // Enforced (production) → keep the real email/password sign-in.
   if (!isAuthed && !guest) {
     return enforced ? <LoginScreen onGuest={() => setGuest(true)} /> : <Launchpad />;
@@ -126,7 +126,7 @@ export default function Page() {
 
   return (
     <div className="flex min-h-screen w-full max-w-full flex-col overflow-x-hidden bg-brand-cream text-ink-800">
-      {!enforced && <DemoBanner llmOn={llmOn} />}
+      {!enforced && <OpenAccessBanner llmOn={llmOn} />}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         {/* Sidebar */}
         <aside className="hidden w-60 shrink-0 flex-col bg-brand-purple text-brand-cream lg:flex">
@@ -200,7 +200,7 @@ export default function Page() {
                     title="AUTH_ENFORCE is off — roles are advisory. Set AUTH_ENFORCE=true to enforce."
                     className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-medium text-indigo-700"
                   >
-                    demo · open access
+                    open access
                   </span>
                 )}
                 <div className="flex items-center gap-2">

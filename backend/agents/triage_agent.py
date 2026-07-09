@@ -25,7 +25,14 @@ from typing import Any, Awaitable, Callable, Literal
 from pydantic import BaseModel, Field
 
 from agents.policy_resolver import policy_resolver
+from agents.prompts import TRIAGE
+from core.genai_lifecycle import (
+    controlled_parameters,
+    policy_for,
+    transform_fuzzy_input,
+)
 from core.memory import memory
+from models.naive_baselines import TRIAGE_KEYWORDS, triage_keyword_baseline
 
 AGENT_NAME = "triage_agent"
 
@@ -36,22 +43,10 @@ class TriageDecision(BaseModel):
     """Schema-constrained classifier output (the model can't return arbitrary text)."""
 
     category: Literal["BENEFITS", "POLICY", "ONBOARDING", "PERFORMANCE", "COMPLIANCE", "URGENT"]
+    priority: Literal["low", "medium", "high", "critical"]
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
 
-
-_TRIAGE_SYSTEM_PROMPT = (
-    "You are an HR ticket triage classifier. Classify the ticket into exactly one "
-    "category: URGENT (legal/safety/harassment/discrimination/retaliation/"
-    "emergency — anything needing immediate human attention), BENEFITS, ONBOARDING, "
-    "PERFORMANCE, COMPLIANCE, or POLICY (general policy/handbook questions). Give a "
-    "one-sentence rationale and a confidence in [0,1]. When in doubt between URGENT "
-    "and anything else, choose URGENT."
-)
-
-# Cap classifier input so a long pasted document can't multiply tokens across the
-# (bounded) validation-retry loop — keeps routing a cheap call.
-_MAX_CLASSIFY_CHARS = 4000
 
 Broadcaster = Callable[[dict[str, Any]], Awaitable[None]]
 
@@ -66,24 +61,37 @@ _RECOMMENDED_ACTION: dict[str, str] = {
     "COMPLIANCE": "Flag for Compliance review; preserve records and restrict access.",
 }
 
-_KEYWORDS: dict[str, list[str]] = {
-    "URGENT": [
-        "urgent",
-        "asap",
-        "emergency",
-        "immediately",
-        "harass",  # stem → harassment / harassed / harassing
-        "discriminat",  # discrimination / discriminated
-        "retaliat",  # retaliation / retaliated
-        "safety",
-        "lawsuit",
-        "threat",
-    ],
-    "BENEFITS": ["benefit", "insurance", "401k", "pto", "vacation", "leave", "health"],
-    "ONBOARDING": ["onboard", "new hire", "first day", "orientation", "laptop", "access"],
-    "PERFORMANCE": ["performance", "review", "promotion", "raise", "pip", "feedback"],
-    "COMPLIANCE": ["compliance", "audit", "gdpr", "policy violation", "regulation", "legal"],
-    "POLICY": ["policy", "handbook", "rule", "guideline", "dress code", "remote work"],
+_POLICY_RESOLUTION_HANDOFF_OBJECTIVES: dict[str, Any] = {
+    "schema": {
+        "type": "object",
+        "properties": {
+            "resolution": {
+                "type": "object",
+                "properties": {
+                    "answer": {"type": "string"},
+                    "source_documents": {"type": "array", "items": {"type": "object"}},
+                    "confidence_score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "needs_review": {"type": "boolean"},
+                },
+                "required": ["answer", "source_documents", "confidence_score", "needs_review"],
+                "additionalProperties": True,
+            },
+            "trace": {"type": "array", "items": {"type": "object"}},
+        },
+        "required": ["resolution", "trace"],
+        "additionalProperties": True,
+    },
+    "require_pii_free": True,
+}
+
+_KEYWORDS = TRIAGE_KEYWORDS
+_PRIORITY = {
+    "URGENT": "critical",
+    "COMPLIANCE": "high",
+    "PERFORMANCE": "high",
+    "ONBOARDING": "medium",
+    "BENEFITS": "medium",
+    "POLICY": "low",
 }
 
 
@@ -117,17 +125,7 @@ class TriageAgent:
         Returns:
             One of :data:`CATEGORIES`.
         """
-        lower = text.lower()
-        # URGENT takes priority if any urgent keyword is present.
-        if any(k in lower for k in _KEYWORDS["URGENT"]):
-            return "URGENT"
-        scores = {
-            cat: sum(1 for k in kws if k in lower)
-            for cat, kws in _KEYWORDS.items()
-            if cat != "URGENT"
-        }
-        best = max(scores, key=scores.get)
-        return best if scores[best] > 0 else "POLICY"
+        return triage_keyword_baseline.predict(text).category
 
     def _keyword_reason(self, text: str, category: str) -> str:
         """Explain *why* a ticket got its category — the auditable rationale.
@@ -135,21 +133,7 @@ class TriageAgent:
         Returns a plain-English sentence a compliance reviewer can verify,
         rather than leaving the decision opaque ("why was 'sDSD' POLICY?").
         """
-        lower = text.lower()
-        if category == "URGENT":
-            hit = next((k for k in _KEYWORDS["URGENT"] if k in lower), None)
-            return (
-                f"Matched urgent signal '{hit}' in the ticket text."
-                if hit
-                else "Classified urgent."
-            )
-        hits = [k for k in _KEYWORDS.get(category, []) if k in lower]
-        if hits:
-            return f"Matched {category.title()} keyword(s): {', '.join(hits[:3])}."
-        return (
-            "No strong keyword signal in the text; defaulted to POLICY for a "
-            "document lookup. Low confidence — consider human review."
-        )
+        return triage_keyword_baseline.reason(text, category)
 
     async def _llm_classify(self, text: str) -> TriageDecision | None:
         """Classify with a type-safe Pydantic AI agent; ``None`` to fall back.
@@ -160,9 +144,9 @@ class TriageAgent:
         long document can't multiply token cost; a wall-clock timeout guards the
         call. Runs in-request (await), keeping the BYOK key on the request frame.
         """
-        from core.llm_factory import get_request_scoped_anthropic_model
+        from core.llm_factory import get_request_scoped_model
 
-        model = get_request_scoped_anthropic_model()
+        model = get_request_scoped_model(role="triage")
         if model is None:  # no live key / gated off → deterministic keyword path
             return None
         try:
@@ -173,11 +157,18 @@ class TriageAgent:
         agent: Agent[None, TriageDecision] = Agent(
             model,
             output_type=TriageDecision,
-            system_prompt=_TRIAGE_SYSTEM_PROMPT,
-            retries=1,  # one schema self-heal, not the default 3–4 (token guard)
+            system_prompt=TRIAGE.text,
+            retries=policy_for("triage").retries,
         )
         try:
-            result = await asyncio.wait_for(agent.run(text[:_MAX_CLASSIFY_CHARS]), timeout=20.0)
+            prepared = transform_fuzzy_input(text, role="triage")
+            result = await asyncio.wait_for(
+                agent.run(
+                    prepared.text,
+                    model_settings=controlled_parameters("triage"),
+                ),
+                timeout=policy_for("triage").timeout_seconds,
+            )
             return result.output
         except Exception:  # noqa: BLE001 — any failure → keyword fallback
             return None
@@ -197,8 +188,14 @@ class TriageAgent:
         await memory.upsert_agent(AGENT_NAME, status="running", last_action="triaging ticket")
         summary = summary or (ticket_text[:120] + ("…" if len(ticket_text) > 120 else ""))
         try:
-            decision = await self._llm_classify(ticket_text)
-            if decision is not None:
+            fast_route = triage_keyword_baseline.confident_predict(ticket_text)
+            decision = None if fast_route is not None else await self._llm_classify(ticket_text)
+            if fast_route is not None:
+                category = fast_route.category
+                method = "keyword_fast_path"
+                llm_rationale = None
+                llm_confidence = None
+            elif decision is not None:
                 category = decision.category
                 method = "llm"
                 llm_rationale: str | None = decision.rationale
@@ -208,6 +205,17 @@ class TriageAgent:
                 method = "keyword"
                 llm_rationale = None
                 llm_confidence = None
+            baseline = triage_keyword_baseline.predict(ticket_text)
+            priority = _PRIORITY[category]
+            confidence = (
+                float(llm_confidence)
+                if llm_confidence is not None
+                else (
+                    0.3
+                    if baseline.defaulted
+                    else min(0.95, 0.55 + 0.1 * len(baseline.matched_terms))
+                )
+            )
 
             resolution: dict[str, Any] | None = None
             policy_trace: list[dict[str, Any]] = []
@@ -222,7 +230,37 @@ class TriageAgent:
                 # Auto-resolve through the bounded agentic loop (retrieve → grade
                 # → reformulate-and-retry on low confidence → accept). Routing is
                 # unchanged: POLICY still auto-resolves.
-                resolved = await policy_resolver.resolve(ticket_text)
+                from core.a2a_envelope import certified_handoff
+
+                envelope = await certified_handoff(
+                    source_agent=AGENT_NAME,
+                    target_agent="policy_qa_agent",
+                    func=lambda payload: policy_resolver.resolve(str(payload["ticket_text"])),
+                    payload={"ticket_text": ticket_text},
+                    objectives=_POLICY_RESOLUTION_HANDOFF_OBJECTIVES,
+                )
+                resolved = (
+                    envelope.payload
+                    if envelope.certification.is_valid
+                    else {
+                        "resolution": {
+                            "answer": (
+                                "Policy resolution did not pass certification; "
+                                "route this ticket for manual review."
+                            ),
+                            "source_documents": [],
+                            "confidence_score": 0.0,
+                            "needs_review": True,
+                            "mode": "certification_failed",
+                        },
+                        "trace": [
+                            {
+                                "step": "certification",
+                                "violations": envelope.certification.violations,
+                            }
+                        ],
+                    }
+                )
                 resolution = resolved["resolution"]
                 policy_trace = resolved["trace"]
                 status = "resolved"
@@ -239,6 +277,8 @@ class TriageAgent:
             dossier: dict[str, Any] = {
                 "rationale": rationale,
                 "method": method,
+                "priority": priority,
+                "confidence": round(confidence, 2),
                 "recommended_action": _RECOMMENDED_ACTION.get(
                     category, "Route to the assigned queue."
                 ),
@@ -280,6 +320,8 @@ class TriageAgent:
                 {"ticket": summary},
                 {
                     "category": category,
+                    "priority": priority,
+                    "confidence": round(confidence, 2),
                     "status": status,
                     "case_id": case["id"],
                     "rationale": rationale,
@@ -314,6 +356,8 @@ class TriageAgent:
             return {
                 "case": case,
                 "category": category,
+                "priority": priority,
+                "confidence": round(confidence, 2),
                 "resolution": resolution,
                 "dossier": dossier,
             }

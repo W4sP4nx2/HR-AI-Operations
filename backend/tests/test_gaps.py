@@ -58,7 +58,11 @@ def test_policy_soft_delete_and_restore(tmp_path) -> None:
 
     async def scenario():
         await mem.upsert_policy(
-            "leave", "leave.pdf", 2, 100, source_text="Annual leave is 20 days per year."
+            "leave",
+            "leave.pdf",
+            2,
+            100,
+            source_text="Annual leave is 20 days per year.",
         )
         assert len(await mem.list_policies()) == 1
 

@@ -205,7 +205,11 @@ async def ingest_policies(paths: list[str]) -> None:
         doc_id = os.path.basename(path).replace(".pdf", "")
         written = await rag.ingest_chunks(
             [
-                {"text": c, "doc_id": doc_id, "metadata": {"source": path, "chunk_index": i}}
+                {
+                    "text": c,
+                    "doc_id": doc_id,
+                    "metadata": {"source": path, "chunk_index": i},
+                }
                 for i, c in enumerate(chunks)
             ]
         )

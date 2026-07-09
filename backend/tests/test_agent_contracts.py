@@ -26,7 +26,12 @@ def test_registry_is_complete() -> None:
     assert api_names == spec_names, (api_names, spec_names)
 
     for spec in AGENT_SPECS.values():
-        assert spec.purpose and spec.min_role in {"viewer", "analyst", "manager", "admin"}
+        assert spec.purpose and spec.min_role in {
+            "viewer",
+            "analyst",
+            "manager",
+            "admin",
+        }
         assert spec.tools, f"{spec.name} declares no tools"
         assert spec.guardrails, f"{spec.name} declares no guardrails"
         assert spec.risk in {"advisory", "decision-support", "gated-write", "escalate"}
@@ -101,7 +106,12 @@ def test_onboarding_output_matches_contract() -> None:
 
     result = asyncio.run(
         onboarding_agent.start(
-            {"name": "Ada", "email": "ada@acme.com", "department": "eng", "manager": "m@acme.com"}
+            {
+                "name": "Ada",
+                "email": "ada@acme.com",
+                "department": "eng",
+                "manager": "m@acme.com",
+            }
         )
     )
     validated = validate_output("onboarding_agent", result)

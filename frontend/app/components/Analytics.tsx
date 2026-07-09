@@ -28,8 +28,16 @@ import {
   Briefcase,
   ScanSearch,
   ThumbsUp,
+  Search,
+  Loader2,
+  Clock3,
 } from "lucide-react";
-import { api, type Metrics, type FeedbackStat } from "../../lib/api";
+import {
+  api,
+  type Metrics,
+  type FeedbackStat,
+  type FireworksBatchStatus,
+} from "../../lib/api";
 
 // Humanise the snake_case attrition drivers for display.
 const DRIVER_LABELS: Record<string, string> = {
@@ -195,6 +203,7 @@ export default function Analytics() {
       </div>
 
       <WhatsWorkingCard stats={feedback} />
+      <BatchStatusPanel />
 
       <div className="flex flex-wrap gap-3 text-xs text-ink-700/60">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 shadow-sm">
@@ -218,6 +227,127 @@ export default function Analytics() {
         </span>
       </div>
     </div>
+  );
+}
+
+function BatchStatusPanel() {
+  const [jobId, setJobId] = useState("");
+  const [trackedJobId, setTrackedJobId] = useState("");
+  const [status, setStatus] = useState<FireworksBatchStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const inspect = async () => {
+    const normalized = jobId.trim();
+    if (!normalized || busy) return;
+    setBusy(true);
+    setError(null);
+    setStatus(null);
+    try {
+      setStatus(await api.fireworksBatchStatus(normalized));
+      setTrackedJobId(normalized);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Batch status unavailable");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!status || status.terminal || !status.poll_after_seconds || !trackedJobId) return;
+    const timer = window.setTimeout(() => {
+      void api
+        .fireworksBatchStatus(trackedJobId)
+        .then((next) => {
+          setStatus(next);
+          setError(null);
+        })
+        .catch((err: unknown) => {
+          setError(err instanceof Error ? err.message : "Batch status unavailable");
+        });
+    }, status.poll_after_seconds * 1000);
+    return () => window.clearTimeout(timer);
+  }, [status, trackedJobId]);
+
+  return (
+    <section className="rounded-2xl border border-brand-purple/10 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-2 text-brand-purple">
+        <ScanSearch size={16} />
+        <h3 className="font-semibold">Fireworks batch status</h3>
+      </div>
+      <div className="mt-3 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+        <Clock3 size={16} className="mt-0.5 shrink-0 text-amber-700" />
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold text-amber-900">
+              Pending
+            </span>
+            <span className="text-xs font-medium text-amber-900">
+              Expected asynchronous state
+            </span>
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
+            Fireworks validates and queues batch jobs before compute is available. Pending does not
+            block interactive screening. Inspect the job again later; investigate model support,
+            dataset validity, and quota if it remains pending for more than 30 minutes.
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <label className="sr-only" htmlFor="fireworks-batch-job-id">
+          Fireworks Batch job ID
+        </label>
+        <input
+          id="fireworks-batch-job-id"
+          value={jobId}
+          onChange={(event) => setJobId(event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && void inspect()}
+          placeholder="resume-demo-001"
+          className="min-w-0 flex-1 rounded-lg border border-brand-purple/15 px-3 py-2 text-sm outline-none focus:border-brand-magenta"
+        />
+        <button
+          type="button"
+          onClick={() => void inspect()}
+          disabled={busy || !jobId.trim()}
+          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-purple px-4 text-sm font-medium text-white disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+          Inspect
+        </button>
+      </div>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {status && (
+        <div className="mt-3 rounded-lg bg-brand-cream/50 px-4 py-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-brand-purple px-2.5 py-0.5 text-xs font-semibold text-white">
+              {status.label}
+            </span>
+            <span className="break-all font-mono text-xs text-ink-700/60">{status.job_id}</span>
+            {status.progress_percent !== null && (
+              <span className="ml-auto text-xs font-medium text-brand-purple">
+                {Math.round(status.progress_percent)}%
+              </span>
+            )}
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-ink-700/70">{status.explanation}</p>
+          {status.total_requests !== null && (
+            <p className="mt-1 text-xs text-ink-700/50">
+              {status.processed_requests ?? 0} of {status.total_requests} requests processed
+              {status.failed_requests ? ` · ${status.failed_requests} failed` : ""}
+            </p>
+          )}
+          {status.provider_message && (
+            <p className="mt-1 text-xs text-ink-700/50">{status.provider_message}</p>
+          )}
+          {!status.terminal && status.poll_after_seconds && (
+            <p className="mt-1 text-[11px] text-ink-700/40">
+              Provider state: {status.provider_state} · checking again in{" "}
+              {status.poll_after_seconds}s
+            </p>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 

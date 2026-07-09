@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hr-ai-command-center
+  namespace: argocd
+spec:
+  project: hr-ai-command-center
+  source:
+    repoURL: https://github.com/replace-me/hr-command-center.git
+    targetRevision: main
+    path: deploy/k8s/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hr-ai-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+  revisionHistoryLimit: 10

@@ -26,6 +26,15 @@ services:
     environment:
       - DATABASE_URL=postgresql://hr:hr_dev_password@db:5432/hrdb
       - ENVIRONMENT=development
+      - LLM_PROVIDER=${LLM_PROVIDER:-fireworks}
+      - FIREWORKS_API_KEY=${FIREWORKS_API_KEY:-}
+      - FIREWORKS_BASE_URL=${FIREWORKS_BASE_URL:-}
+      - FIREWORKS_CONTROL_BASE_URL=${FIREWORKS_CONTROL_BASE_URL:-}
+      - FIREWORKS_ACCOUNT_ID=${FIREWORKS_ACCOUNT_ID:-}
+      - FIREWORKS_VISION_MODEL=${FIREWORKS_VISION_MODEL:-}
+      - ENABLE_RESUME_VLM=${ENABLE_RESUME_VLM:-false}
+      - RESUME_VLM_MAX_PAGES=${RESUME_VLM_MAX_PAGES:-10}
+      - ALLOWED_MODELS=${ALLOWED_MODELS:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - ./backend:/app

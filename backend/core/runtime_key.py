@@ -16,6 +16,7 @@ classifier calls that agents offload to threads still see the request key.
 from __future__ import annotations
 
 import contextvars
+import os
 
 from core.config import settings
 
@@ -41,7 +42,47 @@ def request_api_key() -> str | None:
 
 def effective_api_key() -> str:
     """The key LLM call-sites should use: request key, else the server's, else ''."""
-    return _request_api_key.get() or settings.anthropic_api_key
+    return _request_api_key.get() or server_api_key()
+
+
+def llm_provider() -> str:
+    """Configured LLM provider, read live so harness-injected env wins."""
+    return (os.environ.get("LLM_PROVIDER") or settings.llm_provider or "").strip().lower()
+
+
+def server_api_key() -> str:
+    """Server-owned key for the configured provider."""
+    if llm_provider() == "fireworks":
+        return os.environ.get("FIREWORKS_API_KEY", settings.fireworks_api_key)
+    if llm_provider() == "amd_vllm":
+        return os.environ.get("AMD_VLLM_API_KEY", settings.amd_vllm_api_key)
+    return os.environ.get("ANTHROPIC_API_KEY", settings.anthropic_api_key)
+
+
+def llm_config_issues() -> list[str]:
+    """Non-secret provider configuration problems visible in health/startup logs."""
+    provider = llm_provider()
+    if provider == "fireworks":
+        issues: list[str] = []
+        if not looks_like_key(server_api_key()):
+            issues.append("FIREWORKS_API_KEY is missing or malformed")
+        if not os.environ.get("FIREWORKS_BASE_URL", settings.fireworks_base_url).strip():
+            issues.append("FIREWORKS_BASE_URL is missing")
+        if not os.environ.get("ALLOWED_MODELS", settings.allowed_models).strip():
+            issues.append("ALLOWED_MODELS is missing")
+        return issues
+    if provider == "amd_vllm":
+        issues = []
+        if not looks_like_key(server_api_key()):
+            issues.append("AMD_VLLM_API_KEY is missing or malformed")
+        if not os.environ.get("AMD_VLLM_BASE_URL", settings.amd_vllm_base_url).strip():
+            issues.append("AMD_VLLM_BASE_URL is missing")
+        if not os.environ.get("ALLOWED_MODELS", settings.allowed_models).strip():
+            issues.append("ALLOWED_MODELS is missing")
+        return issues
+    if provider not in ("", "anthropic"):
+        return [f"LLM_PROVIDER '{provider}' is unsupported"]
+    return []
 
 
 def looks_like_key(value: str | None) -> bool:
@@ -60,6 +101,13 @@ def llm_active() -> bool:
     rk = request_api_key()
     if rk is not None:  # BYOK: visitor opted in — but only if it's plausibly a key
         return looks_like_key(rk)
-    if not settings.anthropic_api_key:
+
+    provider = llm_provider()
+    if provider in ("fireworks", "amd_vllm"):
+        # Provider-scored/self-hosted paths must not be silently short-circuited
+        # by local showcase flags. Their required environment must be explicit.
+        return not llm_config_issues()
+
+    if not server_api_key():
         return False
     return not (settings.mock_llm or settings.demo_mode)

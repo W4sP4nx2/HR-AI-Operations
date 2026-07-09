@@ -16,6 +16,7 @@ extra Python dependency beyond a Postgres server with the ``vector`` extension.
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from sqlalchemy import text
@@ -23,6 +24,7 @@ from sqlalchemy import text
 import core.memory as core_memory
 from core.config import settings
 from core.embeddings import embedder
+from core.observability import record_embedding, record_retrieval, record_vector_write
 
 
 def _mem():
@@ -33,6 +35,12 @@ def _mem():
 def _vec_to_literal(vec: list[float]) -> str:
     """Format an embedding as a pgvector literal: ``[0.1,0.2,...]``."""
     return "[" + ",".join(f"{x:.6f}" for x in vec) + "]"
+
+
+def _batches(items: list[dict[str, Any]], size: int):
+    """Yield bounded row batches without copying the full collection again."""
+    for start in range(0, len(items), max(1, size)):
+        yield items[start : start + max(1, size)]
 
 
 class PgVectorStore:
@@ -137,8 +145,15 @@ class PgVectorStore:
         """Embed and upsert chunk dicts ({text, doc_id, metadata{chunk_index}})."""
         if not await self.ensure_schema() or not chunks:
             return 0
+        embed_started = time.perf_counter()
+        vectors = embedder.embed_batch([chunk["text"] for chunk in chunks])
+        record_embedding(
+            embedder.provider,
+            len(chunks),
+            time.perf_counter() - embed_started,
+        )
         rows = []
-        for c in chunks:
+        for c, vector in zip(chunks, vectors, strict=True):
             idx = int(c.get("metadata", {}).get("chunk_index", 0))
             pid = c.get("doc_id", "unknown")
             rows.append(
@@ -147,7 +162,7 @@ class PgVectorStore:
                     "pid": pid,
                     "idx": idx,
                     "txt": c["text"],
-                    "emb": _vec_to_literal(embedder.embed(c["text"])),
+                    "emb": _vec_to_literal(vector),
                 }
             )
         stmt = text(
@@ -156,8 +171,11 @@ class PgVectorStore:
             "ON CONFLICT (id) DO UPDATE SET "
             "chunk_text = EXCLUDED.chunk_text, embedding = EXCLUDED.embedding"
         )
+        write_started = time.perf_counter()
         async with _mem().engine.begin() as conn:
-            await conn.execute(stmt, rows)
+            for batch in _batches(rows, settings.vector_write_batch_size):
+                await conn.execute(stmt, batch)
+        record_vector_write("pgvector", len(rows), time.perf_counter() - write_started)
         return len(rows)
 
     async def search(self, query: str, top_k: int | None = None) -> list[dict[str, Any]]:
@@ -171,10 +189,16 @@ class PgVectorStore:
             "1 - (embedding <=> CAST(:q AS vector)) AS score "
             "FROM policy_chunks ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
         )
+        started = time.perf_counter()
         async with _mem().engine.connect() as conn:
             rows = (await conn.execute(stmt, {"q": q, "k": k})).mappings().all()
+        record_retrieval("pgvector", time.perf_counter() - started)
         return [
-            {"text": r["chunk_text"], "doc_id": r["policy_id"], "score": float(r["score"])}
+            {
+                "text": r["chunk_text"],
+                "doc_id": r["policy_id"],
+                "score": float(r["score"]),
+            }
             for r in rows
         ]
 

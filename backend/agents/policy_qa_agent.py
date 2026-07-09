@@ -126,7 +126,11 @@ class PolicyQAAgent:
                 "needs_review": True,
             }
             await memory.log_audit(
-                AGENT_NAME, "prompt_injection_blocked", {"query": query}, blocked, "blocked"
+                AGENT_NAME,
+                "prompt_injection_blocked",
+                {"query": query},
+                blocked,
+                "blocked",
             )
             await memory.upsert_agent(
                 AGENT_NAME, status="idle", last_action="blocked injection attempt"
@@ -150,7 +154,11 @@ class PolicyQAAgent:
             return result
         except Exception as exc:  # noqa: BLE001
             await memory.log_audit(
-                AGENT_NAME, "policy_query", {"query": query}, {"error": str(exc)}, "error"
+                AGENT_NAME,
+                "policy_query",
+                {"query": query},
+                {"error": str(exc)},
+                "error",
             )
             await memory.upsert_agent(AGENT_NAME, status="error", last_action=str(exc))
             raise

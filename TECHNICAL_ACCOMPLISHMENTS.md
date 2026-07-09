@@ -1,8 +1,9 @@
 # HR AI Command Center — Backend Technical Accomplishments
 
 A reference for the backend's notable engineering decisions, each **grounded in
-the codebase and verified by tests** (169 passed / 3 skipped on `main`). Numbers
-quoted below are *measured*, not estimated. Where something is only structurally
+the codebase and verified by tests**. Test counts belong to the current CI run,
+not a long-lived document. Numbers quoted below are *measured*, not estimated.
+Where something is only structurally
 guaranteed (not exercised against a live key), it says so — honesty is the point.
 
 **Stack:** FastAPI · async SQLAlchemy Core (SQLite ↔ Postgres) · Pydantic AI ·

@@ -28,7 +28,9 @@ def _rate(part: int, whole: int) -> float:
 
 
 @router.get("")
-async def get_metrics(_: dict[str, Any] = Depends(require_role("analyst"))) -> dict[str, Any]:
+async def get_metrics(
+    _: dict[str, Any] = Depends(require_role("analyst")),
+) -> dict[str, Any]:
     """Return live operational metrics computed from the audit log and cases.
 
     Everything here is a query result, never a precomputed counter:

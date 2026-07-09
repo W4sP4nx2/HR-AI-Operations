@@ -41,9 +41,9 @@ export default function PoliciesPanel() {
       setUpload({
         status: "error",
         name: file.name,
-        message: "Uploads disabled in Showcase Demo to prevent DB abuse.",
+        message: "Uploads disabled for this role to prevent DB abuse.",
       });
-      toast.notify("Uploads disabled in Showcase Demo to prevent DB abuse.", "warning");
+      toast.notify("Uploads disabled for this role to prevent DB abuse.", "warning");
       return;
     }
     if (!file.name.toLowerCase().endsWith(".pdf")) {
@@ -131,7 +131,7 @@ export default function PoliciesPanel() {
         <div className="text-center">
           <p className="font-medium text-brand-purple">
             {!canMutatePolicies
-              ? "Uploads disabled in Showcase Demo"
+              ? "Uploads disabled for this role"
               : dragging
               ? "Drop to ingest"
               : "Drag & drop a PDF, or click to browse"}
@@ -139,7 +139,7 @@ export default function PoliciesPanel() {
           <p className="mt-1 text-xs text-ink-700/60">
             {canMutatePolicies
               ? "Policy documents are extracted, chunked and loaded into the vector store"
-              : "Switch to an active HR Manager or Admin persona to ingest policy PDFs."}
+              : "Switch to an active HR Manager or Admin role to ingest policy PDFs."}
           </p>
         </div>
       </div>

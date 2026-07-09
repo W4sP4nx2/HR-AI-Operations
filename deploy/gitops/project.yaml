@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: hr-ai-command-center
+  namespace: argocd
+spec:
+  description: Restricted GitOps project for the HR AI platform.
+  sourceRepos:
+    - https://github.com/replace-me/hr-command-center.git
+  destinations:
+    - namespace: hr-ai-system
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  orphanedResources:
+    warn: true

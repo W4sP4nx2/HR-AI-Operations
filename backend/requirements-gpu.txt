@@ -1,0 +1,7 @@
+# Install only inside a CUDA/ROCm GPU image. Never use this file for laptop CI.
+-r requirements-prod.txt
+
+# The base image/operator must provide versions compatible with its driver/ROCm.
+torch
+triton
+sentence-transformers
