@@ -19,6 +19,7 @@ from core.fireworks import (
     fireworks_manifest,
     is_scale_up_exception,
     is_scale_up_response,
+    prune_tool_schemas,
     scale_up_delays,
 )
 
@@ -59,12 +60,40 @@ def test_structured_chat_body_is_bounded_and_allowlisted(allowed_models):
     assert body["user"].startswith("hrcc-")
     assert body["top_k"] == 20
     assert body["top_p"] == 0.9
+    assert body["x_preflight_budget"]["input_tokens"] > 0
 
     with pytest.raises(ValueError, match="ALLOWED_MODELS"):
         build_chat_body(
             model_id="unapproved/model",
             messages=[{"role": "user", "content": "hello"}],
         )
+
+
+def test_chat_body_requires_static_system_context_first(allowed_models):
+    with pytest.raises(ValueError, match="system prompt must be first"):
+        build_chat_body(
+            model_id=allowed_models[0],
+            messages=[
+                {"role": "user", "content": "Question first."},
+                {"role": "system", "content": "Static instructions too late."},
+            ],
+        )
+
+
+def test_tool_schema_pruning_removes_unused_tools(allowed_models):
+    tools = [
+        {"type": "function", "function": {"name": "search_policy", "parameters": {}}},
+        {"type": "function", "function": {"name": "create_case", "parameters": {}}},
+    ]
+
+    assert prune_tool_schemas(tools, ["search_policy"]) == [tools[0]]
+    body = build_chat_body(
+        model_id=allowed_models[0],
+        messages=[{"role": "system", "content": "Static."}, {"role": "user", "content": "Q"}],
+        tools=tools,
+        allowed_tool_names=["search_policy"],
+    )
+    assert body["tools"] == [tools[0]]
 
 
 def test_resume_vision_body_places_images_before_text(allowed_models):
@@ -211,6 +240,7 @@ def test_batch_jsonl_has_unique_ids_and_request_bodies(allowed_models):
     rows = [json.loads(line) for line in payload.splitlines()]
     assert [row["custom_id"] for row in rows] == ["resume-1", "resume-2"]
     assert all("model" not in row["body"] for row in rows)
+    assert all("x_preflight_budget" not in row["body"] for row in rows)
     assert all(
         row["body"]["messages"][0]["content"] == "Static instructions first." for row in rows
     )
@@ -249,6 +279,10 @@ def test_manifest_is_secret_free_and_use_case_complete(monkeypatch, allowed_mode
     use_cases = {item["id"] for item in manifest["use_cases"]}
     assert manifest["configuration"]["allowed_model_count"] == 2
     assert manifest["configuration"]["credentials_exposed"] is False
+    assert "cost_attribution" in manifest["runtime_telemetry"]
+    assert "cache_hit_rate" in manifest["runtime_telemetry"]
+    assert "prefilter_skip_rate" in manifest["runtime_telemetry"]
+    assert manifest["runtime_telemetry"]["cost_router"]["model_selection"] == "ALLOWED_MODELS only"
     assert manifest["batch_async_contract"]["reference"]["status"] == "pending"
     assert manifest["batch_async_contract"]["pending_warning_after_minutes"] == 30
     assert "fixture-fireworks-key-not-real" not in json.dumps(manifest)

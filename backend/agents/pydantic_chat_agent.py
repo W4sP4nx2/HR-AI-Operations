@@ -130,6 +130,8 @@ async def handle_chat_message(
             "tool_count": len(raw_result.get("tool_calls") or []),
             "source_policy_count": len(structured.source_policy_ids),
             "cost_route_available": route is not None,
+            "provider_call": raw_result.get("mode") == "full",
+            "prefilter_skip": raw_result.get("mode") != "full",
         },
         cost_query=redacted_message,
     )
@@ -162,6 +164,8 @@ async def governed_chat(
             "tool_count": len(raw_result.get("tool_calls") or []),
             "source_policy_count": len(structured.source_policy_ids),
             "cost_route_available": route is not None,
+            "provider_call": raw_result.get("mode") == "full",
+            "prefilter_skip": raw_result.get("mode") != "full",
         },
         cost_query=message,
     )

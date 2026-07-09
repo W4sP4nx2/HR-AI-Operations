@@ -39,6 +39,7 @@ class A2AEnvelope(BaseModel):
     latency_ms: float | None = Field(default=None, ge=0.0)
     token_count: int | None = Field(default=None, ge=0)
     model_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 def payload_from_certification(certification: CertifiedResult) -> dict[str, Any]:
@@ -67,6 +68,7 @@ def build_and_record_envelope(
     started_at: float,
     token_count: int | None = None,
     model_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> A2AEnvelope:
     """Build and record an envelope from a certification result."""
     return record_a2a_envelope(
@@ -78,6 +80,7 @@ def build_and_record_envelope(
             latency_ms=max(0.0, (time.perf_counter() - started_at) * 1000),
             token_count=token_count,
             model_id=model_id,
+            metadata=metadata or {},
         )
     )
 
@@ -90,6 +93,8 @@ async def certified_handoff(
     objectives: dict[str, Any],
     token_count: int | None = None,
     model_id: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    cost_query: str | None = None,
     persist: bool = True,
 ) -> A2AEnvelope:
     """Run a handoff function, certify its output, record telemetry, and persist audit.
@@ -100,6 +105,29 @@ async def certified_handoff(
     does not store raw employee data.
     """
     started_at = time.perf_counter()
+    envelope_metadata = dict(metadata or {})
+    selected_model = model_id
+    if cost_query:
+        try:
+            from core.cost_router import CostRouter
+
+            route = CostRouter.classify(cost_query)
+            selected_model = selected_model or route.selected_model
+            envelope_metadata.update(
+                {
+                    "cost_tier": route.tier,
+                    "selected_model": route.selected_model,
+                    "cost_route_reason": route.reason,
+                    "matched_keyword": route.matched_keyword,
+                }
+            )
+        except Exception as exc:  # noqa: BLE001 - envelope still records the handoff
+            envelope_metadata.update(
+                {
+                    "cost_route_error": type(exc).__name__,
+                    "cost_route_reason": "unavailable",
+                }
+            )
     try:
         result = func(payload)
         if inspect.isawaitable(result):
@@ -129,7 +157,14 @@ async def certified_handoff(
         certification=certified,
         started_at=started_at,
         token_count=token_count,
-        model_id=model_id,
+        model_id=selected_model,
+        metadata=envelope_metadata,
+    )
+    _record_cost_attribution(
+        payload=payload,
+        certification=certified,
+        metadata=envelope_metadata,
+        token_count=token_count,
     )
     if persist:
         try:
@@ -139,6 +174,40 @@ async def certified_handoff(
         except Exception:  # noqa: BLE001 - telemetry must not break product flow
             pass
     return envelope
+
+
+def _record_cost_attribution(
+    *,
+    payload: dict[str, Any],
+    certification: CertifiedResult,
+    metadata: dict[str, Any],
+    token_count: int | None,
+) -> None:
+    tier = metadata.get("cost_tier")
+    if not isinstance(tier, str) or not tier:
+        return
+    try:
+        from core.cost_attribution import (
+            estimate_payload_tokens,
+            estimate_text_tokens,
+            record_cost_event,
+        )
+
+        output_tokens = (
+            token_count
+            if token_count is not None
+            else estimate_text_tokens(certification.cleaned_output)
+        )
+        record_cost_event(
+            tier=tier,
+            input_tokens=estimate_payload_tokens(payload),
+            output_tokens=output_tokens,
+            provider_call=bool(metadata.get("provider_call", True)),
+            cache_hit=bool(metadata.get("cache_hit", False)),
+            prefilter_skip=bool(metadata.get("prefilter_skip", False)),
+        )
+    except Exception:  # noqa: BLE001 - telemetry cannot break the handoff
+        return
 
 
 def telemetry_snapshot(limit: int = 100) -> dict[str, Any]:
@@ -175,6 +244,7 @@ def telemetry_snapshot(limit: int = 100) -> dict[str, Any]:
                 "latency_ms": event.latency_ms,
                 "token_count": event.token_count,
                 "model_id": event.model_id,
+                "metadata": event.metadata,
                 "violations": event.certification.violations,
                 "timestamp": event.timestamp.isoformat(),
             }

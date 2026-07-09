@@ -151,8 +151,12 @@ def build_chat_body(
     service_tier: Literal["standard", "priority"] = "standard",
     top_k: int | None = None,
     top_p: float | None = None,
+    tools: Sequence[Mapping[str, Any]] | None = None,
+    allowed_tool_names: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Build a bounded OpenAI-compatible Fireworks chat request body."""
+    from core.cost_guard import TokenBudgetGuard
+
     validate_model(model_id)
     if not messages:
         raise ValueError("messages must not be empty")
@@ -166,12 +170,21 @@ def build_chat_body(
         raise ValueError("top_p must be between 0 and 1")
     if bool(schema_name) != bool(json_schema):
         raise ValueError("schema_name and json_schema must be supplied together")
+    _validate_static_context_first(messages)
+    budget = TokenBudgetGuard(
+        max_input_tokens=settings.max_llm_input_tokens,
+        max_output_tokens=settings.max_llm_output_tokens,
+    ).validate_messages([dict(message) for message in messages], max_output_tokens=max_tokens)
 
     body: dict[str, Any] = {
         "model": model_id,
         "messages": [dict(message) for message in messages],
         "max_tokens": max_tokens,
         "temperature": temperature,
+    }
+    body["x_preflight_budget"] = {
+        "input_tokens": budget.input_tokens,
+        "estimated_total_tokens": budget.estimated_total_tokens,
     }
     affinity = affinity_token(session_id)
     if affinity:
@@ -182,12 +195,48 @@ def build_chat_body(
         body["top_k"] = top_k
     if top_p is not None:
         body["top_p"] = top_p
+    pruned_tools = prune_tool_schemas(tools or (), allowed_tool_names)
+    if pruned_tools:
+        body["tools"] = pruned_tools
     if json_schema is not None:
         body["response_format"] = {
             "type": "json_schema",
             "json_schema": {"name": schema_name, "schema": dict(json_schema)},
         }
     return body
+
+
+def _validate_static_context_first(messages: Sequence[Mapping[str, Any]]) -> None:
+    """Keep cacheable static context first for Fireworks prompt caching."""
+    system_index = next(
+        (index for index, message in enumerate(messages) if message.get("role") == "system"),
+        None,
+    )
+    if system_index is not None and system_index != 0:
+        raise ValueError("system prompt must be first for prompt-cache locality")
+
+
+def prune_tool_schemas(
+    tools: Sequence[Mapping[str, Any]],
+    allowed_tool_names: Sequence[str] | None,
+) -> list[dict[str, Any]]:
+    """Remove unused OpenAI-compatible tool schemas before a request is built."""
+    allowed = {name.strip() for name in (allowed_tool_names or []) if name.strip()}
+    pruned: list[dict[str, Any]] = []
+    for tool in tools:
+        name = _tool_schema_name(tool)
+        if allowed and name not in allowed:
+            continue
+        pruned.append(dict(tool))
+    return pruned
+
+
+def _tool_schema_name(tool: Mapping[str, Any]) -> str:
+    function = tool.get("function")
+    if isinstance(function, Mapping) and isinstance(function.get("name"), str):
+        return function["name"]
+    name = tool.get("name")
+    return name if isinstance(name, str) else ""
 
 
 def build_resume_vision_body(
@@ -264,6 +313,7 @@ def build_batch_jsonl(
         # The Batch job selects the model; each dataset row contains only the
         # per-request parameters described by the Fireworks JSONL contract.
         body.pop("model", None)
+        body.pop("x_preflight_budget", None)
         lines.append(json.dumps({"custom_id": custom_id, "body": body}, separators=(",", ":")))
     return "\n".join(lines) + ("\n" if lines else "")
 
@@ -314,7 +364,9 @@ def scale_up_delays(
 def fireworks_manifest() -> dict[str, Any]:
     """Return a secret-free implementation and scaling manifest."""
     from core.a2a_envelope import telemetry_snapshot
+    from core.cost_attribution import cost_attribution_snapshot
     from core.gpu_status import gpu_status_snapshot
+    from core.observability import policy_cache_snapshot
     from core.runtime_key import llm_active, llm_config_issues, llm_provider
     from services.fireworks_batch import batch_config_status, batch_status_view
 
@@ -347,7 +399,14 @@ def fireworks_manifest() -> dict[str, Any]:
         "runtime_telemetry": {
             "certifier_active": True,
             "last_100_certifications": telemetry_snapshot(100),
+            **cost_attribution_snapshot(),
+            "policy_cache": policy_cache_snapshot(),
             "amd_gpu_status": gpu_status_snapshot(),
+            "cost_router": {
+                "enabled": True,
+                "model_selection": "ALLOWED_MODELS only",
+                "tiers": ["economy", "standard", "premium"],
+            },
         },
         "batch_async_contract": {
             "reference": batch_status_view({"state": "JOB_STATE_PENDING"}),
