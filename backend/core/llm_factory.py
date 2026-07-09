@@ -192,6 +192,7 @@ async def run_fireworks_chat_body(
         default_headers=client_headers(session_id) or None,
     )
     request_body = {**body, "model": model_id}
+    request_body.pop("x_preflight_budget", None)
     provider_options = {}
     if "top_k" in request_body:
         provider_options["top_k"] = request_body.pop("top_k")
@@ -276,8 +277,13 @@ def run_text_completion(
     temperature: float = 0.0,
 ) -> str | None:
     """Run a bounded text completion through the configured live provider."""
+    from core.cost_guard import TokenBudgetGuard
     from core.genai_lifecycle import controlled_parameters, transform_fuzzy_input
 
+    TokenBudgetGuard(
+        max_input_tokens=settings.max_llm_input_tokens,
+        max_output_tokens=settings.max_llm_output_tokens,
+    ).validate_text(prompt, max_output_tokens=max_tokens)
     model = get_request_scoped_model(role=role)
     if model is None:
         return None

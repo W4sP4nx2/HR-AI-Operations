@@ -309,7 +309,9 @@ export const api = {
     if (category) params.set("category", category);
     if (status) params.set("status", status);
     const qs = params.toString();
-    return request<HRCase[]>(`/cases${qs ? `?${qs}` : ""}`);
+    return request<HRCase[] | { items: HRCase[]; next_cursor: string | null }>(
+      `/cases${qs ? `?${qs}` : ""}`
+    ).then((data) => (Array.isArray(data) ? data : data.items));
   },
 
   /** Full detail for one case: the record plus its audit activity trail. */

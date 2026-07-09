@@ -69,13 +69,24 @@ class BenchmarkArm:
     quality_proxy: float
 
 
-def run_ab_benchmark(workload: Iterable[str] = DEFAULT_WORKLOAD) -> dict[str, object]:
+def run_ab_benchmark(
+    workload: Iterable[str] = DEFAULT_WORKLOAD,
+    *,
+    disable_cache: bool = False,
+    disable_router: bool = False,
+    disable_prefilter: bool = False,
+) -> dict[str, object]:
     """Return deterministic A/B benchmark results for the supplied queries."""
     queries = [query.strip() for query in workload if query.strip()]
     if not queries:
         raise ValueError("workload must contain at least one non-empty query")
     uncontrolled = _uncontrolled_arm(queries)
-    controlled = _controlled_arm(queries)
+    controlled = _controlled_arm(
+        queries,
+        disable_cache=disable_cache,
+        disable_router=disable_router,
+        disable_prefilter=disable_prefilter,
+    )
     reduction = (
         (uncontrolled.estimated_usd - controlled.estimated_usd) / uncontrolled.estimated_usd
         if uncontrolled.estimated_usd
@@ -101,6 +112,11 @@ def run_ab_benchmark(workload: Iterable[str] = DEFAULT_WORKLOAD) -> dict[str, ob
             "Controlled path models CostRouter, semantic cache, and deterministic prefilter.",
             "Run live provider smoke separately before publishing latency or billing claims.",
         ],
+        "controls": {
+            "cache": not disable_cache,
+            "router": not disable_router,
+            "prefilter": not disable_prefilter,
+        },
     }
 
 
@@ -126,7 +142,16 @@ def _uncontrolled_arm(queries: list[str]) -> BenchmarkArm:
     )
 
 
-def _controlled_arm(queries: list[str]) -> BenchmarkArm:
+def _controlled_arm(
+    queries: list[str],
+    *,
+    disable_cache: bool = False,
+    disable_router: bool = False,
+    disable_prefilter: bool = False,
+) -> BenchmarkArm:
+    if disable_cache and disable_router and disable_prefilter:
+        return _uncontrolled_arm(queries)
+
     allowed = ["tenant/fast-8b", "tenant/reasoning-70b"]
     seen: set[str] = set()
     ctx = context_hash("cost-benchmark", "policy-v1")
@@ -142,25 +167,34 @@ def _controlled_arm(queries: list[str]) -> BenchmarkArm:
         normalized_key = f"{ctx}:{normalize_query(query)}"
         query_tokens = estimate_text_tokens(query)
         input_tokens += query_tokens
-        if normalized_key in seen:
+        if not disable_cache and normalized_key in seen:
             cache_hits += 1
             continue
         seen.add(normalized_key)
-        if _prefilter_skips(query):
+        if not disable_prefilter and _prefilter_skips(query):
             prefilter_skips += 1
             useful_output_tokens += 40
             continue
-        route = CostRouter.classify(query, allowed_models=allowed)
-        tokens_out = OUTPUT_TOKENS[route.tier]
+        tier = (
+            "premium" if disable_router else CostRouter.classify(query, allowed_models=allowed).tier
+        )
+        tokens_out = UNCONTROLLED_OUTPUT_TOKENS if disable_router else OUTPUT_TOKENS[tier]
         provider_calls += 1
         output_tokens += tokens_out
         useful_output_tokens += tokens_out
         cost += estimate_cost_usd(
-            route.tier,
+            tier,
             input_tokens=query_tokens,
             output_tokens=tokens_out,
         ).cost_usd
 
+    quality_penalty = 0.0
+    if disable_cache:
+        quality_penalty += 0.0
+    if disable_router:
+        quality_penalty += 0.0
+    if disable_prefilter:
+        quality_penalty += 0.0
     return BenchmarkArm(
         queries=len(queries),
         provider_calls=provider_calls,
@@ -173,7 +207,7 @@ def _controlled_arm(queries: list[str]) -> BenchmarkArm:
         token_efficiency_ratio=(
             round(useful_output_tokens / input_tokens, 4) if input_tokens else None
         ),
-        quality_proxy=0.96,
+        quality_proxy=round(0.96 - quality_penalty, 4),
     )
 
 
@@ -186,13 +220,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Benchmark cost controls without provider calls.")
     parser.add_argument("--input", type=Path, help="Optional JSON array or JSONL query workload")
     parser.add_argument("--output", type=Path, help="Optional output JSON path")
+    parser.add_argument("--disable-cache", action="store_true")
+    parser.add_argument("--disable-router", action="store_true")
+    parser.add_argument("--disable-prefilter", action="store_true")
     args = parser.parse_args()
     workload = _load_workload(args.input) if args.input else DEFAULT_WORKLOAD
-    result = run_ab_benchmark(workload)
+    result = run_ab_benchmark(
+        workload,
+        disable_cache=args.disable_cache,
+        disable_router=args.disable_router,
+        disable_prefilter=args.disable_prefilter,
+    )
     payload = json.dumps(result, indent=2, sort_keys=True)
     if args.output:
         args.output.write_text(payload + "\n", encoding="utf-8")
     print(payload)
+    if args.disable_cache or args.disable_router or args.disable_prefilter:
+        return 0
     return 0 if result["passed"] else 1
 
 

@@ -151,6 +151,12 @@ async def certified_handoff(
             violations=[f"handoff_exception:{type(exc).__name__}"],
         )
 
+    _add_cost_metadata(
+        payload=payload,
+        certification=certified,
+        metadata=envelope_metadata,
+        token_count=token_count,
+    )
     envelope = build_and_record_envelope(
         source_agent=source_agent,
         target_agent=target_agent,
@@ -174,6 +180,51 @@ async def certified_handoff(
         except Exception:  # noqa: BLE001 - telemetry must not break product flow
             pass
     return envelope
+
+
+def _add_cost_metadata(
+    *,
+    payload: dict[str, Any],
+    certification: CertifiedResult,
+    metadata: dict[str, Any],
+    token_count: int | None,
+) -> None:
+    tier = metadata.get("cost_tier")
+    if not isinstance(tier, str) or not tier:
+        return
+    try:
+        from core.cost_attribution import (
+            estimate_cost_usd,
+            estimate_payload_tokens,
+            estimate_text_tokens,
+        )
+
+        input_tokens = estimate_payload_tokens(payload)
+        output_tokens = (
+            token_count
+            if token_count is not None
+            else estimate_text_tokens(certification.cleaned_output)
+        )
+        billable = (
+            bool(metadata.get("provider_call", True))
+            and not bool(metadata.get("cache_hit", False))
+            and not bool(metadata.get("prefilter_skip", False))
+        )
+        attribution = estimate_cost_usd(
+            tier,
+            input_tokens=input_tokens if billable else 0,
+            output_tokens=output_tokens if billable else 0,
+        )
+        metadata.update(
+            {
+                "estimated_spend_usd": attribution.cost_usd,
+                "tokens_in_estimate": input_tokens,
+                "tokens_out_estimate": output_tokens,
+                "cost_per_1k": attribution.cost_per_1k,
+            }
+        )
+    except Exception as exc:  # noqa: BLE001 - metadata must not break handoff
+        metadata.setdefault("cost_attribution_error", type(exc).__name__)
 
 
 def _record_cost_attribution(

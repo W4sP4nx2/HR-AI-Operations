@@ -13,6 +13,8 @@ from __future__ import annotations
 import os
 import tempfile
 
+pytest_plugins = ("pytest_asyncio.plugin",)
+
 # Must run before `core.config`/`core.memory` are imported by any test module.
 _TEST_DB_DIR = tempfile.mkdtemp(prefix="hr_test_db_")
 os.environ["DATABASE_URL"] = f"sqlite:///{os.path.join(_TEST_DB_DIR, 'test_hr_ops.db')}"

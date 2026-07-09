@@ -80,3 +80,33 @@ async def test_certified_handoff_filters_invalid_payload_and_persists(monkeypatc
     assert "pii_detected" in envelope.certification.violations
     assert persisted
     assert "payload" not in persisted[0]
+
+
+@pytest.mark.asyncio
+async def test_certified_handoff_records_cost_route_metadata(monkeypatch):
+    monkeypatch.setenv("ALLOWED_MODELS", "tenant/small-8b,tenant/large-70b")
+
+    envelope = await certified_handoff(
+        source_agent="triage_agent",
+        target_agent="policy_qa_agent",
+        func=lambda _payload: {"answer": "Use the PTO policy.", "confidence_score": 0.9},
+        payload={"query": "How many vacation hours do I have?"},
+        objectives={
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "answer": {"type": "string"},
+                    "confidence_score": {"type": "number"},
+                },
+                "required": ["answer", "confidence_score"],
+                "additionalProperties": False,
+            },
+            "require_pii_free": True,
+        },
+        cost_query="How many vacation hours do I have?",
+        persist=False,
+    )
+
+    assert envelope.metadata["cost_tier"] == "economy"
+    assert envelope.metadata["selected_model"] == "tenant/small-8b"
+    assert envelope.model_id == "tenant/small-8b"

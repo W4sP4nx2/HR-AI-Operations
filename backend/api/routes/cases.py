@@ -66,10 +66,16 @@ class TriageReroute(BaseModel):
 
 
 @router.get("")
-async def list_cases(category: str | None = None, status: str | None = None) -> dict[str, Any]:
-    """List HR cases with optional category/status filters."""
-    cases = await memory.list_cases(category=category, status=status)
-    return ok(cases)
+async def list_cases(
+    category: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    cursor: str | None = None,
+) -> dict[str, Any]:
+    """List HR cases with bounded cursor pagination."""
+    return ok(
+        await memory.list_cases_page(category=category, status=status, limit=limit, cursor=cursor)
+    )
 
 
 @router.post("")

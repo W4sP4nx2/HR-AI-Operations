@@ -36,3 +36,4 @@ out/
 
 # Local AI-workspace reports
 .aura/
+.codex/

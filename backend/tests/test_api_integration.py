@@ -70,6 +70,9 @@ async def test_health_envelope_and_security_headers(client) -> None:
     assert body["success"] is True and body["status"] == "ok"
     assert body["data"]["auth_enforced"] is True
     assert "agents_registered" in body["data"]
+    assert "build_revision" in body["data"]
+    assert "config_hash" in body["data"]
+    assert body["data"]["certifier_active"] is True
     assert r.headers.get("x-content-type-options") == "nosniff"
     assert r.headers.get("x-frame-options") == "DENY"
 
@@ -194,6 +197,31 @@ async def test_agent_trigger_envelope(client) -> None:
     assert body["status"] in ("ok", "error", "unavailable")
     if body["status"] == "ok":
         assert "category" in body["data"]
+
+
+@pytest.mark.asyncio
+async def test_policy_qa_rejects_oversized_prompt_before_provider_call(client, monkeypatch) -> None:
+    """Oversized Policy Q&A input returns 400 locally, before any provider call."""
+    from core.config import settings
+
+    saved = settings.max_llm_input_tokens
+    settings.max_llm_input_tokens = 3
+    try:
+        reg = await client.post(
+            "/auth/register",
+            json={"email": "budget@test.com", "password": "supersecret1"},
+        )
+        token = reg.json()["data"]["token"]
+        r = await client.post(
+            "/agents/policy_qa_agent/trigger",
+            json={"input": "one two three four five six"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    finally:
+        settings.max_llm_input_tokens = saved
+
+    assert r.status_code == 400
+    assert "Prompt exceeds budget" in r.json()["error"]
 
 
 @pytest.mark.asyncio

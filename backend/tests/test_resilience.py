@@ -102,14 +102,19 @@ def test_rag_query_shape_and_needs_review() -> None:
 
 def test_rag_cache_hit() -> None:
     """A repeated query is served from cache."""
+    from core.observability import policy_cache_snapshot
     from pipelines.rag_pipeline import RAGPipeline
 
     rp = RAGPipeline()
     q = "unique cache probe question 123"
+    before = policy_cache_snapshot()
     first = rp.query(q)
     second = rp.query(q)
+    after = policy_cache_snapshot()
     assert first.get("cached") is False
     assert second.get("cached") is True
+    assert after["hits"] >= int(before["hits"]) + 1
+    assert after["misses"] >= int(before["misses"]) + 1
 
 
 # --------------------------------------------------------------------------- #

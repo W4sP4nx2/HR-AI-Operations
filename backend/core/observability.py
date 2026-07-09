@@ -21,6 +21,7 @@ except ImportError:  # Lean custom builds may omit metrics without breaking the 
 _LOCK = Lock()
 _FALLBACK_REQUESTS: CollectionCounter[tuple[str, str, str]] = CollectionCounter()
 _FALLBACK_LATENCY: dict[tuple[str, str], tuple[int, float]] = {}
+_POLICY_CACHE: CollectionCounter[str] = CollectionCounter()
 
 
 HTTP_REQUESTS = (
@@ -99,6 +100,15 @@ RETRIEVAL_DURATION = (
     if Histogram
     else None
 )
+CACHE_EVENTS = (
+    Counter(
+        "hrcc_policy_cache_events_total",
+        "Policy answer cache events.",
+        ("result",),
+    )
+    if Counter
+    else None
+)
 
 
 def record_http(method: str, route: str, status: int, duration_seconds: float) -> None:
@@ -144,6 +154,29 @@ def record_retrieval(backend: str, duration_seconds: float) -> None:
     """Record retrieval latency for p50/p95 aggregation."""
     if RETRIEVAL_DURATION is not None:
         RETRIEVAL_DURATION.labels(backend=backend).observe(duration_seconds)
+
+
+def record_policy_cache(result: str) -> None:
+    """Record a policy-cache hit/miss without retaining the query."""
+    label = "hit" if result == "hit" else "miss"
+    with _LOCK:
+        _POLICY_CACHE[label] += 1
+    if CACHE_EVENTS is not None:
+        CACHE_EVENTS.labels(result=label).inc()
+
+
+def policy_cache_snapshot() -> dict[str, float | int | None]:
+    """Return cache hit-rate telemetry for lifecycle/status endpoints."""
+    with _LOCK:
+        hits = int(_POLICY_CACHE["hit"])
+        misses = int(_POLICY_CACHE["miss"])
+    total = hits + misses
+    return {
+        "hits": hits,
+        "misses": misses,
+        "total": total,
+        "hit_rate": (hits / total) if total else None,
+    }
 
 
 def render_metrics() -> tuple[bytes, str]:

@@ -174,7 +174,13 @@ async def trigger_agent(
         return unavailable(str(exc), {"capability": exc.capability})
     except CapabilityUnavailable as exc:
         return unavailable(str(exc), {"capability": exc.capability})
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
+        from fastapi.responses import JSONResponse
+
+        from core.cost_guard import TokenBudgetExceeded
+
+        if isinstance(exc, TokenBudgetExceeded):
+            return JSONResponse(status_code=400, content=fail(str(exc)))
         return fail(str(exc))
     return ok(_attach_mode(result))
 
@@ -268,7 +274,13 @@ async def trigger_agent_upload(
         return unavailable(str(exc), {"capability": exc.capability})
     except CapabilityUnavailable as exc:
         return unavailable(str(exc), {"capability": exc.capability})
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
+        from fastapi.responses import JSONResponse
+
+        from core.cost_guard import TokenBudgetExceeded
+
+        if isinstance(exc, TokenBudgetExceeded):
+            return JSONResponse(status_code=400, content=fail(str(exc)))
         return fail(str(exc), {"intake": intake.as_dict()})
 
     data = _attach_mode(result)

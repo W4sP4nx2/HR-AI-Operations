@@ -12,7 +12,10 @@ broadcaster on startup so human-in-the-loop checkpoints push to the frontend.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from typing import Any
@@ -40,6 +43,8 @@ from core.config import settings
 from core.memory import memory
 from core.observability import record_http, render_metrics
 from core.runtime_key import llm_active, llm_config_issues, llm_provider
+
+_SECRET_CONFIG_TOKENS = ("key", "secret", "password", "token")
 
 
 @asynccontextmanager
@@ -240,6 +245,19 @@ app.include_router(policies_routes.router)
 app.include_router(webhooks_routes.router)
 
 
+def _settings_config_hash() -> str:
+    data = settings.model_dump()
+
+    def safe_value(key: str, value: Any) -> Any:
+        if any(token in key.lower() for token in _SECRET_CONFIG_TOKENS):
+            return "[set]" if value else "[empty]"
+        return value
+
+    redacted = {key: safe_value(key, value) for key, value in data.items()}
+    encoded = json.dumps(redacted, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()[:16]
+
+
 @app.get("/health")
 async def health() -> dict[str, Any]:
     """Liveness/health endpoint with a snapshot of system state.
@@ -260,6 +278,9 @@ async def health() -> dict[str, Any]:
             "llm_enabled": llm_active(),
             "llm_config_issues": llm_config_issues(),
             "demo_mode": settings.demo_mode,
+            "build_revision": os.environ.get("GIT_COMMIT_HASH", "unknown"),
+            "config_hash": _settings_config_hash(),
+            "certifier_active": True,
         }
     )
 

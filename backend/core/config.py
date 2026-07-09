@@ -116,6 +116,8 @@ class Settings(BaseSettings):
     # Bound chat policy search so a cold embedder or unavailable vector backend
     # cannot leave the browser streaming forever.
     chat_policy_timeout_seconds: float = 15.0
+    max_llm_input_tokens: int = 4000
+    max_llm_output_tokens: int = 1000
 
     # --- Cost / abuse controls -------------------------------------------
     # Per-IP request budget over a rolling window. 0 disables the limiter

@@ -37,11 +37,13 @@ class RAGPipeline:
 
     def __init__(self) -> None:
         """Initialise the pipeline against the shared vector store."""
-        from core.safety import LRUCache, prompt_hash
+        from core.safety import prompt_hash
+        from services.semantic_cache import HRSemanticCache
 
         self._store = vector_store
-        self._cache = LRUCache(
-            maxsize=settings.policy_cache_size, ttl_seconds=settings.semantic_cache_ttl
+        self._cache = HRSemanticCache(
+            maxsize=settings.policy_cache_size,
+            ttl_seconds=settings.semantic_cache_ttl,
         )
         self.prompt_version = prompt_hash(self.SYNTHESIS_PROMPT_TEMPLATE)
 
@@ -178,12 +180,20 @@ class RAGPipeline:
         Returns:
             Dict with ``answer``, ``source_documents`` and ``confidence_score``.
         """
-        from core.safety import cache_key
+        from core.observability import record_policy_cache
+        from services.semantic_cache import context_hash
 
-        key = cache_key("rag", query, str(top_k or settings.retrieval_top_k))
-        cached = self._cache.get(key)
+        policy_context = context_hash(
+            "rag",
+            self.prompt_version,
+            str(top_k or settings.retrieval_top_k),
+            settings.qdrant_collection,
+        )
+        cached = self._cache.get(query, policy_context)
         if cached is not None:
+            record_policy_cache("hit")
             return {**cached, "cached": True}
+        record_policy_cache("miss")
 
         contexts = self.retrieve(query, top_k=top_k)
         answer, mode = self._synthesize(query, contexts)
@@ -201,7 +211,7 @@ class RAGPipeline:
             "prompt_version": self.prompt_version,
             "cached": False,
         }
-        self._cache.set(key, result)
+        self._cache.set(query, policy_context, result)
         return result
 
 

@@ -585,6 +585,33 @@ class Memory:
             rows = (await conn.execute(stmt)).mappings().all()
         return [dict(r) for r in rows]
 
+    async def list_cases_page(
+        self,
+        category: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """Cursor-page HR cases for large datasets without offset scans."""
+        await self._ensure_schema()
+        page_size = max(1, min(limit, 200))
+        stmt = select(cases_t)
+        if category:
+            stmt = stmt.where(cases_t.c.category == category)
+        if status:
+            stmt = stmt.where(cases_t.c.status == status)
+        if cursor:
+            stmt = stmt.where(cases_t.c.id > cursor)
+        stmt = stmt.order_by(cases_t.c.id.asc()).limit(page_size + 1)
+        async with self._engine.connect() as conn:
+            rows = [dict(row) for row in (await conn.execute(stmt)).mappings().all()]
+        next_cursor = rows[page_size - 1]["id"] if len(rows) > page_size else None
+        return {
+            "items": rows[:page_size],
+            "next_cursor": next_cursor,
+            "limit": page_size,
+        }
+
     # ------------------------------------------------------------------ #
     # Agent runtime state
     # ------------------------------------------------------------------ #

@@ -57,7 +57,16 @@ def test_manifest_distinguishes_inference_from_training():
         "post_training": "not_executed",
         "data_labeling": "implemented",
     }
-    assert manifest["prompts"]["triage.classifier"]["version"] == "1.0.0"
+    assert manifest["prompts"]["triage.classifier"]["version"] == "1.1.0"
+
+
+def test_prompts_are_rule_first_and_compressed():
+    from agents.prompts import PROMPTS
+
+    for prompt in PROMPTS.values():
+        assert "ROLE:" in prompt.text
+        assert "RULES:" in prompt.text or "SCOPE:" in prompt.text
+        assert "You are" not in prompt.text
 
 
 @pytest.mark.asyncio

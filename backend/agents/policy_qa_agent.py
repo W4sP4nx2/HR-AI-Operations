@@ -113,6 +113,13 @@ class PolicyQAAgent:
         Returns:
             Dict with ``answer``, ``source_documents`` and ``confidence_score``.
         """
+        from core.config import settings
+        from core.cost_guard import TokenBudgetGuard
+
+        TokenBudgetGuard(
+            max_input_tokens=settings.max_llm_input_tokens,
+            max_output_tokens=settings.max_llm_output_tokens,
+        ).validate_text(query)
         await memory.upsert_agent(AGENT_NAME, status="running", last_action="policy query")
 
         # Prompt-injection defense: refuse + audit before retrieval/synthesis.
