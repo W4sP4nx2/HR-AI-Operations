@@ -30,8 +30,12 @@ python -m pytest \
 # Full backend suite
 python -m pytest tests/ -q
 
+# Synthetic data engineering + notebook integration gate (repo root)
+cd ..
+make etl-certify
+
 # Frontend static check
-cd ../frontend
+cd frontend
 npm run lint
 ```
 
@@ -65,6 +69,7 @@ Open `http://localhost:3000`.
 | Contract gate | Every agent | `tests/test_agent_contracts.py` passes; `AGENT_REGISTRY == AGENT_SPECS`. |
 | Behavioral eval gate | Agent truthfulness | `tests/test_agentic_behaviors.py` passes, including negative-space refusal and known-limit assertions. |
 | RAG gate | Retrieval + synthesis | Local SQLite cosine tests pass; pgvector integration passes when DSN is present. |
+| Data engineering gate | Synthetic ETL + data audits | Notebook cells execute; temporal metadata wins the poisoned-policy test; exact dataset counts, bias, safety and object-plan checks pass. |
 | Intake gate | Text/PDF/URL | `tests/test_intake.py` passes; bad PDFs and unreachable URLs return controlled errors. |
 | Compliance gate | HR safety | `tests/test_compliance.py` passes; PII redacted, prompt injection refused, advisory framing preserved. |
 | BYOK key-safety gate | Request-scoped secrets | `tests/test_no_detached_tasks.py` passes; no `create_task`, `ensure_future`, or `BackgroundTasks`. |

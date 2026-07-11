@@ -21,26 +21,28 @@ DEFAULT_SYSTEM_PROMPT = (
     "human recruiter review. Do not make autonomous hiring decisions."
 )
 MAX_BATCH_BYTES = 1024 * 1024 * 1024
-BATCH_OBJECTIVES: dict[str, Any] = {
-    "schema": {
-        "type": "object",
-        "properties": {
-            "score": {"type": "integer", "minimum": 0, "maximum": 100},
-            "recommendation": {"type": "string"},
-            "matched_skills": {"type": "array", "items": {"type": "string"}},
-            "missing_skills": {"type": "array", "items": {"type": "string"}},
-            "reasoning": {"type": "string"},
-            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-        },
-        "required": [
-            "score",
-            "recommendation",
-            "matched_skills",
-            "missing_skills",
-            "reasoning",
-        ],
-        "additionalProperties": True,
+BATCH_RESPONSE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "score": {"type": "integer", "minimum": 0, "maximum": 100},
+        "recommendation": {"type": "string"},
+        "matched_skills": {"type": "array", "items": {"type": "string"}},
+        "missing_skills": {"type": "array", "items": {"type": "string"}},
+        "reasoning": {"type": "string"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     },
+    "required": [
+        "score",
+        "recommendation",
+        "matched_skills",
+        "missing_skills",
+        "reasoning",
+        "confidence",
+    ],
+    "additionalProperties": False,
+}
+BATCH_OBJECTIVES: dict[str, Any] = {
+    "schema": BATCH_RESPONSE_SCHEMA,
     "min_confidence": 0.0,
     "require_pii_free": True,
 }
@@ -170,7 +172,14 @@ def _batch_body(
         ],
         "max_tokens": max_tokens,
         "temperature": 0,
-        "response_format": {"type": "json_object"},
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "ResumeScreeningBatchResult",
+                "strict": True,
+                "schema": BATCH_RESPONSE_SCHEMA,
+            },
+        },
     }
 
 

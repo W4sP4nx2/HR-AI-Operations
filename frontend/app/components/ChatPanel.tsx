@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send, Loader2, Bot, User, Wrench, FileText } from "lucide-react";
-import { API_BASE, authHeaders, type ChatMessage } from "../../lib/api";
+import { API_BASE, inferenceHeaders, type ChatMessage } from "../../lib/api";
 
 type ToolCall = { name: string };
 type Citation = { n: number; doc_id: string; title: string; score: number; text: string };
@@ -178,7 +178,7 @@ export default function ChatPanel({
       // the SSE response off a fetch ReadableStream instead.
       const res = await fetch(`${API_BASE}/chat/stream`, {
         method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json" }),
+        headers: inferenceHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ message: text, history }),
       });
 

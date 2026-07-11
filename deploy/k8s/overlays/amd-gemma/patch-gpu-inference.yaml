@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hrcc-gpu-inference
+  labels:
+    hackathon.hrcc.ai/model-family: gemma
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 1800
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+  template:
+    metadata:
+      labels:
+        hackathon.hrcc.ai/model-family: gemma
+      annotations:
+        hackathon.hrcc.ai/evidence-required: "amd-gpu-capacity,rocm-runtime,vllm-health,model-list,latency-json"
+    spec:
+      nodeSelector:
+        accelerator: amd-instinct-mi300x
+        kubernetes.io/arch: amd64
+      containers:
+        - name: inference
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hrcc-gpu-secrets
+                  key: HF_TOKEN
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hrcc-gpu-secrets
+                  key: HF_TOKEN

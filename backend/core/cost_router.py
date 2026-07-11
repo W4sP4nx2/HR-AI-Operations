@@ -31,6 +31,19 @@ class CostRouter:
     def classify(cls, query: str, allowed_models: list[str] | None = None) -> CostRoute:
         """Classify query complexity and select an allowed model without defaults."""
         models = cls._models(allowed_models)
+        try:
+            from core.cost_attribution import budget_circuit_breaker_snapshot
+
+            breaker = budget_circuit_breaker_snapshot()
+        except Exception:  # noqa: BLE001 - routing must keep working without telemetry
+            breaker = {"active": False}
+        if breaker.get("active"):
+            return CostRoute(
+                tier="economy",
+                selected_model=cls._smallest_model(models),
+                reason="budget_circuit_breaker",
+            )
+
         query_lower = query.lower()
 
         premium = cls._first_match(query_lower, cls.PREMIUM_KEYWORDS)

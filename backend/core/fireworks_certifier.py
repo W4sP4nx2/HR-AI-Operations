@@ -9,12 +9,20 @@ next agent or human workflow step?
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, create_model
 
 from core.safety import _regex_redact, redact_pii
+
+_OBFUSCATED_SSN = re.compile(
+    r"\bssn\s*[:\-]?\s*"
+    r"(?:zero|one|two|three|four|five|six|seven|eight|nine)"
+    r"(?:[\s\-]+(?:zero|one|two|three|four|five|six|seven|eight|nine)){8}\b",
+    re.IGNORECASE,
+)
 
 
 class CertifiedResult(BaseModel):
@@ -220,6 +228,7 @@ class FireworksOutputCertifier:
 
     def _redact_for_certification(self, text: str) -> str:
         redacted = redact_pii(text)
+        redacted = _OBFUSCATED_SSN.sub("[redacted-obfuscated-ssn]", redacted)
         if redacted != text:
             return redacted
         return _regex_redact(text)

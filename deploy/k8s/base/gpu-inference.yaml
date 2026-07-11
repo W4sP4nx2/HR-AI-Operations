@@ -35,7 +35,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: inference
-          image: rocm/vllm:rocm7.13.0_gfx94X-dcgpu_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1
+          image: rocm/vllm:rocm7.13.0_gfx94X-dcgpu_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1@sha256:75503c82b8a1d3c970b19d1ac1a3e3c96436aab6d3695580527f8581694f3b2d
           imagePullPolicy: IfNotPresent
           command:
             - python3
@@ -46,24 +46,26 @@ spec:
             - --port=8000
             - --model=$(MODEL_ID)
             - --served-model-name=$(SERVED_MODEL_NAME)
-            - --api-key=$(AMD_VLLM_API_KEY)
+            - --max-model-len=$(MAX_MODEL_LEN)
             - --enable-prefix-caching
           env:
             - name: MODEL_ID
               valueFrom:
                 secretKeyRef:
-                  name: hrcc-secrets
+                  name: hrcc-gpu-secrets
                   key: GPU_MODEL_ID
             - name: SERVED_MODEL_NAME
               valueFrom:
                 secretKeyRef:
-                  name: hrcc-secrets
+                  name: hrcc-gpu-secrets
                   key: GPU_SERVED_MODEL_NAME
-            - name: AMD_VLLM_API_KEY
+            - name: VLLM_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: hrcc-secrets
                   key: AMD_VLLM_API_KEY
+            - name: MAX_MODEL_LEN
+              value: "32768"
             - name: HF_HOME
               value: /models/huggingface
             - name: VLLM_CACHE_ROOT

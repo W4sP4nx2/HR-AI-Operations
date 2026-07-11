@@ -1,5 +1,7 @@
 # Project Pitch
 
+![HR AI Command Center governance command center hero](./docs/assets/hr-command-center-hero-raster.png)
+
 ## One sentence
 
 **HR AI Command Center is an open-source control plane where specialized agents
@@ -40,7 +42,8 @@ Provider hosts and models are injected and allowlisted.
 - Visible asynchronous Batch lifecycle rather than fake synchronous progress.
 - Portable PyTorch plus optional Triton kernels governed by named-hardware
   correctness and end-to-end performance gates.
-- Docker Compose for the evaluation path; managed Kubernetes remains optional.
+- Docker Compose for the evaluation path; Fireworks Serverless for hosted
+  inference; Kubernetes is future-state work, not a hackathon dependency.
 
 ## AMD and Fireworks evidence boundary
 

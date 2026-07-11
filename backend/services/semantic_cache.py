@@ -35,10 +35,12 @@ class HRSemanticCache:
         return f"hr_cache:{context_hash}:{query_hash}"
 
     def get(self, query: str, context_hash: str) -> dict[str, Any] | None:
+        self._apply_budget_ttl()
         cached = self._local.get(self.key_for(query, context_hash))
         return dict(cached) if isinstance(cached, dict) else None
 
     def set(self, query: str, context_hash: str, response: dict[str, Any]) -> None:
+        self._apply_budget_ttl()
         self._local.set(self.key_for(query, context_hash), dict(response))
 
     async def get_cached(self, query: str, context_hash: str) -> dict[str, Any] | None:
@@ -70,6 +72,21 @@ class HRSemanticCache:
             await self.redis.setex(key, ttl_seconds, payload)
         else:
             await self.redis.set(key, payload)
+
+    def active_ttl_seconds(self) -> int:
+        """Return the TTL currently applied to local cache entries."""
+        self._apply_budget_ttl()
+        return int(self._local._ttl)
+
+    def _apply_budget_ttl(self) -> None:
+        try:
+            from core.cost_attribution import budget_circuit_breaker_snapshot
+
+            breaker = budget_circuit_breaker_snapshot()
+        except Exception:  # noqa: BLE001 - cache must remain usable without telemetry
+            return
+        if breaker.get("active"):
+            self._local._ttl = max(int(self._local._ttl), int(breaker["cache_ttl_seconds"]))
 
 
 def normalize_query(query: str) -> str:

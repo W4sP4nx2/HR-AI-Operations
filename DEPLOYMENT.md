@@ -1,6 +1,8 @@
 # Deployment & Packaging
 
-Three ways to run, from laptop to zero-touch cloud. All images are multi-stage,
+Docker Compose is the supported local/demo deployment path. Fireworks Serverless
+is the production inference provider when credentials are supplied; the AMD
+overlay is the optional sensitive-data/local inference path. All images are multi-stage,
 non-root, and health-checked.
 
 ## Artifacts
@@ -15,7 +17,7 @@ non-root, and health-checked.
 | `docker-compose.yml` | Dev stack (SQLite, hot reload) |
 | `docker-compose.prod.yml` | **Prod** stack: Postgres + Qdrant + prod images + restart policies |
 | `docker-compose.amd.yml` | **AMD overlay**: pinned ROCm/vLLM image for gfx94X/MI300X |
-| `render.yaml` | One-click cloud deploy (Render Blueprint) |
+| `deploy/` | Future-state Kubernetes/GitOps templates; not required for the hackathon |
 | `.github/workflows/ci.yml` | CI gate: lint · test · build · secret-scan |
 
 ## Fireworks submission mode
@@ -87,6 +89,31 @@ uvicorn api.main:app --reload --port 8000
 cd ../frontend && npm install && npm run dev
 ```
 
+The Docker dev stack includes Postgres/pgvector and MinIO for the hackathon
+synthetic-data path:
+
+```bash
+docker compose up --build
+cd backend
+python -m scripts.generate_hackathon_datasets
+python -m scripts.load_poisoned_policies --deterministic
+python -m scripts.upload_resume_dump --endpoint http://localhost:9000
+```
+
+Use `--upload --create-bucket` on `upload_resume_dump` only when MinIO is running
+and you want to PUT the 1,000 generated resume PDFs.
+
+### Inference placement
+
+- **Docker Compose:** local application, database, RAG, synthetic ETL, and demo.
+- **Fireworks Serverless:** hosted interactive and Batch inference when
+  `LLM_PROVIDER=fireworks`, `FIREWORKS_BASE_URL`, `FIREWORKS_API_KEY`, and
+  `ALLOWED_MODELS` are provided through settings or the environment.
+- **AMD overlay:** local/self-hosted AMD ROCm/vLLM inference for sensitive-data
+  demonstrations when a compatible AMD host is available.
+- **Kubernetes:** future-state scale-out templates only; not a hackathon
+  prerequisite and not evidence of a running production cluster.
+
 ## 2. Production stack (Docker Compose)
 ```bash
 export JWT_SECRET="$(openssl rand -hex 32)"     # required
@@ -98,20 +125,17 @@ export ALLOWED_MODELS=model-a,model-b
 export ADMIN_EMAIL=you@org.com ADMIN_PASSWORD='a-strong-password'
 docker compose -f docker-compose.prod.yml up --build -d
 ```
-- Postgres + Qdrant come up first (health-gated); the backend waits for both.
+- Postgres with pgvector comes up first (health-gated); the backend waits for it.
 - `AUTH_ENFORCE=true` and the admin account is created on boot from `ADMIN_*`.
 - Backend `:8000`, frontend `:3000`. Put a TLS-terminating reverse proxy in front.
 
-## 3. Zero-touch cloud (Render Blueprint)
-1. Push to GitHub (CI must be green — see the gate below).
-2. Render → **New + → Blueprint** → select the repo (`render.yaml`).
-3. Render provisions Postgres, **auto-generates `JWT_SECRET`**, and deploys both
-   services. Set `LLM_PROVIDER`, provider secrets, `ADMIN_*`, `CORS_ORIGINS`, and
-   the frontend's `NEXT_PUBLIC_API_BASE`/`NEXT_PUBLIC_WS_URL` in the dashboard,
-   then redeploy.
-
-> The same blueprint pattern maps to Fly.io / Railway — point them at
-> `*/Dockerfile.prod`.
+## 3. Future state: Kubernetes/GitOps
+The repository includes optional Kubernetes and GitOps templates under `deploy/`
+for a later scale-out phase. They are not part of the local/demo runbook or the
+hackathon acceptance path. Use them only after provisioning a real cluster,
+managed PostgreSQL/pgvector, an object store where required, and a secret
+manager. The manifests are templates, not evidence of a running cluster or
+capacity result.
 
 ## AMD ROCm inference overlay
 
@@ -120,19 +144,35 @@ It does not build ROCm, PyTorch, or vLLM on the demo host. The host still needs 
 compatible AMD kernel driver and access to `/dev/kfd` and `/dev/dri`.
 
 ```bash
-export AMD_VLLM_MODEL=<model path or registry id>
-export AMD_VLLM_SERVED_MODEL=<served name>
+export AMD_VLLM_MODEL=google/gemma-3-27b-it
+export AMD_VLLM_SERVED_MODEL=amd-gemma-3-27b-it
 export AMD_VLLM_API_KEY="$(openssl rand -hex 24)"
+export HF_TOKEN=...
+export JWT_SECRET="$(openssl rand -hex 32)"
+export POSTGRES_PASSWORD="$(openssl rand -hex 16)"
+export ADMIN_EMAIL=you@org.com
+export ADMIN_PASSWORD='a-strong-password'
+export AMD_VLLM_MAX_MODEL_LEN=32768
 export AMD_VLLM_BASE_URL=http://amd-vllm:8000/v1
 export ALLOWED_MODELS="$AMD_VLLM_SERVED_MODEL"
 
 docker compose -f docker-compose.prod.yml -f docker-compose.amd.yml \
   --profile amd up -d
+make judge-amd-live
 ```
 
 The overlay is explicit about `linux/amd64`, mounts the AMD device nodes, gives
-vLLM a model cache and shared memory, and health-gates the application backend.
-Override `AMD_VLLM_IMAGE` only with another reviewed, pinned ROCm image.
+vLLM a model cache and shared memory, bounds the default context to 32,768
+tokens, and health-gates the application backend. vLLM reads its private API
+key from `VLLM_API_KEY` instead of exposing it in process arguments; its direct
+host port and the PostgreSQL port bind to loopback by default. The reviewed AMD image is
+pinned by both tag and digest. Override `AMD_VLLM_IMAGE` only with another
+reviewed, immutable ROCm image reference.
+
+`make judge-amd-live` captures non-secret device/ROCm/PyTorch/vLLM identity from
+the running Compose service and executes the live backend, login, service-auth,
+and Gemma smoke gate. It fails closed when the runtime or credentials are not
+available.
 
 AMD's current inference guide recommends pre-built ROCm-enabled vLLM containers:
 [ROCm vLLM inference](https://rocm.docs.amd.com/en/latest/how-to/rocm-for-ai/inference/benchmark-docker/vllm.html).
@@ -160,8 +200,10 @@ managed cluster only when a real cluster is provisioned.
 
 ## The CI → deploy gate
 `git push` → **CI** (`ruff`, `black`, `pytest`, frontend `build`, `gitleaks`) must
-pass → merge to `main` → platform auto-deploys the built images. **Failures block
-the merge; deploys are deterministic** (pinned Dockerfiles, no `latest` app code).
+pass → merge to `main` → an operator runs the approved Docker Compose release
+workflow. **Failures block the merge; deployment remains explicit and
+deterministic** (pinned Dockerfiles, no `latest` app code). Kubernetes/GitOps is
+future state and is deliberately outside this release gate.
 
 ## Lean vs full image (why the prod image is small)
 

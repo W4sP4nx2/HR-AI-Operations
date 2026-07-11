@@ -16,6 +16,7 @@ import { useState } from "react";
 import { Activity, User, BarChart3, ShieldCheck, Crown, ArrowRight, Loader2 } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import ByokControl from "../components/ByokControl";
+import { useSystemStatus } from "../hooks/useSystemStatus";
 import type { Role } from "../../lib/api";
 
 const PERSONAS: { role: Role; label: string; blurb: string; icon: React.ReactNode }[] = [
@@ -27,8 +28,15 @@ const PERSONAS: { role: Role; label: string; blurb: string; icon: React.ReactNod
 
 export default function Launchpad() {
   const { switchRole } = useAuth();
+  const { byokSupported, llmProvider } = useSystemStatus();
   const [busy, setBusy] = useState<Role | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const providerLabel =
+    llmProvider === "amd_vllm"
+      ? "AMD/vLLM Gemma"
+      : llmProvider === "fireworks" || llmProvider === "unknown"
+        ? "Fireworks"
+        : llmProvider;
 
   const enter = async (role: Role) => {
     setBusy(role);
@@ -101,19 +109,29 @@ export default function Launchpad() {
 
         {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
 
-        {/* BYOK affordance row — teaches the secure, zero-retention sandbox up front. */}
-        <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/10 bg-brand-cream/40 p-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-brand-purple">
-              Bring your own Fireworks key
-            </p>
+        {byokSupported ? (
+          /* BYOK affordance row — teaches the secure, zero-retention sandbox up front. */
+          <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/10 bg-brand-cream/40 p-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-brand-purple">
+                Bring your own {providerLabel} key
+              </p>
+              <p className="text-[11px] leading-snug text-ink-700/55">
+                Optional — get real LLM answers. Used per-request, <strong>never stored</strong>.
+                Runs fully without one in deterministic mode.
+              </p>
+            </div>
+            <ByokControl placement="up" providerLabel={providerLabel} />
+          </div>
+        ) : (
+          <div className="mt-6 rounded-2xl border border-brand-purple/10 bg-brand-cream/40 p-3">
+            <p className="text-sm font-medium text-brand-purple">AMD-hosted Gemma route</p>
             <p className="text-[11px] leading-snug text-ink-700/55">
-              Optional — get real LLM answers. Used per-request, <strong>never stored</strong>.
-              Runs fully without one in deterministic mode.
+              The backend authenticates to private vLLM with a server-managed service key.
+              Browser API keys are disabled for this route.
             </p>
           </div>
-          <ByokControl placement="up" />
-        </div>
+        )}
 
         <p className="mt-5 text-center text-[11px] text-ink-700/40">
           Open access · roles are advisory · switch roles anytime with “View as”.

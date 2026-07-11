@@ -5,9 +5,12 @@ request header. The key lives only for the lifetime of that request, in a
 ``contextvars.ContextVar`` bound to the ASGI task — it is **never written to the
 database, the audit log, or any file**, and is cleared when the request ends.
 
-LLM call-sites read :func:`effective_api_key` (request key → else the server's
-configured key → else empty), so they transparently use the visitor's key when
-present and otherwise fall back to the deterministic, no-key baseline.
+For hosted providers, LLM call-sites read :func:`effective_api_key` (request key
+→ else the server's configured key → else empty), so they transparently use the
+visitor's key when present and otherwise fall back to the deterministic, no-key
+baseline. The self-hosted AMD/vLLM route is different: its API key is an
+internal service credential, so browser BYOK is disabled and can never override
+the server-owned key.
 
 ``contextvars`` propagate across ``asyncio.to_thread`` (PEP 567), so the synth /
 classifier calls that agents offload to threads still see the request key.
@@ -41,13 +44,25 @@ def request_api_key() -> str | None:
 
 
 def effective_api_key() -> str:
-    """The key LLM call-sites should use: request key, else the server's, else ''."""
-    return _request_api_key.get() or server_api_key()
+    """Return a hosted-provider BYOK key or the server-owned provider key.
+
+    AMD/vLLM is a private service-to-service route, not a user-funded hosted
+    provider. Its configured key therefore always wins, even if a caller manages
+    to bind a request key outside the HTTP middleware.
+    """
+    if byok_supported():
+        return _request_api_key.get() or server_api_key()
+    return server_api_key()
 
 
 def llm_provider() -> str:
     """Configured LLM provider, read live so harness-injected env wins."""
     return (os.environ.get("LLM_PROVIDER") or settings.llm_provider or "").strip().lower()
+
+
+def byok_supported() -> bool:
+    """Whether the configured provider may accept a visitor-owned API key."""
+    return llm_provider() in {"", "anthropic", "fireworks"}
 
 
 def server_api_key() -> str:
@@ -99,7 +114,9 @@ def llm_active() -> bool:
     baseline. This is the single gate every LLM call-site checks.
     """
     rk = request_api_key()
-    if rk is not None:  # BYOK: visitor opted in — but only if it's plausibly a key
+    if byok_supported() and rk is not None:
+        # Hosted-provider BYOK: the visitor opted into their own spend, but only
+        # a plausibly formed key may activate a real provider call.
         return looks_like_key(rk)
 
     provider = llm_provider()

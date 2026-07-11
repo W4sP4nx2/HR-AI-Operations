@@ -14,10 +14,54 @@ The defensible competitive wedge is:
 4. **Evidence-producing controls: cases, citations, overrides, audit export, and
    bias gates.**
 
+For the **Best AMD-Hosted Gemma Project** track, use
+[HACKATHON_GEMMA_AMD_DEPLOYMENT.md](./HACKATHON_GEMMA_AMD_DEPLOYMENT.md) as the
+operator runbook. The short version: Fireworks authentication is the hosted
+API/BYOK proof; the judged AMD path is `LLM_PROVIDER=amd_vllm` with a
+Gemma-family served model running behind the OpenAI-compatible vLLM endpoint.
+The scan-friendly submission keywords are **AMD powered**, **Gemma powered** /
+**Gamma powered**, and **Fireworks powered**; use “Gemma” for official technical
+claims and keep “Gamma” only as a keyword alias when needed.
+
 Do not claim that competitors violate law, that this product is legally
 compliant, or that no comparable open-source project exists without a sourced,
 current review. The product is advisory software and still requires deployment-
 specific legal, security, privacy, and model-risk assessment.
+
+## Thesis and academic argument
+
+The senior-engineer thesis is:
+
+> Enterprise agentic AI fails when model calls are treated as magic instead of
+> governed infrastructure. HR AI Command Center is a cost-bounded A2A control
+> plane: route cheaply, retrieve narrowly, constrain outputs, certify handoffs,
+> and keep humans in the loop for sensitive outcomes.
+
+That matters more than a larger prompt window or a single impressive chatbot
+demo. The project is designed around four engineering principles that map to
+well-known research and production patterns:
+
+| Principle | Product expression | Evidence path |
+|---|---|---|
+| **Constrained generation** | Fireworks/OpenAI-compatible `json_schema`, Pydantic contracts, and `FireworksOutputCertifier` validate agent outputs before another agent consumes them. | Schema tests, certification telemetry, A2A envelope metadata |
+| **Cascade routing** | Deterministic fast paths and the smallest allowlisted capable model handle simple work; higher-cost routes are reserved for ambiguous or high-risk synthesis. | `CostRouter`, zero-spend benchmark, route metadata in envelopes |
+| **Retrieval before context stuffing** | Policies are chunked and retrieved from pgvector HNSW; chat threads carry evidence pointers and summaries instead of full PDFs. | RAG round-trip tests, citation guardrails, policy version metadata |
+| **Human-governed automation** | Onboarding, approvals, attrition, and adverse-impact-sensitive flows pause for manager or HR review. | Case state, audit rows, approval tests, dashboard evidence |
+
+The hackathon story is therefore not "we built an inference engine." It is:
+
+1. **Control plane:** the application controls spend, routing, and auditability
+   before a provider call can happen.
+2. **Fireworks plane:** live structured inference, prompt-cache locality, vision
+   and Batch are used only when a key and model allowlist are explicitly present.
+3. **AMD-hosted Gemma plane:** the same workflow can switch to
+   `LLM_PROVIDER=amd_vllm` and a Gemma-family model served behind an
+   OpenAI-compatible ROCm/vLLM endpoint for the judged AMD path.
+
+This lets the demo satisfy both realities in the pasted plan: do not burn the
+hackathon debugging GPU plumbing when Fireworks proves the product workflow, but
+keep a real AMD/Gemma deployment profile so the hosted-hardware claim is
+evidence-gated rather than hand-waved.
 
 ## Claim ledger
 
@@ -236,6 +280,17 @@ python -m benchmarks.benchmark_kernels \
   --output benchmark-mi300x.json
 ```
 
+Hackathon environment preflights:
+
+```bash
+python scripts/collect_hackathon_evidence.py --profile static
+cd backend
+python -m scripts.verify_hackathon_env --mode fireworks-auth
+python -m scripts.verify_hackathon_env --mode amd-gemma
+cd ..
+python scripts/verify_amd_gemma_overlay.py
+```
+
 Load test:
 
 ```bash
@@ -252,8 +307,8 @@ an explicit model quota. A laptop test cannot prove Kubernetes-scale capacity.
 | Metric | Current evidence | Promotion target |
 |---|---|---|
 | Deterministic triage latency | Run fallback benchmark | p95 below API budget |
-| pgvector retrieval | Round-trip tests; load result pending | p95 <100 ms on named dataset |
-| Full policy chat | Load result pending | p95 <3 s with provider quota stated |
+| pgvector retrieval | Local Docker load + poisoned-policy round trip passed; no latency claim | p95 <100 ms on named dataset |
+| Full policy chat | Deterministic grounded excerpt passed; live-provider latency pending | p95 <3 s with provider quota stated |
 | Resume extraction quality | Golden dataset pending | Field F1 and missing-field threshold |
 | Resume bias | CI disparity-ratio gate | <1.1 on documented synthetic test |
 | Fireworks Batch savings | Provider pricing, no local live job yet | Actual billed input/output comparison |

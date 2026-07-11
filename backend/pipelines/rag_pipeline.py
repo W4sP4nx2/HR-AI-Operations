@@ -199,7 +199,14 @@ class RAGPipeline:
         answer, mode = self._synthesize(query, contexts)
         # Confidence proxy: top retrieval cosine score (already 0..1 for cosine).
         confidence = round(contexts[0]["score"], 4) if contexts else 0.0
-        sources = [{"doc_id": c["doc_id"], "score": round(c["score"], 4)} for c in contexts]
+        sources = [
+            {
+                "doc_id": c["doc_id"],
+                "score": round(c["score"], 4),
+                "metadata": c.get("metadata", {}),
+            }
+            for c in contexts
+        ]
         # Low-confidence answers are flagged so the UI / triage can route to a human.
         needs_review = confidence < settings.confidence_threshold
         result = {

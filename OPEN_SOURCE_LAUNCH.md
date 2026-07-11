@@ -130,7 +130,10 @@ python3 scripts/check_docs.py
 ## 3. Static and provider guardrails
 
 ```bash
+python3 scripts/collect_hackathon_evidence.py --profile static
+python3 scripts/audit_hackathon_readiness.py hackathon-evidence/<timestamp>
 python3 scripts/verify_platform_manifests.py
+python3 scripts/verify_amd_gemma_overlay.py
 cd backend
 ruff check .
 python -m pytest -p pytest_asyncio.plugin \
@@ -203,6 +206,11 @@ gitleaks dir . --no-banner --config .gitleaks.toml --redact --exit-code 1
 
 - Never print or commit provider keys.
 - Run `python -m scripts.fireworks_smoke` only in a credentialed environment.
+- For Fireworks auth, use `FIREWORKS_BASE_URL=https://api.fireworks.ai/inference/v1`
+  and keep concrete model IDs in `ALLOWED_MODELS`.
+- For the AMD-hosted Gemma track, deploy
+  `deploy/k8s/overlays/amd-gemma` or `docker-compose.amd.yml` and capture the
+  vLLM `/health` plus `/v1/models` output from named AMD hardware.
 - Verify the declared public frontend, backend health and one end-to-end
   workflow for the exact release commit.
 - Capture AMD evidence only on named AMD hardware.

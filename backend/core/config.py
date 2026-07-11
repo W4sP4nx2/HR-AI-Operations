@@ -76,8 +76,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "https://hr-frontend-sve4.onrender.com",
-        "https://hr-frontend.onrender.com",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
     ]
     # Shared secret for inbound webhooks. Empty in dev = no verification;
     # set in production and require it via the X-Webhook-Secret header.
@@ -118,6 +118,11 @@ class Settings(BaseSettings):
     chat_policy_timeout_seconds: float = 15.0
     max_llm_input_tokens: int = 4000
     max_llm_output_tokens: int = 1000
+    # 0 disables the circuit breaker. When positive and estimated spend crosses
+    # the threshold, routing is forced to the economy model and cache TTL is
+    # raised for the rest of the process.
+    daily_inference_budget_usd: float = 0.0
+    circuit_breaker_cache_ttl_seconds: int = 86_400
 
     # --- Cost / abuse controls -------------------------------------------
     # Per-IP request budget over a rolling window. 0 disables the limiter

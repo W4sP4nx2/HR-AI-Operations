@@ -57,6 +57,7 @@ def test_structured_chat_body_is_bounded_and_allowlisted(allowed_models):
     )
     assert body["model"] == allowed_models[0]
     assert body["response_format"]["type"] == "json_schema"
+    assert body["response_format"]["json_schema"]["strict"] is True
     assert body["user"].startswith("hrcc-")
     assert body["top_k"] == 20
     assert body["top_p"] == 0.9
@@ -106,6 +107,7 @@ def test_resume_vision_body_places_images_before_text(allowed_models):
     assert body["temperature"] == 0.0
     assert body["top_k"] == 20
     assert body["response_format"]["json_schema"]["name"] == "ResumeExtraction"
+    assert body["response_format"]["json_schema"]["strict"] is True
 
     with pytest.raises(ValueError, match="at most 30"):
         build_resume_vision_body(
@@ -173,6 +175,7 @@ async def test_direct_vision_execution_keeps_fireworks_top_k_in_extra_body(
     assert json.loads(result)["warnings"] == []
     assert "top_k" not in captured
     assert captured["extra_body"] == {"top_k": 20}
+    assert captured["response_format"]["json_schema"]["strict"] is True
 
 
 @pytest.mark.asyncio

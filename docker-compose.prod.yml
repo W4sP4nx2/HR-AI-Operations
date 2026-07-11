@@ -15,7 +15,7 @@ services:
     ports:
       # Published for local validation (e.g. the pgvector round-trip test).
       # In a real prod deploy, drop this or bind to 127.0.0.1 only.
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -47,6 +47,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       JWT_SECRET: ${JWT_SECRET:?set a strong JWT_SECRET for production}
       AUTH_ENFORCE: "true"
+      AUTH_OPEN_REGISTRATION: ${AUTH_OPEN_REGISTRATION:-false}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}

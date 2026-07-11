@@ -1,19 +1,20 @@
 # Deployment Evidence
 
-_Updated: 2026-07-09. This file records what must be checked; it is not an
+_Updated: 2026-07-11. This file records what must be checked; it is not an
 automated uptime monitor._
 
-## Declared public surface
+## Declared release surface
 
 | Surface | Declared location | Release check |
 |---|---|---|
-| BYOK sandbox | `https://hr-frontend-sve4.onrender.com` | Verify HTTP response and one complete workflow |
+| Local frontend | `http://127.0.0.1:3001` via `make preview` | Verify the current checkout renders and completes one workflow |
+| Local backend | `http://127.0.0.1:8010` via `make preview` | Verify `/health`, `/metrics`, CORS and WebSocket behavior |
 | Repository | `https://github.com/W4sP4nx2/HR-AI-Operations` | Verify CI for the commit being released |
-| Backend | Render-assigned service URL | Verify `/health`, `/metrics`, CORS and WebSocket behavior |
 
-The public sandbox intentionally uses seeded data, advisory roles and no stored
-server-side Fireworks key. A visitor can enter without login and may supply a
-temporary request-scoped key. Enforced deployments use `AUTH_ENFORCE=true`.
+There is no current hosted demo surface. The local preview uses seeded data,
+advisory roles and no stored server-side Fireworks key. A local operator may
+supply a temporary request-scoped key. Enforced deployments use
+`AUTH_ENFORCE=true`.
 
 ## Local evidence for the current worktree
 
@@ -34,9 +35,9 @@ Required evidence:
 
 ## Deployment boundaries
 
-- Render proves the web application path, not AMD execution.
-- The AMD Compose/Kubernetes artifacts prove configuration readiness, not GPU
-  utilization.
+- The AMD Compose overlay proves configuration readiness, not GPU utilization.
+- Kubernetes/GitOps files are future-state templates and are not part of the
+  current release acceptance path.
 - Simulated scaling output demonstrates policy behavior, not live capacity.
 - Fireworks Batch queue time is asynchronous and must not be described as an
   interactive latency result.

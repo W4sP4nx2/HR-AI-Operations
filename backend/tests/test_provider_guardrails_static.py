@@ -81,3 +81,12 @@ def test_existing_ci_docker_builds_target_linux_amd64() -> None:
     docker_build_lines = [line.strip() for line in text.splitlines() if "docker build" in line]
     assert docker_build_lines
     assert all("--platform linux/amd64" in line for line in docker_build_lines)
+
+
+def test_governance_ui_does_not_default_unmeasured_cost_savings() -> None:
+    component = PROJECT_ROOT / "frontend" / "app" / "components" / "Governance3D.tsx"
+    text = component.read_text(encoding="utf-8")
+
+    assert "73.9" not in text
+    assert "measuredSavingsPct = null" in text
+    assert '"not measured"' in text

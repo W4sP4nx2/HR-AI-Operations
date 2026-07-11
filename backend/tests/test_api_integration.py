@@ -70,6 +70,12 @@ async def test_health_envelope_and_security_headers(client) -> None:
     assert body["success"] is True and body["status"] == "ok"
     assert body["data"]["auth_enforced"] is True
     assert "agents_registered" in body["data"]
+    assert body["data"]["llm_provider"] in {"fireworks", "amd_vllm", "anthropic", ""}
+    assert isinstance(body["data"]["llm_enabled"], bool)
+    assert isinstance(body["data"]["llm_config_issues"], list)
+    assert isinstance(body["data"]["byok_supported"], bool)
+    assert "api_key" not in str(body["data"]).lower()
+    assert "fixture-fireworks-key" not in str(body["data"])
     assert "build_revision" in body["data"]
     assert "config_hash" in body["data"]
     assert body["data"]["certifier_active"] is True
@@ -78,19 +84,33 @@ async def test_health_envelope_and_security_headers(client) -> None:
 
 
 @pytest.mark.asyncio
-async def test_showcase_cors_allows_render_frontend_preflight(client) -> None:
-    """Showcase CORS accepts the deployed frontend origin cleanly."""
+async def test_showcase_cors_allows_local_frontend_preflight(client) -> None:
+    """Showcase CORS accepts the local frontend origin cleanly."""
     r = await client.options(
         "/health",
         headers={
-            "Origin": "https://hr-frontend-sve4.onrender.com",
+            "Origin": "http://localhost:3000",
             "Access-Control-Request-Method": "GET",
             "Access-Control-Request-Headers": "authorization,x-client-llm-key",
         },
     )
     assert r.status_code == 200
-    assert r.headers.get("access-control-allow-origin") == "https://hr-frontend-sve4.onrender.com"
+    assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
     assert "authorization" in r.headers.get("access-control-allow-headers", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_local_preview_cors_allows_port_3001(client) -> None:
+    """The documented zero-spend preview origin is accepted by the API."""
+    r = await client.options(
+        "/health",
+        headers={
+            "Origin": "http://127.0.0.1:3001",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-origin") == "http://127.0.0.1:3001"
 
 
 @pytest.mark.asyncio
@@ -116,7 +136,7 @@ def test_websocket_feed_accepts_browser_connection() -> None:
     with TestClient(app) as client:
         with client.websocket_connect(
             "/ws/feed",
-            headers={"Origin": "https://hr-frontend-sve4.onrender.com"},
+            headers={"Origin": "http://localhost:3000"},
         ) as websocket:
             assert websocket.receive_json() == {
                 "type": "connected",
@@ -197,6 +217,68 @@ async def test_agent_trigger_envelope(client) -> None:
     assert body["status"] in ("ok", "error", "unavailable")
     if body["status"] == "ok":
         assert "category" in body["data"]
+
+
+@pytest.mark.asyncio
+async def test_cost_controls_certification_endpoint(client) -> None:
+    """Lifecycle endpoint exposes no-key cost controls as product evidence."""
+    reg = await client.post(
+        "/auth/register", json={"email": "controls@test.com", "password": "supersecret1"}
+    )
+    token = reg.json()["data"]["token"]
+
+    r = await client.get(
+        "/lifecycle/cost-controls",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["success"] is True
+    data = body["data"]
+    assert data["ok"] is True
+    assert data["network_required"] is False
+    assert data["provider_key_required"] is False
+    assert data["passed_count"] == data["gate_count"]
+    assert {gate["name"] for gate in data["gates"]} >= {
+        "oversized_prompt_rejection",
+        "prohibited_model_rejection",
+        "routing_accuracy",
+        "cache_determinism",
+        "cost_math_accuracy",
+    }
+
+
+@pytest.mark.asyncio
+async def test_capabilities_endpoint_is_secret_free_and_evidence_gated(client) -> None:
+    """Lifecycle capabilities expose routing posture without hardcoded live claims."""
+    reg = await client.post(
+        "/auth/register", json={"email": "caps@test.com", "password": "supersecret1"}
+    )
+    token = reg.json()["data"]["token"]
+
+    r = await client.get(
+        "/lifecycle/capabilities",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert r.status_code == 200
+    data = r.json()["data"]
+    provider_ids = {provider["provider_id"] for provider in data["providers"]}
+    assert {
+        "deterministic_fallback",
+        "fireworks",
+        "amd_vllm_gemma",
+    }.issubset(provider_ids)
+    assert data["demo_mode"] in {True, False}
+    assert "Do not claim" in data["claim_policy"]
+    assert "FIREWORKS_API_KEY" in data["required_live_inputs"]["fireworks"]
+    assert any(
+        "AMD_RUNTIME_EVIDENCE_FILE" in item
+        for item in data["required_live_inputs"]["amd_vllm_gemma"]
+    )
+    assert "sk-" not in str(data).lower()
+    assert all("selected_provider" in route for route in data["routing"])
 
 
 @pytest.mark.asyncio

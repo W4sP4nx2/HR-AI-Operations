@@ -132,6 +132,7 @@ async def certified_handoff(
         result = func(payload)
         if inspect.isawaitable(result):
             result = await result
+        _add_cross_agent_consistency(result, envelope_metadata)
         certified = FireworksOutputCertifier().certify(
             _serialize_for_certification(result),
             objectives,
@@ -180,6 +181,40 @@ async def certified_handoff(
         except Exception:  # noqa: BLE001 - telemetry must not break product flow
             pass
     return envelope
+
+
+def _add_cross_agent_consistency(result: Any, metadata: dict[str, Any]) -> None:
+    source_category = metadata.get("source_category")
+    source_priority = metadata.get("source_priority")
+    expected_category = metadata.get("expected_target_category")
+    expected_priority = metadata.get("expected_target_priority")
+    if not any((source_category, source_priority, expected_category, expected_priority)):
+        return
+
+    payload = result.model_dump() if hasattr(result, "model_dump") else result
+    if not isinstance(payload, dict):
+        return
+    target_category = payload.get("category") or payload.get("target_category") or expected_category
+    target_priority = payload.get("priority") or payload.get("target_priority") or expected_priority
+
+    checks: list[bool] = []
+    if source_category and target_category:
+        checks.append(str(source_category).upper() == str(target_category).upper())
+    if source_priority and target_priority:
+        checks.append(str(source_priority).upper() == str(target_priority).upper())
+    if not checks:
+        return
+
+    consistent = all(checks)
+    metadata["cross_agent_consistent"] = consistent
+    if not consistent:
+        metadata["human_review_required"] = True
+        metadata["consistency_violation"] = {
+            "source_category": source_category,
+            "target_category": target_category,
+            "source_priority": source_priority,
+            "target_priority": target_priority,
+        }
 
 
 def _add_cost_metadata(
@@ -302,6 +337,13 @@ def telemetry_snapshot(limit: int = 100) -> dict[str, Any]:
             for event in events[-10:]
         ],
     }
+
+
+def recent_envelopes(limit: int = 100) -> list[A2AEnvelope]:
+    """Return recent envelopes for derived governance metrics."""
+    limit = max(1, min(limit, _MAX_EVENTS))
+    with _LOCK:
+        return list(_RECENT_ENVELOPES)[-limit:]
 
 
 def _percentile(values: list[float], percentile: float) -> float | None:

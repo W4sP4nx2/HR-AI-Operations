@@ -31,13 +31,20 @@ import {
   Search,
   Loader2,
   Clock3,
+  ShieldCheck,
+  Network,
 } from "lucide-react";
 import {
   api,
   type Metrics,
   type FeedbackStat,
   type FireworksBatchStatus,
+  type CostControlsCertification,
+  type CapabilitySnapshot,
+  type CapabilityStatus,
+  type BiasAudit,
 } from "../../lib/api";
+import Governance3D from "./Governance3D";
 
 // Humanise the snake_case attrition drivers for display.
 const DRIVER_LABELS: Record<string, string> = {
@@ -88,6 +95,9 @@ function StatCard({
 export default function Analytics() {
   const [m, setM] = useState<Metrics | null>(null);
   const [feedback, setFeedback] = useState<FeedbackStat[]>([]);
+  const [costControls, setCostControls] = useState<CostControlsCertification | null>(null);
+  const [capabilities, setCapabilities] = useState<CapabilitySnapshot | null>(null);
+  const [biasAudit, setBiasAudit] = useState<BiasAudit | null>(null);
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
@@ -107,6 +117,24 @@ export default function Analytics() {
         if (mounted) setFeedback(fb);
       } catch {
         if (mounted) setFeedback([]);
+      }
+      try {
+        const controls = await api.costControls();
+        if (mounted) setCostControls(controls);
+      } catch {
+        if (mounted) setCostControls(null);
+      }
+      try {
+        const caps = await api.capabilities();
+        if (mounted) setCapabilities(caps);
+      } catch {
+        if (mounted) setCapabilities(null);
+      }
+      try {
+        const audit = await api.biasAudit();
+        if (mounted) setBiasAudit(audit);
+      } catch {
+        if (mounted) setBiasAudit(null);
       }
     };
     load();
@@ -203,6 +231,9 @@ export default function Analytics() {
       </div>
 
       <WhatsWorkingCard stats={feedback} />
+      <CapabilityEngineCard snapshot={capabilities} />
+      <Governance3D snapshot={capabilities} biasAudit={biasAudit} />
+      <CostControlsCard certification={costControls} />
       <BatchStatusPanel />
 
       <div className="flex flex-wrap gap-3 text-xs text-ink-700/60">
@@ -227,6 +258,199 @@ export default function Analytics() {
         </span>
       </div>
     </div>
+  );
+}
+
+function CapabilityEngineCard({ snapshot }: { snapshot: CapabilitySnapshot | null }) {
+  const providers = snapshot?.providers ?? [];
+  const routes = snapshot?.routing ?? [];
+
+  return (
+    <section className="rounded-2xl border border-brand-purple/10 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-brand-purple">
+            <Network size={16} />
+            <h3 className="font-semibold">Dynamic Capability Engine</h3>
+          </div>
+          <p className="mt-0.5 text-xs text-ink-700/50">
+            Provider and hardware routing based on configured inputs and measured evidence.
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+            snapshot?.demo_mode ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
+          }`}
+        >
+          {snapshot ? (snapshot.demo_mode ? "demo mode" : "live route") : "unavailable"}
+        </span>
+      </div>
+
+      {snapshot ? (
+        <>
+          <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-3">
+            {providers.map((provider) => (
+              <div
+                key={provider.provider_id}
+                className="rounded-lg border border-brand-purple/10 px-3 py-2 text-xs"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-semibold text-ink-800">
+                    {provider.provider_id.replaceAll("_", " ")}
+                  </span>
+                  <StatusPill status={provider.status} />
+                </div>
+                <p className="mt-1 text-ink-700/55">{provider.provider_type}</p>
+                {provider.models_available.length > 0 && (
+                  <p className="mt-1 truncate font-mono text-[10px] text-ink-700/45">
+                    {provider.models_available.join(", ")}
+                  </p>
+                )}
+                {provider.missing_inputs.length > 0 && (
+                  <p className="mt-1 text-[11px] text-amber-700">
+                    Needs: {provider.missing_inputs.slice(0, 2).join(", ")}
+                    {provider.missing_inputs.length > 2 ? "…" : ""}
+                  </p>
+                )}
+                {provider.measurements[0] && (
+                  <p className="mt-1 text-[11px] text-green-700">
+                    {provider.measurements[0].name}: {provider.measurements[0].value}{" "}
+                    {provider.measurements[0].unit}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-3">
+            {routes.map((route) => (
+              <div key={route.task_type} className="rounded-lg bg-brand-cream/50 px-3 py-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-brand-purple">
+                    {route.task_type.replaceAll("_", " ")}
+                  </span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-ink-700/60">
+                    {route.live_call_allowed ? "live allowed" : "no live call"}
+                  </span>
+                </div>
+                <p className="mt-1 text-ink-700/65">{route.selected_provider}</p>
+                <p className="mt-1 line-clamp-2 text-ink-700/45">{route.reason}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+            {snapshot.claim_policy}
+          </p>
+        </>
+      ) : (
+        <p className="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Capability discovery could not be loaded. The backend may be offline or role-gated.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function StatusPill({ status }: { status: CapabilityStatus }) {
+  const cls: Record<CapabilityStatus, string> = {
+    proven: "bg-green-100 text-green-700",
+    measured_local: "bg-green-100 text-green-700",
+    configured: "bg-blue-100 text-blue-700",
+    live_gated: "bg-amber-100 text-amber-700",
+    not_configured: "bg-ink-700/10 text-ink-700/60",
+    unavailable: "bg-ink-700/10 text-ink-700/60",
+  };
+  return (
+    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls[status]}`}>
+      {status.replace("_", " ")}
+    </span>
+  );
+}
+
+function CostControlsCard({
+  certification,
+}: {
+  certification: CostControlsCertification | null;
+}) {
+  const healthy = certification?.ok === true;
+  const gates = certification?.gates ?? [];
+
+  return (
+    <section className="rounded-2xl border border-brand-purple/10 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-brand-purple">
+            <ShieldCheck size={16} />
+            <h3 className="font-semibold">Cost Controls</h3>
+          </div>
+          <p className="mt-0.5 text-xs text-ink-700/50">
+            Zero-spend certification before any provider call.
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+            healthy ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+          }`}
+        >
+          {certification
+            ? `${certification.passed_count}/${certification.gate_count} passed`
+            : "unavailable"}
+        </span>
+      </div>
+
+      {certification ? (
+        <>
+          <div className="mt-3 grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">
+            <div className="rounded-lg bg-brand-cream/50 px-3 py-2">
+              <p className="font-semibold text-brand-purple">Provider key</p>
+              <p className="text-ink-700/60">
+                {certification.provider_key_required ? "required" : "not required"}
+              </p>
+            </div>
+            <div className="rounded-lg bg-brand-cream/50 px-3 py-2">
+              <p className="font-semibold text-brand-purple">Network</p>
+              <p className="text-ink-700/60">
+                {certification.network_required ? "required" : "not required"}
+              </p>
+            </div>
+            <div className="rounded-lg bg-brand-cream/50 px-3 py-2">
+              <p className="font-semibold text-brand-purple">Verdict</p>
+              <p className={healthy ? "text-green-700" : "text-amber-700"}>
+                {healthy ? "certified" : "needs review"}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
+            {gates.map((gate) => (
+              <div
+                key={gate.name}
+                className="rounded-lg border border-brand-purple/10 px-3 py-2 text-xs"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-semibold text-ink-800">
+                    {gate.name.replaceAll("_", " ")}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 font-semibold ${
+                      gate.ok ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {gate.ok ? "pass" : "fail"}
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-ink-700/55">{gate.detail}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Cost-control certification could not be loaded. The backend may be offline or the
+          lifecycle route may be role-gated.
+        </p>
+      )}
+    </section>
   );
 }
 

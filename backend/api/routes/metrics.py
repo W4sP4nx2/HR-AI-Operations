@@ -16,6 +16,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from api.responses import ok
+from core.bias_audit import DEFAULT_SYNTHETIC_ATS_PATH, audit_hiring_csv
 from core.memory import memory
 from core.security import require_role
 
@@ -81,3 +82,27 @@ async def get_metrics(
             "cases_by_category": by_category,
         }
     )
+
+
+@router.get("/bias-audit")
+async def get_bias_audit(
+    _: dict[str, Any] = Depends(require_role("analyst")),
+) -> dict[str, Any]:
+    """Return Four-Fifths rule evidence from the synthetic ATS stress dataset."""
+    try:
+        audit = audit_hiring_csv(DEFAULT_SYNTHETIC_ATS_PATH)
+    except FileNotFoundError as exc:
+        audit = {
+            "dataset_path": str(DEFAULT_SYNTHETIC_ATS_PATH),
+            "record_count": 0,
+            "decision_column": "hired",
+            "threshold": 0.80,
+            "violations_count": 0,
+            "violates_four_fifths_rule": False,
+            "dimensions": [],
+            "headline": str(exc),
+            "available": False,
+        }
+    else:
+        audit["available"] = True
+    return ok(audit)

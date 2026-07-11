@@ -201,7 +201,11 @@ def build_chat_body(
     if json_schema is not None:
         body["response_format"] = {
             "type": "json_schema",
-            "json_schema": {"name": schema_name, "schema": dict(json_schema)},
+            "json_schema": {
+                "name": schema_name,
+                "strict": True,
+                "schema": dict(json_schema),
+            },
         }
     return body
 
@@ -363,6 +367,8 @@ def scale_up_delays(
 
 def fireworks_manifest() -> dict[str, Any]:
     """Return a secret-free implementation and scaling manifest."""
+    from agents.a2a_cards import a2a_card_manifest
+    from agents.orchestrator import orchestrator_manifest
     from core.a2a_envelope import telemetry_snapshot
     from core.cost_attribution import cost_attribution_snapshot
     from core.gpu_status import gpu_status_snapshot
@@ -407,6 +413,10 @@ def fireworks_manifest() -> dict[str, Any]:
                 "model_selection": "ALLOWED_MODELS only",
                 "tiers": ["economy", "standard", "premium"],
             },
+        },
+        "a2a_orchestration": {
+            "cards": a2a_card_manifest(),
+            "orchestrator": orchestrator_manifest(),
         },
         "batch_async_contract": {
             "reference": batch_status_view({"state": "JOB_STATE_PENDING"}),

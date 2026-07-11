@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from threading import Lock
 from typing import Any
 
+from core.config import settings
 from core.cost_guard import TokenBudgetGuard
 
 COST_PER_1K_TOKENS = {
@@ -155,7 +156,7 @@ def cost_attribution_snapshot() -> dict[str, Any]:
         total_input += input_tokens
         total_useful += useful_output_tokens
 
-    return {
+    snapshot = {
         "cost_attribution": cost_attribution,
         "cache_hit_rate": round(total_cache_hits / total_queries, 4) if total_queries else None,
         "prefilter_skip_rate": (
@@ -168,6 +169,35 @@ def cost_attribution_snapshot() -> dict[str, Any]:
             "rates_per_1k_tokens": dict(COST_PER_1K_TOKENS),
             "billing_export_connected": False,
         },
+    }
+    snapshot["budget_circuit_breaker"] = budget_circuit_breaker_snapshot(snapshot)
+    return snapshot
+
+
+def budget_circuit_breaker_snapshot(snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Return whether estimated spend has crossed the configured local threshold."""
+    total_usd = 0.0
+    if snapshot is None:
+        with _LOCK:
+            total_usd = sum(float(row["total_usd"]) for row in _LEDGER.values())
+    else:
+        cost_rows = snapshot.get("cost_attribution", {})
+        if isinstance(cost_rows, dict):
+            for row in cost_rows.values():
+                if isinstance(row, dict):
+                    total_usd += float(row.get("total_usd") or 0.0)
+    threshold = max(0.0, float(settings.daily_inference_budget_usd))
+    active = bool(threshold and total_usd >= threshold)
+    return {
+        "active": active,
+        "estimated_spend_usd": round(total_usd, 6),
+        "daily_threshold_usd": threshold,
+        "forced_tier": "economy" if active else None,
+        "cache_ttl_seconds": (
+            max(settings.semantic_cache_ttl, settings.circuit_breaker_cache_ttl_seconds)
+            if active
+            else settings.semantic_cache_ttl
+        ),
     }
 
 

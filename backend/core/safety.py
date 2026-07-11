@@ -23,6 +23,15 @@ _PHONE = re.compile(r"(?<!\d)(\+?\d[\d\s().-]{7,}\d)(?!\d)")
 _SSN = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 _CC = re.compile(r"\b(?:\d[ -]?){13,16}\b")
 _IP = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _redact_phone_match(match: re.Match[str]) -> str:
+    """Redact a phone-like value without treating ISO policy dates as PII."""
+    value = match.group(0)
+    if _ISO_DATE.fullmatch(value):
+        return value
+    return "[redacted-phone]"
 
 
 def _regex_redact(text: str) -> str:
@@ -31,7 +40,7 @@ def _regex_redact(text: str) -> str:
     text = _SSN.sub("[redacted-ssn]", text)
     text = _CC.sub("[redacted-card]", text)
     text = _IP.sub("[redacted-ip]", text)
-    text = _PHONE.sub("[redacted-phone]", text)
+    text = _PHONE.sub(_redact_phone_match, text)
     return text
 
 

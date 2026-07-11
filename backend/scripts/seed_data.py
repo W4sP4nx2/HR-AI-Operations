@@ -6,7 +6,7 @@ Run from the backend directory (with the venv active)::
 
 What it does
 ------------
-1. Generates five realistic policy PDFs in ``sample_data/policies/``.
+1. Generates twelve deterministic policy PDFs in ``sample_data/policies/``.
 2. Ingests them via the policy pipeline (registry + vector store if available).
 3. Files a set of sample HR tickets through the Triage agent (creates cases).
 4. Runs a few chat turns through the assistant and prints the transcript.
@@ -34,6 +34,14 @@ SAMPLE_POLICIES: dict[str, str] = {
         "carried over into the next year. Leave requests must be submitted at "
         "least 2 weeks in advance and approved by the line manager. Unused leave "
         "beyond the carry-over limit is forfeited at year end."
+    ),
+    "policy_pto_2023.pdf": (
+        "Paid Time Off Policy. Effective 2023-01-01 and expired 2023-12-31. "
+        "Employees get 15 days PTO per calendar year."
+    ),
+    "policy_pto_2024.pdf": (
+        "Paid Time Off Policy. Effective 2024-01-01 and active. Employees get "
+        "25 days PTO per calendar year."
     ),
     "parental_leave_policy.pdf": (
         "Parental Leave Policy. Primary caregivers are entitled to 12 weeks of "
@@ -111,6 +119,7 @@ SAMPLE_TICKETS: list[str] = [
 ]
 
 SAMPLE_CHAT_PROMPTS: list[str] = [
+    "How many PTO days do I have?",
     "How many vacation days do I get each year?",
     "Our HRIS is down and payroll fails in an hour, urgent!",
     "What is the parental leave entitlement for a primary caregiver?",

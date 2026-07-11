@@ -7,8 +7,10 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from api.responses import fail, ok, unavailable
+from core.capability_registry import capability_snapshot
 from core.fireworks import fireworks_manifest
 from core.genai_lifecycle import lifecycle_manifest
+from core.hallucination import hallucination_metrics_snapshot
 from core.memory import memory
 from core.security import require_role
 from models.baseline_evaluation import evaluate_all
@@ -71,6 +73,38 @@ async def fireworks(
 ) -> dict[str, Any]:
     """Return no-secret Fireworks capability, routing, and promotion controls."""
     return ok(fireworks_manifest())
+
+
+@router.get("/capabilities")
+async def capabilities(
+    _: dict[str, Any] = Depends(require_role("analyst")),
+) -> dict[str, Any]:
+    """Return evidence-based provider and hardware capability discovery."""
+    return ok(capability_snapshot())
+
+
+@router.get("/hallucination_metrics")
+async def hallucination_metrics(
+    _: dict[str, Any] = Depends(require_role("analyst")),
+) -> dict[str, Any]:
+    """Return anti-hallucination metrics from certification and audit evidence."""
+    return ok(
+        hallucination_metrics_snapshot(
+            audit_counts=await memory.audit_counts_by_action(),
+            window=100,
+        )
+    )
+
+
+@router.get("/cost-controls")
+async def cost_controls(
+    _: dict[str, Any] = Depends(require_role("analyst")),
+) -> dict[str, Any]:
+    """Return zero-spend cost-governance certification evidence."""
+    from scripts.certify_cost_controls import run_certification
+
+    result = run_certification()
+    return ok(result)
 
 
 @router.get("/fireworks/batch/{job_id}")

@@ -41,21 +41,20 @@ Two access modes:
 
 ---
 
-## B. Live setup (Render Blueprint, ~15 min)
+## B. Release setup (Docker Compose or AMD overlay)
 
 1. **Pre-flight (must pass):** run every step in
    [OPEN_SOURCE_LAUNCH.md](./OPEN_SOURCE_LAUNCH.md).
 2. **Push to GitHub** (public). CI runs lint · test · **compliance gate** · build · secret-scan.
-3. **Render → New + → Blueprint → select repo** (`render.yaml`): provisions Postgres,
-   **auto-generates `JWT_SECRET`**, builds the **lean prod images** (no torch/CrewAI →
-   small, fast, free-tier-friendly).
-4. **Set dashboard configuration:** Fireworks provider values when using a
-   server-managed key, `ADMIN_EMAIL`/`ADMIN_PASSWORD`, `CORS_ORIGINS`, and the frontend's
-   `NEXT_PUBLIC_API_BASE` / `NEXT_PUBLIC_WS_URL` (the backend URL). Redeploy.
-5. **Choose the access posture deliberately:** the public Render sandbox sets
-   `AUTH_ENFORCE=false` for credential-free seeded evaluation. Private or
-   production deployments must set `AUTH_ENFORCE=true`; verify the resulting
-   value through `/health`.
+3. **Run the production Compose stack** with Postgres/pgvector and the lean prod
+   images; set `JWT_SECRET`, `ADMIN_*`, `CORS_ORIGINS`, and provider settings in
+   the environment. See [DEPLOYMENT.md](./DEPLOYMENT.md).
+4. **For AMD inference**, apply `docker-compose.amd.yml` on a compatible AMD
+   host and run `make judge-amd-live` only when the required hardware and
+   credentials are present.
+5. **Choose the access posture deliberately:** local demos may use
+   `AUTH_ENFORCE=false`; private or production deployments must set
+   `AUTH_ENFORCE=true` and verify it through `/health`.
 
 Backend entry point: `uvicorn api.main:app` (Dockerfile.prod `CMD`). Same pattern
 maps to Fly.io / Railway via `*/Dockerfile.prod`. Full details: [DEPLOYMENT.md](./DEPLOYMENT.md).
@@ -69,7 +68,7 @@ Ship when **all** are true — measurable, not vibes.
 **Compact & packaged**
 - [x] Lean prod image installs `requirements-prod.txt` (no torch/CrewAI/LangGraph); boots without them.
 - [x] One-command demo data: `python -m scripts.seed_data`.
-- [x] Multi-stage **non-root** Dockerfiles + `docker-compose.prod.yml` + `render.yaml`.
+- [x] Multi-stage **non-root** Dockerfiles + `docker-compose.prod.yml` + AMD overlay.
 - [x] Single entry point (`uvicorn api.main:app`); `.env.example` documents every flag.
 
 **Quality gates (CI blocks merge)**
@@ -97,14 +96,15 @@ Ship when **all** are true — measurable, not vibes.
 Each step is independently shippable; the app keeps working between them.
 
 1. **Record the walkthrough** using synthetic data.
-2. **Deploy live** with the Render Blueprint and verify the release commit.
+2. **Run the approved Docker Compose path** and verify the release commit.
 3. **Per-user case ownership** so employees see *their* cases (today org-scoped by role).
 4. **Embeddable employee chat widget** (Slack/Teams/portal) — make the dashboard HR-only.
 5. **Redis** → read-through cache + rate-limit + **WebSocket Pub/Sub** (multi-replica live feed).
 6. **Task queue** (Arq/Celery) → agent work off the request path; `/trigger` returns a job id.
 7. **Scheduled retention purge** + Postgres audit partitioning (close the GDPR auto-erasure gap).
 8. **LangSmith** tracing/eval harness; **Workday/ServiceNow** connectors (mock-first).
-9. **Multi-tenancy** (tenant id + row-level security) for SaaS; then **K8s + autoscaling**.
+9. **Multi-tenancy** (tenant id + row-level security) for SaaS; Kubernetes and
+   autoscaling remain future-state work after a measured scale requirement.
 
 Full architecture & rationale: [SCALING.md](./SCALING.md) · [PIPELINE_AND_UX.md](./PIPELINE_AND_UX.md) · [PRODUCT.md](./PRODUCT.md).
 
@@ -112,6 +112,7 @@ Full architecture & rationale: [SCALING.md](./SCALING.md) · [PIPELINE_AND_UX.md
 
 ## One-line status
 
-> **Release candidate:** lean packaging, CI gates and a Render blueprint exist.
-> Public release still requires the current pre-push checklist, endpoint
-> verification and review of all intended changes.
+> **Release candidate:** lean packaging, CI gates, and Docker Compose plus an
+> optional AMD overlay exist. Kubernetes templates are future-state only. Public
+> release still requires the current
+> pre-push checklist, endpoint verification, and review of all intended changes.

@@ -10,6 +10,12 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "deploy" / "k8s" / "base"
+# Verified against AMD's official rocm/vllm Docker Hub entry on 2026-07-10.
+AMD_VLLM_IMAGE = (
+    "rocm/vllm:rocm7.13.0_gfx94X-dcgpu_ubuntu24.04_py3.13_"
+    "pytorch_2.10.0_vllm_0.19.1@sha256:"
+    "75503c82b8a1d3c970b19d1ac1a3e3c96436aab6d3695580527f8581694f3b2d"
+)
 
 
 def _documents(directory: Path) -> list[dict[str, Any]]:
@@ -81,13 +87,40 @@ def verify() -> list[str]:
         if resources["limits"].get("amd.com/gpu") != "1":
             errors.append("gpu-inference: AMD GPU limit must be explicit")
         image = str(container.get("image", ""))
-        if not image.startswith("rocm/vllm:") or "gfx94X" not in image:
-            errors.append("gpu-inference: use a pinned AMD ROCm/vLLM gfx94X image")
+        if image != AMD_VLLM_IMAGE:
+            errors.append(
+                "gpu-inference: use the reviewed AMD ROCm/vLLM gfx94X image and digest"
+            )
         command = " ".join(str(part) for part in container.get("command", []))
         if "vllm.entrypoints.openai.api_server" not in command:
             errors.append(
                 "gpu-inference: explicit OpenAI-compatible vLLM command missing"
             )
+        env_by_name = {
+            str(item.get("name")): item
+            for item in container.get("env", [])
+            if isinstance(item, dict)
+        }
+        for env_name in ("MODEL_ID", "SERVED_MODEL_NAME"):
+            secret_name = (
+                env_by_name.get(env_name, {})
+                .get("valueFrom", {})
+                .get("secretKeyRef", {})
+                .get("name")
+            )
+            if secret_name != "hrcc-gpu-secrets":
+                errors.append(f"gpu-inference: {env_name} must use the GPU-only secret")
+        api_secret_name = (
+            env_by_name.get("VLLM_API_KEY", {})
+            .get("valueFrom", {})
+            .get("secretKeyRef", {})
+            .get("name")
+        )
+        if api_secret_name != "hrcc-secrets":
+            errors.append("gpu-inference: shared vLLM API key must use the backend secret")
+        args = " ".join(str(part) for part in container.get("args", []))
+        if "--api-key" in args:
+            errors.append("gpu-inference: vLLM API key must not appear in process arguments")
 
     compose_path = ROOT / "docker-compose.amd.yml"
     if not compose_path.exists():
@@ -99,11 +132,10 @@ def verify() -> list[str]:
         amd_service = services.get("amd-vllm", {})
         if amd_service.get("platform") != "linux/amd64":
             errors.append("amd compose: linux/amd64 platform must be explicit")
-        if not str(amd_service.get("image", "")).startswith(
-            "${AMD_VLLM_IMAGE:-rocm/vllm:"
-        ):
+        expected_compose_image = f"${{AMD_VLLM_IMAGE:-{AMD_VLLM_IMAGE}}}"
+        if str(amd_service.get("image", "")) != expected_compose_image:
             errors.append(
-                "amd compose: default image must come from AMD's rocm/vllm repository"
+                "amd compose: default AMD image must include the reviewed immutable digest"
             )
         devices = amd_service.get("devices", [])
         if not any("/dev/kfd" in str(device) for device in devices):
@@ -113,6 +145,47 @@ def verify() -> list[str]:
         backend_env = services.get("backend", {}).get("environment", {})
         if ":?" not in str(backend_env.get("AMD_VLLM_BASE_URL", "")):
             errors.append("amd compose: AMD_VLLM_BASE_URL must be injected")
+        for name in ("ADMIN_EMAIL", "ADMIN_PASSWORD", "POSTGRES_PASSWORD"):
+            value = (
+                backend_env.get(name, "")
+                if name != "POSTGRES_PASSWORD"
+                else backend_env.get("DATABASE_URL", "")
+            )
+            if ":?" not in str(value):
+                errors.append(f"amd compose: {name} must be required for the judged profile")
+        if str(backend_env.get("AUTH_OPEN_REGISTRATION", "")).lower() != "false":
+            errors.append("amd compose: public registration must be disabled")
+        amd_env = amd_service.get("environment", {})
+        if ":?" not in str(amd_env.get("HF_TOKEN", "")):
+            errors.append("amd compose: HF_TOKEN must be required for gated Gemma weights")
+        if ":?" not in str(amd_env.get("VLLM_API_KEY", "")):
+            errors.append("amd compose: VLLM_API_KEY must be required")
+        compose_command = " ".join(str(part) for part in amd_service.get("command", []))
+        if "--max-model-len" not in compose_command:
+            errors.append("amd compose: bounded Gemma context length is required")
+        if "--api-key" in compose_command:
+            errors.append("amd compose: vLLM API key must not appear in process arguments")
+        if amd_service.get("ipc") == "host":
+            errors.append("amd compose: do not share the host IPC namespace")
+        if not any(
+            str(port).startswith("${AMD_VLLM_BIND:-127.0.0.1}:")
+            for port in amd_service.get("ports", [])
+        ):
+            errors.append("amd compose: direct vLLM port must bind to loopback by default")
+
+        with (ROOT / "docker-compose.prod.yml").open(encoding="utf-8") as handle:
+            production_compose = yaml.safe_load(handle)
+        production_services = production_compose.get("services", {})
+        db_ports = production_services.get("db", {}).get("ports", [])
+        if "127.0.0.1:5432:5432" not in [str(port) for port in db_ports]:
+            errors.append("production compose: PostgreSQL port must bind to loopback")
+        production_backend_env = production_services.get("backend", {}).get(
+            "environment", {}
+        )
+        if production_backend_env.get("AUTH_OPEN_REGISTRATION") != (
+            "${AUTH_OPEN_REGISTRATION:-false}"
+        ):
+            errors.append("production compose: public registration must default to disabled")
 
     pdb_names = {
         item["metadata"]["name"] for item in kinds.get("PodDisruptionBudget", [])

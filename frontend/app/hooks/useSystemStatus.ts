@@ -1,17 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { WS_URL, api } from "../../lib/api";
+import { WS_URL, api, byokStore } from "../../lib/api";
 
 type LiveTransport = "connecting" | "live" | "polling";
 
 export interface SystemStatus {
   activeCases: number;
   byokActive: boolean;
+  byokSupported: boolean;
   enforced: boolean;
   healthy: boolean;
+  llmConfigIssues: string[];
   liveTransport: LiveTransport;
   llmOn: boolean;
+  llmProvider: string;
   setByokActive: (active: boolean) => void;
 }
 
@@ -21,8 +24,11 @@ export function useSystemStatus(): SystemStatus {
   const [healthy, setHealthy] = useState(false);
   const [activeCases, setActiveCases] = useState(0);
   const [enforced, setEnforced] = useState(false);
+  const [llmConfigIssues, setLlmConfigIssues] = useState<string[]>([]);
   const [llmOn, setLlmOn] = useState(true);
+  const [llmProvider, setLlmProvider] = useState("unknown");
   const [byokActive, setByokActive] = useState(false);
+  const [byokSupported, setByokSupported] = useState(false);
   const [liveTransport, setLiveTransport] = useState<LiveTransport>("connecting");
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -34,7 +40,10 @@ export function useSystemStatus(): SystemStatus {
       const h = await api.health();
       setHealthy(h.status === "healthy" || h.status === "ok");
       setEnforced(h.auth_enforced ?? true);
+      setLlmConfigIssues(h.llm_config_issues ?? []);
       setLlmOn(h.llm_enabled ?? true);
+      setLlmProvider(h.llm_provider ?? "unknown");
+      setByokSupported(h.byok_supported ?? h.llm_provider !== "amd_vllm");
       backendReachable = true;
     } catch {
       // Other telemetry probes below can still prove the backend is reachable.
@@ -133,13 +142,22 @@ export function useSystemStatus(): SystemStatus {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    if (byokSupported || !byokActive) return;
+    byokStore.clear();
+    setByokActive(false);
+  }, [byokActive, byokSupported]);
+
   return {
     activeCases,
     byokActive,
+    byokSupported,
     enforced,
     healthy,
+    llmConfigIssues,
     liveTransport,
     llmOn,
+    llmProvider,
     setByokActive,
   };
 }

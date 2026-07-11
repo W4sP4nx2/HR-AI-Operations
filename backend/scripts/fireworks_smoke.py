@@ -39,14 +39,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if llm_provider() != "fireworks":
         print("LLM_PROVIDER must be 'fireworks' for this smoke test")
-        return 2
+        return 1
 
     issues = llm_config_issues()
     if issues:
         print("Fireworks config incomplete:")
         for issue in issues:
             print(f"- {issue}")
-        return 2
+        return 1
 
     prompt = "Reply with exactly: OK"
     if args.enable_cost_tracking:

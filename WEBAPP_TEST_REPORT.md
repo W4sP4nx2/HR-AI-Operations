@@ -1,5 +1,29 @@
 # Web App Test Report
 
+## 2026-07-11 Revalidation
+
+Current source-level and application-object checks after the ETL/3D work:
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| Frontend lint, TypeScript, production bundle | Pass | `npm run lint && npm run build` |
+| 3D topology and bias radar wiring | Pass at build/contract level | `Governance3D` consumes capability and bias APIs; no default cost-savings number remains |
+| BYOK settings affordance | Pass at build/contract level | Key input renders in launchpad/top bar; key remains module-memory-only and is added only to inference headers |
+| PTO chat through governed application object | Pass | Certified 25-day answer, `policy_pto_2024` citation, confidence `0.74`, no PII violation |
+| Bias dashboard payload | Pass | 10,000 records; race impact ratio `0.7126`; compliance headline emitted |
+| Postgres/pgvector and MinIO | Pass | `docs/evidence/local-etl-integration.json` |
+| Fresh interactive browser render | Pass | Local preview on `http://127.0.0.1:3001`; dashboard loaded with seeded 12-policy/50-case state |
+| Browser CORS/WebSocket transport | Pass | Port `3001` preflight returned `200`; live feed WebSocket accepted |
+| Browser PTO chat | Pass | `How many PTO days do I have?` returned the active 2024 policy and `25 days PTO` in deterministic mode |
+| Browser 3D governance visuals | Pass at runtime | Analytics rendered two WebGL canvases (`547x420`, `417x420`) and showed the Four-Fifths compliance alert |
+| Employee role boundary | Pass at runtime | Switching to Employee reduced navigation to Chat only |
+| Preview seed contract | Pass | `scripts/local_preview.sh` idempotently seeds policies, cases, and hashing vectors before starting both services |
+
+The browser run above is the current checkout evidence. A screenshot export is
+not used as a provider, performance, or compliance claim; the DOM state, API
+responses, WebSocket handshake, canvas dimensions, and visible compliance alert
+are the authoritative checks.
+
 Date: 2026-07-09
 Frontend: `http://localhost:3000`
 Backend observed: `http://localhost:8000`

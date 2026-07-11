@@ -32,6 +32,6 @@ def test_fireworks_smoke_refuses_incomplete_config(monkeypatch, capsys) -> None:
     result = smoke.main(["--enable-cost-tracking"])
 
     captured = capsys.readouterr().out
-    assert result == 2
+    assert result == 1
     assert "Fireworks config incomplete" in captured
     assert "cost controls preflight ok" not in captured

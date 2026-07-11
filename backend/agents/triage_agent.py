@@ -238,6 +238,11 @@ class TriageAgent:
                     func=lambda payload: policy_resolver.resolve(str(payload["ticket_text"])),
                     payload={"ticket_text": ticket_text},
                     objectives=_POLICY_RESOLUTION_HANDOFF_OBJECTIVES,
+                    metadata={
+                        "source_category": category,
+                        "source_priority": priority,
+                        "expected_target_category": "POLICY",
+                    },
                 )
                 resolved = (
                     envelope.payload

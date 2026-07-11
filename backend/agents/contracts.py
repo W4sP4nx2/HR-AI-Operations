@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # --------------------------------------------------------------------------- #
 # Inputs
@@ -60,6 +60,8 @@ class AttritionInput(BaseModel):
 
 CATEGORIES = ["BENEFITS", "POLICY", "ONBOARDING", "PERFORMANCE", "COMPLIANCE", "URGENT"]
 
+STRICT_CONTRACT_CONFIG = ConfigDict(extra="forbid")
+
 
 class CaseRef(BaseModel):
     """A minimal reference to a created/updated case."""
@@ -68,8 +70,15 @@ class CaseRef(BaseModel):
     category: str
     status: str
     assigned_agent: str
+    summary: str | None = None
+    detail: str | None = None
+    ai_recommendation: str | None = None
+    ai_confidence: float | None = Field(default=None, ge=0, le=1)
+    ai_mode: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class TriageResult(BaseModel):
@@ -77,9 +86,12 @@ class TriageResult(BaseModel):
 
     category: str
     case: CaseRef
+    priority: str | None = None
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    dossier: dict[str, Any] | None = None
     resolution: dict[str, Any] | None = None
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class PolicyAnswer(BaseModel):
@@ -89,13 +101,16 @@ class PolicyAnswer(BaseModel):
     source_documents: list[dict[str, Any]] = []
     confidence_score: float = Field(..., ge=0, le=1)
     needs_review: bool = False  # confidence below threshold → route to a human
+    mode: str | None = None
+    prompt_version: str | None = None
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class ResumeScore(BaseModel):
     """Resume screener output contract."""
 
+    case_id: str | None = None
     score: int = Field(..., ge=0, le=100)
     recommendation: str
     reasoning: str
@@ -113,7 +128,7 @@ class ResumeScore(BaseModel):
     skill_audit_mode: str = "keyword_fallback"
     unverified_skills: list[str] = []
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class RiskFactor(BaseModel):
@@ -124,6 +139,7 @@ class RiskFactor(BaseModel):
 class AttritionResult(BaseModel):
     """Attrition predictor output contract."""
 
+    case_id: str | None = None
     attrition_risk_score: float = Field(..., ge=0, le=1)
     top_risk_factors: list[RiskFactor]
     explanation: str
@@ -133,7 +149,7 @@ class AttritionResult(BaseModel):
     # risk is high (advisory; empty otherwise).
     retention_context: list[dict[str, Any]] = []
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class OnboardingResult(BaseModel):
@@ -143,7 +159,7 @@ class OnboardingResult(BaseModel):
     task: dict[str, Any] | None = None
     state: dict[str, Any] | None = None
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 # --------------------------------------------------------------------------- #

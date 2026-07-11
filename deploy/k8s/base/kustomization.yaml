@@ -9,5 +9,8 @@ resources:
   - frontend.yaml
   - gpu-inference.yaml
   - security.yaml
-commonLabels:
-  app.kubernetes.io/part-of: hr-ai-command-center
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: hr-ai-command-center
+    includeSelectors: true
+    includeTemplates: true

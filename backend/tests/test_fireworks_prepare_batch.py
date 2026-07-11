@@ -7,6 +7,8 @@ import json
 import pytest
 
 from scripts.fireworks_prepare_batch import (
+    BATCH_RESPONSE_SCHEMA,
+    _build_batch_jsonl,
     _certify_batch_results,
     _custom_id,
     _load_json_records,
@@ -57,6 +59,23 @@ def test_batch_builder_rejects_duplicate_custom_ids(monkeypatch, tmp_path):
             model_id="tenant/batch-model",
             system_prompt="Return JSON.",
         )
+
+
+def test_batch_rows_use_strict_json_schema_contract():
+    payload = _build_batch_jsonl(
+        [{"custom_id": "resume-1", "prompt": "Screen this resume."}],
+        model="tenant/batch-model",
+        system_prompt="Return JSON.",
+        max_tokens=400,
+    )
+    row = json.loads(payload)
+    response_format = row["body"]["response_format"]
+
+    assert response_format["type"] == "json_schema"
+    assert response_format["json_schema"]["name"] == "ResumeScreeningBatchResult"
+    assert response_format["json_schema"]["strict"] is True
+    assert response_format["json_schema"]["schema"] == BATCH_RESPONSE_SCHEMA
+    assert row["body"]["temperature"] == 0
 
 
 def test_batch_results_are_split_by_certification():

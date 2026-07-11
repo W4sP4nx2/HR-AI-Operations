@@ -1,7 +1,8 @@
 """FastAPI application entrypoint for the HR AI Command Center.
 
 Wires together:
-  * CORS for the Next.js frontend (localhost:3000),
+  * CORS for the Next.js frontend (localhost:3000 and the local preview on
+    port 3001),
   * REST routers: /agents, /cases, /audit, plus /health,
   * a WebSocket endpoint at /ws/feed broadcasting live case and approval events.
 
@@ -22,6 +23,7 @@ from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 from starlette.middleware.sessions import SessionMiddleware
 
 from agents.onboarding_agent import onboarding_agent
@@ -42,9 +44,57 @@ from api.websocket_manager import manager
 from core.config import settings
 from core.memory import memory
 from core.observability import record_http, render_metrics
-from core.runtime_key import llm_active, llm_config_issues, llm_provider
+from core.runtime_key import byok_supported, llm_active, llm_config_issues, llm_provider
 
 _SECRET_CONFIG_TOKENS = ("key", "secret", "password", "token")
+
+
+def _byok_capable_request(method: str, path: str) -> bool:
+    """Return whether this request is allowed to receive a visitor provider key."""
+    normalized_method = method.upper()
+    if normalized_method == "GET" and path == "/byok/verify":
+        return True
+    if normalized_method != "POST":
+        return False
+    if path in {"/chat", "/chat/stream"}:
+        return True
+    parts = path.strip("/").split("/")
+    return (
+        len(parts) == 3 and parts[0] == "agents" and bool(parts[1]) and parts[2] == "trigger"
+    ) or (
+        len(parts) == 4
+        and parts[0] == "agents"
+        and bool(parts[1])
+        and parts[2:] == ["trigger", "upload"]
+    )
+
+
+async def _ensure_bootstrap_admin(email: str, password: str) -> bool:
+    """Create the first admin once, tolerating concurrent replica startup.
+
+    A fresh Kubernetes deployment starts several backend replicas against the
+    same PostgreSQL database. More than one replica can observe "no admin" at
+    once; the unique email constraint selects the winner and the losing replica
+    must continue rather than crash-loop.
+    """
+    if await memory.get_user_by_email(email):
+        return False
+
+    from core.security import hash_password
+
+    try:
+        await memory.create_user(
+            email=email,
+            name="Administrator",
+            role="admin",
+            password_hash=hash_password(password),
+            provider="local",
+        )
+    except IntegrityError:
+        if await memory.get_user_by_email(email):
+            return False
+        raise
+    return True
 
 
 @asynccontextmanager
@@ -57,16 +107,7 @@ async def lifespan(_app: FastAPI):
 
     # First-run admin: create from env if configured and not already present.
     if settings.admin_email and settings.admin_password:
-        if not await memory.get_user_by_email(settings.admin_email):
-            from core.security import hash_password
-
-            await memory.create_user(
-                email=settings.admin_email,
-                name="Administrator",
-                role="admin",
-                password_hash=hash_password(settings.admin_password),
-                provider="local",
-            )
+        if await _ensure_bootstrap_admin(settings.admin_email, settings.admin_password):
             logging.getLogger("uvicorn.error").info(
                 "Created first-run admin %s", settings.admin_email
             )
@@ -96,16 +137,16 @@ app = FastAPI(
 SHOWCASE_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://hr-frontend-sve4.onrender.com",
-    "https://hr-frontend.onrender.com",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
 ]
 
 
 def _allowed_origins() -> list[str]:
     """Return concrete browser origins allowed for HTTP and WebSocket traffic."""
     configured = settings.cors_origins or SHOWCASE_ORIGINS
-    # Render's dashboard may temporarily carry ["*"] during showcase debugging.
-    # Keep the deployed service safe by expanding that to known frontend origins.
+    # Keep wildcard configuration safe by expanding it to the known local
+    # development origins. Production deployments should set explicit origins.
     if "*" in configured:
         return SHOWCASE_ORIGINS
     return configured
@@ -155,12 +196,15 @@ async def _request_metrics(request, call_next):
 
 @app.middleware("http")
 async def _byok_key(request, call_next):
-    """Bind a visitor's own LLM key (``X-Client-LLM-Key``) to the request only.
+    """Bind a hosted-provider visitor key only on model-capable routes.
 
     The key is held in a request-scoped contextvar for the duration of the call
-    and cleared in ``finally`` — it is never persisted, audited, or logged. LLM
-    call-sites read ``core.runtime_key.effective_api_key()``; if no key is
-    present (or it fails upstream) they fall back to the deterministic baseline.
+    and cleared in ``finally`` — it is never persisted, audited, or logged.
+    Headers sent to health, auth, audit, policy-management, case, or metrics
+    endpoints are ignored. LLM call-sites read
+    ``core.runtime_key.effective_api_key()``; if no key is present (or it fails
+    upstream) they fall back to the deterministic baseline. AMD/vLLM is an
+    internal service-auth route, so browser keys are ignored in that profile.
     """
     from core.runtime_key import (
         looks_like_key,
@@ -168,7 +212,10 @@ async def _byok_key(request, call_next):
         set_request_api_key,
     )
 
-    header_key = request.headers.get("x-client-llm-key") or request.headers.get("x-lm-key")
+    accepts_byok = byok_supported() and _byok_capable_request(request.method, request.url.path)
+    header_key = None
+    if accepts_byok:
+        header_key = request.headers.get("x-client-llm-key") or request.headers.get("x-lm-key")
     # Bind the raw key for this request (so /byok/verify can report malformed vs
     # missing); `llm_active()` gates on format so junk never reaches a real call.
     token = set_request_api_key((header_key or "").strip() or None)
@@ -277,6 +324,7 @@ async def health() -> dict[str, Any]:
             "llm_provider": llm_provider(),
             "llm_enabled": llm_active(),
             "llm_config_issues": llm_config_issues(),
+            "byok_supported": byok_supported(),
             "demo_mode": settings.demo_mode,
             "build_revision": os.environ.get("GIT_COMMIT_HASH", "unknown"),
             "config_hash": _settings_config_hash(),
@@ -309,8 +357,8 @@ async def feed(websocket: WebSocket) -> None:
     try:
         await websocket.send_json({"type": "connected", "message": "feed online"})
         while True:
-            # Keep Render's gateway proxy from treating this upgraded TCP
-            # connection as idle; any inbound client message is also a ping.
+            # Keep a reverse proxy from treating this upgraded TCP connection
+            # as idle; any inbound client message is also a ping.
             try:
                 await asyncio.wait_for(websocket.receive_text(), timeout=8)
                 await websocket.send_json({"type": "pong"})

@@ -37,6 +37,18 @@ def test_redact_pii_masks_identifiers() -> None:
     assert "415-555-1234" not in nested["items"][0]
 
 
+def test_redact_pii_preserves_iso_policy_dates() -> None:
+    """Temporal policy metadata must not be misclassified as a phone number."""
+    from core.safety import redact_pii
+
+    text = "Effective Date: 2024-01-01; call +1 (415) 555-1234 for support."
+    redacted = redact_pii(text)
+
+    assert "2024-01-01" in redacted
+    assert "+1 (415) 555-1234" not in redacted
+    assert "[redacted-phone]" in redacted
+
+
 def test_audit_event_schema_and_redaction() -> None:
     from core.safety import audit_event
 

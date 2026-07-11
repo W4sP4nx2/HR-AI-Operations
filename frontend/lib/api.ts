@@ -114,6 +114,89 @@ export interface FireworksBatchStatus {
   poll_after_seconds: number | null;
 }
 
+export interface CostControlGate {
+  name: string;
+  ok: boolean;
+  detail: string;
+  evidence: Record<string, unknown>;
+}
+
+export interface CostControlsCertification {
+  certification: string;
+  ok: boolean;
+  network_required: boolean;
+  provider_key_required: boolean;
+  gate_count: number;
+  passed_count: number;
+  gates: CostControlGate[];
+}
+
+export type CapabilityStatus =
+  | "proven"
+  | "measured_local"
+  | "configured"
+  | "live_gated"
+  | "not_configured"
+  | "unavailable";
+
+export interface RuntimeMeasurement {
+  name: string;
+  value: number;
+  unit: string;
+  evidence_level: string;
+  notes: string;
+}
+
+export interface ProviderCapability {
+  provider_id: string;
+  provider_type: string;
+  status: CapabilityStatus;
+  models_available: string[];
+  supports_batch: boolean;
+  supports_streaming: boolean;
+  supports_prompt_cache: boolean;
+  supports_json_schema: boolean;
+  supports_byok: boolean;
+  live_enabled: boolean;
+  missing_inputs: string[];
+  evidence_required: string[];
+  measurements: RuntimeMeasurement[];
+  route_fit: string[];
+}
+
+export interface HardwareCapability {
+  hardware_id: string;
+  vendor: string;
+  status: CapabilityStatus;
+  detector: string;
+  evidence_required: string[];
+  runtime_evidence_file: string | null;
+  device_names: string[];
+  measurements: RuntimeMeasurement[];
+  notes: string[];
+}
+
+export interface CapabilityRoute {
+  task_type: string;
+  selected_provider: string;
+  status: CapabilityStatus;
+  reason: string;
+  evidence_used: string[];
+  live_call_allowed: boolean;
+}
+
+export interface CapabilitySnapshot {
+  generated_at_unix: number;
+  claim_policy: string;
+  demo_mode: boolean;
+  active_provider: string;
+  providers: ProviderCapability[];
+  hardware: HardwareCapability[];
+  routing: CapabilityRoute[];
+  required_live_inputs: Record<string, string[]>;
+  safe_wording: string[];
+}
+
 const TOKEN_KEY = "hr_access_token";
 
 /** Read/write the JWT access token from localStorage (browser only). */
@@ -130,31 +213,38 @@ export const tokenStore = {
   },
 };
 
-const BYOK_KEY = "hr_byok_key";
+let inMemoryByokKey: string | null = null;
 
 /**
- * Ephemeral Bring-Your-Own-Key store. Kept in sessionStorage (cleared when the
- * tab closes, never localStorage) and sent only as the `X-Client-LLM-Key`
- * request header — the backend uses it per-request and never persists it.
+ * Ephemeral Bring-Your-Own-Key store. Kept only in this JavaScript runtime
+ * (cleared on reload/tab close; never Web Storage) and sent only as the
+ * `X-Client-LLM-Key` request header. The backend uses it per request and never
+ * persists it.
  */
 export const byokStore = {
   get(): string | null {
     if (typeof window === "undefined") return null;
-    return window.sessionStorage.getItem(BYOK_KEY);
+    return inMemoryByokKey;
   },
   set(key: string) {
-    if (typeof window !== "undefined") window.sessionStorage.setItem(BYOK_KEY, key);
+    if (typeof window !== "undefined") inMemoryByokKey = key;
   },
   clear() {
-    if (typeof window !== "undefined") window.sessionStorage.removeItem(BYOK_KEY);
+    inMemoryByokKey = null;
   },
 };
 
-/** Build request headers: bearer token + the visitor's BYOK key when present. */
+/** Build ordinary application headers. BYOK is deliberately excluded. */
 export function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const headers = { ...extra };
   const token = tokenStore.get();
   if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+/** Add the ephemeral provider key only for an endpoint that may invoke a model. */
+export function inferenceHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const headers = authHeaders(extra);
   const byok = byokStore.get();
   if (byok) headers["X-Client-LLM-Key"] = byok;
   return headers;
@@ -163,19 +253,28 @@ export function authHeaders(extra: Record<string, string> = {}): Record<string, 
 /** Ping the server with current headers; return whether it accepted a BYOK key. */
 export async function checkByok(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/health`, { headers: authHeaders(), cache: "no-store" });
+    const res = await fetch(`${API_BASE}/byok/verify`, {
+      headers: inferenceHeaders(),
+      cache: "no-store",
+    });
     return res.headers.get("X-BYOK") === "1";
   } catch {
     return false;
   }
 }
 
-export type ByokStatus = "verified" | "rejected" | "malformed" | "missing" | "unverifiable";
+export type ByokStatus =
+  | "verified"
+  | "rejected"
+  | "malformed"
+  | "missing"
+  | "unverifiable"
+  | "unsupported";
 
-/** Provider-side verification: actually checks the key against Anthropic. */
-export async function verifyByok(): Promise<{ valid: boolean; status: ByokStatus; detail: string }> {
+/** Provider-side verification: checks the request-scoped key against the configured provider. */
+export async function verifyByok(): Promise<{ valid: boolean; status: ByokStatus; detail: string; provider?: string }> {
   try {
-    return await request<{ valid: boolean; status: ByokStatus; detail: string }>("/byok/verify");
+    return await inferenceRequest<{ valid: boolean; status: ByokStatus; detail: string; provider?: string }>("/byok/verify");
   } catch {
     return { valid: false, status: "unverifiable", detail: "verification request failed" };
   }
@@ -183,10 +282,30 @@ export async function verifyByok(): Promise<{ valid: boolean; status: ByokStatus
 
 /** Perform a JSON request and unwrap the standard envelope. */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  for (const [name, value] of Object.entries(authHeaders())) headers.set(name, value);
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: authHeaders({ "Content-Type": "application/json" }),
     cache: "no-store",
     ...init,
+    headers,
+  });
+  const body = (await res.json()) as ApiEnvelope<T>;
+  if (!body.success) {
+    throw new Error(body.error ?? "request failed");
+  }
+  return body.data as T;
+}
+
+/** Perform a request to the small server-side allowlist of model-capable routes. */
+async function inferenceRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  for (const [name, value] of Object.entries(inferenceHeaders())) headers.set(name, value);
+  const res = await fetch(`${API_BASE}${path}`, {
+    cache: "no-store",
+    ...init,
+    headers,
   });
   const body = (await res.json()) as ApiEnvelope<T>;
   if (!body.success) {
@@ -196,10 +315,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 async function probeRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  for (const [name, value] of Object.entries(authHeaders())) headers.set(name, value);
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: authHeaders({ "Content-Type": "application/json" }),
     cache: "no-store",
     ...init,
+    headers,
   });
   if (!res.ok) {
     throw new Error(`request failed: ${res.status}`);
@@ -224,7 +346,10 @@ export const api = {
       agents_registered: number;
       agents_active: number;
       auth_enforced?: boolean;
+      llm_config_issues?: string[];
       llm_enabled?: boolean;
+      llm_provider?: string;
+      byok_supported?: boolean;
     }>("/health"),
 
   /** List all agents with runtime status. */
@@ -233,22 +358,31 @@ export const api = {
   /** Operational metrics derived from the audit log + cases. */
   metrics: () => probeRequest<Metrics>("/metrics"),
 
+  /** Four-Fifths rule evidence from the synthetic adverse-impact ATS dataset. */
+  biasAudit: () => request<BiasAudit>("/metrics/bias-audit"),
+
   /** Inspect a known Fireworks Batch job (manager+ in enforced deployments). */
   fireworksBatchStatus: (jobId: string) =>
     request<FireworksBatchStatus>(
       `/lifecycle/fireworks/batch/${encodeURIComponent(jobId)}`
     ),
 
+  /** Zero-spend cost-control certification, safe to run without a provider key. */
+  costControls: () => request<CostControlsCertification>("/lifecycle/cost-controls"),
+
+  /** Evidence-driven provider and hardware discovery. */
+  capabilities: () => request<CapabilitySnapshot>("/lifecycle/capabilities"),
+
   /** Manually trigger an agent. */
   triggerAgent: (name: string, input: string, payload?: unknown) =>
-    request<unknown>(`/agents/${name}/trigger`, {
+    inferenceRequest<unknown>(`/agents/${name}/trigger`, {
       method: "POST",
       body: JSON.stringify({ input, payload }),
     }),
 
   /** Screen a resume (text) against a job description. */
   screenResume: (jobDescription: string, resume: string) =>
-    request<ResumeScreenResult>(`/agents/resume_screener_agent/trigger`, {
+    inferenceRequest<ResumeScreenResult>(`/agents/resume_screener_agent/trigger`, {
       method: "POST",
       body: JSON.stringify({
         input: resume,
@@ -258,7 +392,7 @@ export const api = {
 
   /** Predict attrition risk from the six employee features. */
   predictAttrition: (features: AttritionFeatures) =>
-    request<AttritionResult>(`/agents/attrition_agent/trigger`, {
+    inferenceRequest<AttritionResult>(`/agents/attrition_agent/trigger`, {
       method: "POST",
       body: JSON.stringify({ input: "", payload: features }),
     }),
@@ -298,7 +432,7 @@ export const api = {
       method: "POST",
       body: form,
       cache: "no-store",
-      headers: authHeaders(),
+      headers: inferenceHeaders(),
     });
     return (await res.json()) as ApiEnvelope<unknown>;
   },
@@ -389,7 +523,10 @@ export const api = {
   // ── Chat ──────────────────────────────────────────────────────────────── //
   /** Non-streaming chat turn. */
   chat: (message: string, history: ChatMessage[] = []) =>
-    request<ChatResponse>("/chat", { method: "POST", body: JSON.stringify({ message, history }) }),
+    inferenceRequest<ChatResponse>("/chat", {
+      method: "POST",
+      body: JSON.stringify({ message, history }),
+    }),
 
   /** Returns the URL for the streaming endpoint (used with EventSource). */
   chatStreamUrl: () => `${API_BASE}/chat/stream`,
@@ -487,6 +624,37 @@ export interface Metrics {
   triage_override_rate: number;
   cases_by_status: { status: string; count: number }[];
   cases_by_category: { category: string; count: number }[];
+}
+
+export interface BiasAuditGroup {
+  group: string;
+  selected: number;
+  total: number;
+  selection_rate: number;
+}
+
+export interface BiasAuditDimension {
+  dimension: string;
+  reference_group: string;
+  reference_rate: number;
+  lowest_group: string;
+  lowest_rate: number;
+  adverse_impact_ratio: number;
+  threshold: number;
+  violates_four_fifths_rule: boolean;
+  groups: BiasAuditGroup[];
+}
+
+export interface BiasAudit {
+  dataset_path: string;
+  record_count: number;
+  decision_column: string;
+  threshold: number;
+  violations_count: number;
+  violates_four_fifths_rule: boolean;
+  dimensions: BiasAuditDimension[];
+  headline: string;
+  available: boolean;
 }
 
 export interface AttritionFeatures {

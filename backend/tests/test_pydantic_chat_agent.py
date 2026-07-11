@@ -70,6 +70,34 @@ async def test_governed_chat_certifies_without_allowed_models(monkeypatch) -> No
 
 
 @pytest.mark.asyncio
+async def test_governed_chat_does_not_block_policy_effective_date(monkeypatch) -> None:
+    import agents.chat_agent as chat_agent
+    from agents.pydantic_chat_agent import governed_chat
+
+    monkeypatch.delenv("ALLOWED_MODELS", raising=False)
+
+    async def fake_chat(_message, _history=None, _session_id=""):
+        return {
+            "reply": (
+                "Effective Date: 2024-01-01. Employees receive 25 days PTO "
+                "under the active policy. [1]"
+            ),
+            "mode": "degraded",
+            "tool_calls": [{"tool": "search_policy"}],
+            "citations": [{"doc_id": "policy_pto_2024", "text": "25 days PTO"}],
+        }
+
+    monkeypatch.setattr(chat_agent, "chat", fake_chat)
+
+    result = await governed_chat("How many PTO days do I have?", [], "session-1")
+
+    assert result["certification"]["is_valid"] is True
+    assert result["certification"]["redaction_count"] == 0
+    assert result["structured"]["source_policy_ids"] == ["policy_pto_2024"]
+    assert "2024-01-01" in result["reply"]
+
+
+@pytest.mark.asyncio
 async def test_governed_chat_records_cost_route_when_allowlist_exists(monkeypatch) -> None:
     import agents.chat_agent as chat_agent
     from agents.pydantic_chat_agent import governed_chat

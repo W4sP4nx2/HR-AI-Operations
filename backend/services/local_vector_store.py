@@ -23,7 +23,7 @@ import math
 import time
 from typing import Any
 
-from sqlalchemy import bindparam, text
+from sqlalchemy import bindparam, inspect, text
 
 import core.memory as core_memory
 from core.config import settings
@@ -46,6 +46,19 @@ def _cosine(a: list[float], b: list[float]) -> float:
     if na == 0.0 or nb == 0.0:
         return 0.0
     return max(0.0, min(1.0, dot / (na * nb)))
+
+
+def _decode_metadata(value: Any) -> dict[str, Any]:
+    """Decode persisted chunk metadata without breaking legacy rows."""
+    if isinstance(value, dict):
+        return value
+    if not value:
+        return {}
+    try:
+        decoded = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return decoded if isinstance(decoded, dict) else {}
 
 
 class LocalVectorStore:
@@ -74,9 +87,16 @@ class LocalVectorStore:
                 text(
                     "CREATE TABLE IF NOT EXISTS policy_vectors ("
                     "id TEXT PRIMARY KEY, policy_id TEXT, chunk_index INTEGER, "
-                    "chunk_text TEXT, embedding TEXT)"
+                    "chunk_text TEXT, embedding TEXT, metadata TEXT)"
                 )
             )
+            columns = await conn.run_sync(
+                lambda sync_conn: {
+                    column["name"] for column in inspect(sync_conn).get_columns("policy_vectors")
+                }
+            )
+            if "metadata" not in columns:
+                await conn.execute(text("ALTER TABLE policy_vectors ADD COLUMN metadata TEXT"))
             await conn.execute(
                 text(
                     "CREATE INDEX IF NOT EXISTS idx_policy_vectors_policy "
@@ -109,6 +129,7 @@ class LocalVectorStore:
                     "idx": idx,
                     "txt": c["text"],
                     "emb": json.dumps(vector),
+                    "meta": json.dumps(c.get("metadata", {}), sort_keys=True),
                 }
             )
         # Portable upsert: delete-then-insert by id (avoids dialect-specific
@@ -127,8 +148,8 @@ class LocalVectorStore:
                 await conn.execute(
                     text(
                         "INSERT INTO policy_vectors "
-                        "(id, policy_id, chunk_index, chunk_text, embedding) "
-                        "VALUES (:id, :pid, :idx, :txt, :emb)"
+                        "(id, policy_id, chunk_index, chunk_text, embedding, metadata) "
+                        "VALUES (:id, :pid, :idx, :txt, :emb, :meta)"
                     ),
                     batch,
                 )
@@ -146,7 +167,10 @@ class LocalVectorStore:
             rows = (
                 (
                     await conn.execute(
-                        text("SELECT chunk_text, policy_id, embedding FROM policy_vectors")
+                        text(
+                            "SELECT chunk_text, policy_id, embedding, metadata "
+                            "FROM policy_vectors"
+                        )
                     )
                 )
                 .mappings()
@@ -168,6 +192,7 @@ class LocalVectorStore:
                 "text": row["chunk_text"],
                 "doc_id": row["policy_id"],
                 "score": score,
+                "metadata": _decode_metadata(row["metadata"]),
             }
             for row, score in zip(rows, scores, strict=True)
         ]

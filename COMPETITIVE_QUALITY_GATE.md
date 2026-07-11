@@ -10,6 +10,8 @@ whose evidence is marked environment-gated.
 | Tracked-secret scan | Pass | `gitleaks git --config .gitleaks.toml` |
 | SSN absent from resume case/audit storage | Pass | `tests/test_compliance.py` |
 | Model allow-list enforcement | Pass | `tests/test_llm_factory.py`, static provider guard |
+| Fireworks/BYOK auth contract | Pass | `scripts/collect_hackathon_evidence.py --profile static`, `tests/test_input_shield_byok.py` |
+| AMD-hosted Gemma deployment profile | Pass | `scripts/verify_amd_gemma_overlay.py`; live ROCm run still required |
 | CPU exact top-5, 10k × 384 | Pass | 3.256292 ms p95 on Darwin arm64; scoring/top-k only |
 | AMD/ROCm top-5 | Environment-gated | Run on named ROCm hardware; target <10 ms p95 |
 | No-key policy answer | Pass | Local hashing retrieval and grounded excerpt tests |
@@ -26,6 +28,12 @@ live Fireworks structured/VLM/Batch run are attached.
 
 Do not use a keyword grep as a secret scanner. Secure code necessarily contains
 identifiers such as `api_key`, `secret`, and `password`.
+
+Non-secret hackathon gate:
+
+```bash
+python scripts/collect_hackathon_evidence.py --profile static
+```
 
 ```bash
 gitleaks dir . --no-banner --config .gitleaks.toml --redact --exit-code 1
@@ -85,6 +93,72 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest \
   tests/test_fireworks_workloads.py \
   tests/test_llm_factory.py -q
 ```
+
+### Fireworks auth and BYOK
+
+Fireworks follows the OpenAI-compatible Serverless auth profile:
+`Authorization: Bearer $FIREWORKS_API_KEY` against
+`https://api.fireworks.ai/inference/v1`. The hosted demo can instead use
+`X-Client-LLM-Key`; that key stays in browser memory, is sent only to verified
+model-capable routes, is held in a request-scoped contextvar, and is cleared
+after the response. The backend ignores the header on ordinary application
+routes even if a client sends it manually.
+
+Offline contract checks:
+
+```bash
+cd backend
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest \
+  -p pytest_asyncio.plugin \
+  tests/test_input_shield_byok.py tests/test_llm_factory.py -q
+```
+
+Credentialed live check:
+
+```bash
+export LLM_PROVIDER=fireworks
+export FIREWORKS_API_KEY=...
+export FIREWORKS_BASE_URL=https://api.fireworks.ai/inference/v1
+export ALLOWED_MODELS=accounts/fireworks/models/deepseek-v3p1
+python -m scripts.verify_hackathon_env --mode fireworks-auth
+python -m scripts.fireworks_smoke --enable-cost-tracking
+curl -s http://localhost:8000/byok/verify \
+  -H "X-Client-LLM-Key: $FIREWORKS_API_KEY"
+python -m scripts.byok_smoke --provider fireworks --json
+```
+
+The BYOK response must report `status=verified` and `provider=fireworks`; do not
+store the secret value itself.
+
+## 3.5 AMD-hosted Gemma
+
+The judged AMD path uses `LLM_PROVIDER=amd_vllm`, an internal
+OpenAI-compatible vLLM `/v1` endpoint, and a Gemma/Gamma-family served model
+present in `ALLOWED_MODELS`.
+
+Offline contract checks:
+
+```bash
+python scripts/verify_amd_gemma_overlay.py
+kubectl kustomize deploy/k8s/overlays/amd-gemma >/tmp/hrcc-amd-gemma.yaml
+```
+
+Credentialed AMD-cluster proof:
+
+```bash
+kubectl apply -k deploy/k8s/overlays/amd-gemma
+kubectl -n hr-ai-system rollout status deploy/hrcc-gpu-inference
+kubectl -n hr-ai-system port-forward svc/hrcc-gpu-inference 8001:8000
+curl http://localhost:8001/health
+curl -H "Authorization: Bearer $AMD_VLLM_API_KEY" http://localhost:8001/v1/models
+cd backend
+python -m scripts.amd_vllm_smoke --json
+```
+
+The backend `/health` response must report `provider=amd_vllm` and
+`byok_supported=false`; `/v1/models` must list the Gemma/Gamma-family served
+model present in `ALLOWED_MODELS`. `AMD_VLLM_API_KEY` is a private service key
+and must never be submitted through `X-Client-LLM-Key`.
 
 ### Batch preparation
 

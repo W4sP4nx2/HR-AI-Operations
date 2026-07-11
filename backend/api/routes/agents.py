@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agents.attrition_agent import attrition_agent
 from agents.contracts import AGENT_SPECS
@@ -90,6 +90,13 @@ class TriggerRequest(BaseModel):
     payload: dict[str, Any] | None = None
 
 
+class OrchestratorPlanRequest(BaseModel):
+    """No-key request for a Fireworks/A2A dispatch plan."""
+
+    request_type: str = "triage"
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
 async def dispatch_agent(
     agent_name: str, input_text: str = "", payload: dict[str, Any] | None = None
 ) -> Any:
@@ -152,6 +159,21 @@ async def list_agents() -> dict[str, Any]:
             }
         )
     return ok(merged)
+
+
+@router.post("/orchestrator/plan")
+async def plan_orchestrator_dispatch(
+    body: OrchestratorPlanRequest,
+    _: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Return the certified A2A dispatch plan without making a provider call."""
+    try:
+        from agents.orchestrator import orchestrate
+
+        envelope = await orchestrate(body.request_type, body.payload)
+    except Exception as exc:  # noqa: BLE001 - user-facing plan validation
+        return fail(str(exc))
+    return ok(envelope.model_dump(mode="json"))
 
 
 @router.post("/{agent_name}/trigger")

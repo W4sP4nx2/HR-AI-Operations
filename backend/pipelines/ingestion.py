@@ -9,9 +9,19 @@ stand-in for a model tokenizer (512 tokens, 50 token overlap by default).
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 from core.config import settings
+
+_POLICY_HEADER = {
+    "effective_date": re.compile(r"\bEffective Date:\s*(\d{4}-\d{2}-\d{2})"),
+    # PDF extraction may flatten line boundaries, so stop at the next governed
+    # header instead of relying on a newline.
+    "expires_on": re.compile(r"\bExpires On:\s*(.*?)\s+Status:", re.DOTALL),
+    "status": re.compile(r"\bStatus:\s*([A-Za-z_-]+)"),
+}
+_VERSIONED_POLICY_ID = re.compile(r"^(policy_[a-z0-9_]+)_(20\d{2})(?:\.pdf)?$", re.IGNORECASE)
 
 
 def extract_text_from_pdf(path: str) -> str:
@@ -96,6 +106,32 @@ def chunk_text(
     return chunks
 
 
+def extract_policy_metadata(text: str, doc_id: str, source: str) -> dict[str, Any]:
+    """Extract temporal policy metadata from a governed policy document.
+
+    The synthetic corpus writes a strict human-readable header into every PDF.
+    Keeping those fields as structured metadata lets retrieval apply lifecycle
+    rules without relying on semantic similarity or filename ordering.
+    """
+    metadata: dict[str, Any] = {"source": source}
+    for field, pattern in _POLICY_HEADER.items():
+        match = pattern.search(text)
+        if match:
+            value = match.group(1).strip()
+            if field == "status":
+                value = value.lower()
+            elif field == "expires_on" and value.upper() == "ACTIVE":
+                value = ""
+            metadata[field] = value
+
+    version_match = _VERSIONED_POLICY_ID.match(doc_id)
+    if version_match:
+        family, year = version_match.groups()
+        metadata["policy_family"] = family.lower()
+        metadata["policy_version"] = int(year)
+    return metadata
+
+
 def ingest_pdf(path: str, doc_id: str | None = None) -> list[dict[str, Any]]:
     """Read and chunk a single PDF into vector-store-ready records.
 
@@ -109,11 +145,12 @@ def ingest_pdf(path: str, doc_id: str | None = None) -> list[dict[str, Any]]:
     doc_id = doc_id or os.path.basename(path)
     text = extract_text_from_pdf(path)
     chunks = chunk_text(text)
+    policy_metadata = extract_policy_metadata(text, doc_id, path)
     return [
         {
             "text": chunk,
             "doc_id": doc_id,
-            "metadata": {"source": path, "chunk_index": idx},
+            "metadata": {**policy_metadata, "chunk_index": idx},
         }
         for idx, chunk in enumerate(chunks)
     ]

@@ -1,4 +1,4 @@
-# Lean production runtime — deployable on small/free tiers (Render/Fly/Railway).
+# Lean production runtime for the self-hosted Docker Compose/Kubernetes images.
 #
 # The app degrades gracefully, so the heavy ML stack (torch via
 # sentence-transformers, CrewAI, LangGraph, LangChain) is intentionally EXCLUDED:

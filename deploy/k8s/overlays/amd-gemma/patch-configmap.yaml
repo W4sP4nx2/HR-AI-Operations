@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hrcc-config
+data:
+  LLM_PROVIDER: amd_vllm
+  AMD_VLLM_BASE_URL: http://hrcc-gpu-inference:8000/v1
+  AUTH_ENFORCE: "true"
+  REDACT_PII: "true"
+  ENABLE_RESUME_VLM: "true"
+  VECTOR_BACKEND: pgvector
+  FRONTEND_BASE: http://localhost:3000
+  CORS_ORIGINS: '["http://localhost:3000"]'

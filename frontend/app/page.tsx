@@ -76,10 +76,13 @@ export default function Page() {
   const {
     activeCases,
     byokActive,
+    byokSupported,
     enforced,
     healthy,
+    llmConfigIssues,
     liveTransport,
     llmOn,
+    llmProvider,
     setByokActive,
   } = useSystemStatus();
   // A template prompt handed from the Fleet "Open Conversation" button to seed
@@ -96,6 +99,18 @@ export default function Page() {
     ? NAV.filter((n) => ROLE_LEVEL[role] >= ROLE_LEVEL[n.minRole])
     : NAV;
   const employeeView = roleGated && ROLE_LEVEL[role] < ROLE_LEVEL.analyst;
+  const providerLabel =
+    llmProvider === "fireworks"
+      ? "Fireworks"
+      : llmProvider === "amd_vllm"
+        ? "AMD/vLLM Gemma"
+        : llmProvider && llmProvider !== "unknown"
+          ? llmProvider
+          : "model";
+  const providerTitle =
+    llmConfigIssues.length > 0
+      ? `${providerLabel} config issue: ${llmConfigIssues.join("; ")}`
+      : `Live provider route: ${providerLabel}`;
 
   // Keep the active panel within the user's allowed surfaces.
   useEffect(() => {
@@ -186,13 +201,30 @@ export default function Page() {
                 </div>
               </div>
               <div className="flex max-w-full flex-wrap items-center justify-end gap-2 text-sm sm:gap-3">
-                <ByokControl onActiveChange={setByokActive} />
+                {byokSupported && (
+                  <ByokControl
+                    onActiveChange={setByokActive}
+                    providerLabel={providerLabel}
+                  />
+                )}
                 {!llmOn && !byokActive && (
                   <span
-                    title="No ANTHROPIC_API_KEY — deterministic fallback mode"
+                    title={`No live ${providerLabel} key/config — deterministic fallback mode`}
                     className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700"
                   >
                     basic mode
+                  </span>
+                )}
+                {(llmOn || byokActive) && (
+                  <span
+                    title={
+                      byokActive
+                        ? `Using request-scoped BYOK auth for ${providerLabel}`
+                        : providerTitle
+                    }
+                    className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700"
+                  >
+                    {llmProvider === "amd_vllm" ? "AMD Gemma route" : `${providerLabel} auth`}
                   </span>
                 )}
                 {!enforced && (

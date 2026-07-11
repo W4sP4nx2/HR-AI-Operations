@@ -63,7 +63,7 @@ not a wiki. Three pillars:
 # 1) Backend (zero secrets needed)
 cd backend && python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m scripts.seed_data            # 10 sample policies, cases, a chat demo
+python -m scripts.seed_data            # 12 sample policies, cases, a chat demo
 uvicorn api.main:app --reload --port 8000
 
 # 2) Frontend
@@ -176,7 +176,7 @@ hr-command-center/
 │   ├── scripts/       seed_data · seed_admin · embed_policies
 │   └── tests/         unit · integration · compliance/ (bias) · load/ (locust)
 ├── frontend/          Next.js 16 · Tailwind · TypeScript (app/, lib/, auth/, components/)
-├── docker-compose.yml · docker-compose.prod.yml · render.yaml
+├── docker-compose.yml · docker-compose.prod.yml · docker-compose.amd.yml
 └── docs: README · OVERVIEW · WALKTHROUGH · AGENT_PLAYBOOK · COMPLIANCE · MODEL_CARDS · SECURITY · SCALING · …
 ```
 
@@ -192,7 +192,8 @@ lucide-react.
 **AI** — Fireworks AI primary; optional Anthropic and AMD/vLLM adapters;
 deterministic fallbacks.
 **Infra** — Docker (multi-stage, non-root) · GitHub Actions CI (lint · test ·
-compliance gate · build · gitleaks) · Render blueprint.
+compliance gate · build · gitleaks) · Docker Compose demo + optional AMD overlay;
+Kubernetes is future state.
 
 ---
 

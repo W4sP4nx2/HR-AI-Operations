@@ -162,11 +162,14 @@ def _normalise_vector(vec: list[float]) -> list[float]:
 
 def _embedding_provider() -> str:
     """Configured embedding backend, read live for harness-injected env."""
-    return (
+    provider = (
         (os.environ.get("EMBEDDING_PROVIDER") or settings.embedding_provider or "local")
         .strip()
         .lower()
     )
+    if provider in {"hash", "hashing", "deterministic"}:
+        return "hashing"
+    return provider
 
 
 def _fireworks_embedding_model() -> str:
@@ -238,6 +241,8 @@ class Embedder:
         """Return the dimensionality of the embedding vectors."""
         if _embedding_provider() == "fireworks":
             return _fireworks_dimension()
+        if _embedding_provider() == "hashing":
+            return _FALLBACK_DIM
         model = _load_model()
         if model is None:
             return _FALLBACK_DIM
@@ -254,6 +259,8 @@ class Embedder:
         """
         if _embedding_provider() == "fireworks":
             return _fireworks_embed_batch([text])[0]
+        if _embedding_provider() == "hashing":
+            return _hash_embed(text)
         model = _load_model()
         if model is None:
             return _hash_embed(text)
@@ -281,6 +288,8 @@ class Embedder:
         """Embed one already-bounded batch."""
         if _embedding_provider() == "fireworks":
             return _fireworks_embed_batch(texts)
+        if _embedding_provider() == "hashing":
+            return [_hash_embed(t) for t in texts]
         model = _load_model()
         if model is None:
             return [_hash_embed(t) for t in texts]

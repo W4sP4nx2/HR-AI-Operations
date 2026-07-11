@@ -21,6 +21,7 @@ import re
 # --------------------------------------------------------------------------- #
 
 _INJECTION_PATTERNS = [
+    r"ignore\s+all\s+(previous|prior|above)\s+(instructions|rules|policy|prompts?)",
     r"ignore (all|any|the|previous|prior|above)\s+(instructions|rules|policy|prompts?)",
     r"disregard (all|the|previous|prior|above)",
     r"forget (all|everything|the above|previous)",
