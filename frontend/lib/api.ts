@@ -195,6 +195,25 @@ export interface CapabilitySnapshot {
   routing: CapabilityRoute[];
   required_live_inputs: Record<string, string[]>;
   safe_wording: string[];
+  runtime_controls?: RuntimeControls;
+  integrations?: IntegrationCapability[];
+}
+
+export interface RuntimeControls {
+  max_input_tokens: number;
+  max_output_tokens: number;
+  policy_timeout_seconds: number;
+  retrieval_top_k: number;
+  embedding_batch_size: number;
+  semantic_cache_ttl_seconds: number;
+}
+
+export interface IntegrationCapability {
+  integration_id: string;
+  label: string;
+  status: CapabilityStatus | "not_configured";
+  detail: string;
+  missing_inputs: string[];
 }
 
 const TOKEN_KEY = "hr_access_token";

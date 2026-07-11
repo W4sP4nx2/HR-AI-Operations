@@ -115,7 +115,7 @@ def capability_snapshot() -> dict[str, Any]:
     hardware = _discover_hardware()
     routing = _route_examples(providers, hardware)
     active = llm_provider() or "deterministic"
-    return CapabilitySnapshot(
+    snapshot = CapabilitySnapshot(
         generated_at_unix=time.time(),
         claim_policy=(
             "Do not claim Fireworks, AMD, Gemma, latency, throughput, or cost "
@@ -148,6 +148,53 @@ def capability_snapshot() -> dict[str, Any]:
             "Performance is measured per environment; no static speedup or cost claims are published.",
         ],
     ).as_dict()
+    snapshot["runtime_controls"] = {
+        "max_input_tokens": settings.max_llm_input_tokens,
+        "max_output_tokens": settings.max_llm_output_tokens,
+        "policy_timeout_seconds": settings.chat_policy_timeout_seconds,
+        "retrieval_top_k": settings.retrieval_top_k,
+        "embedding_batch_size": settings.embedding_batch_size,
+        "semantic_cache_ttl_seconds": settings.semantic_cache_ttl,
+    }
+    snapshot["integrations"] = _integration_snapshot()
+    return snapshot
+
+
+def _integration_snapshot() -> list[dict[str, Any]]:
+    """Return secret-free orchestration and observability integration status."""
+    langsmith_key = os.environ.get("LANGCHAIN_API_KEY", os.environ.get("LANGSMITH_API_KEY", ""))
+    tracing = os.environ.get("LANGCHAIN_TRACING_V2", "").strip().lower() in {"1", "true", "yes"}
+    return [
+        {
+            "integration_id": "a2a",
+            "label": "A2A handoffs",
+            "status": "proven",
+            "detail": "Certified envelopes, schema checks, latency, and cost metadata are local.",
+            "missing_inputs": [],
+        },
+        {
+            "integration_id": "crewai",
+            "label": "CrewAI adapter",
+            "status": "configured",
+            "detail": "Resume and triage paths can use the adapter; deterministic fallback remains available.",
+            "missing_inputs": [],
+        },
+        {
+            "integration_id": "langsmith",
+            "label": "LangSmith tracing",
+            "status": "configured" if tracing and bool(langsmith_key) else "not_configured",
+            "detail": (
+                "Tracing is enabled for certified CrewAI tasks."
+                if tracing and langsmith_key
+                else "Optional observability; no LangSmith key or tracing flag is active."
+            ),
+            "missing_inputs": (
+                []
+                if tracing and langsmith_key
+                else ["LANGCHAIN_API_KEY or LANGSMITH_API_KEY", "LANGCHAIN_TRACING_V2=true"]
+            ),
+        },
+    ]
 
 
 def _discover_providers() -> list[ProviderCapability]:

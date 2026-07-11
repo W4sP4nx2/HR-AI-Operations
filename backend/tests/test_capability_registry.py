@@ -43,6 +43,12 @@ def test_capability_snapshot_is_zero_spend_when_keys_are_missing(monkeypatch) ->
     assert all(
         route["selected_provider"] == "deterministic_fallback" for route in snapshot["routing"]
     )
+    assert snapshot["runtime_controls"]["max_input_tokens"] > 0
+    integrations = {item["integration_id"]: item for item in snapshot["integrations"]}
+    assert integrations["a2a"]["status"] == "proven"
+    assert integrations["langsmith"]["status"] == "not_configured"
+    assert any("LANGCHAIN_API_KEY" in item for item in integrations["langsmith"]["missing_inputs"])
+    assert "fixture-fireworks-key" not in str(snapshot)
 
 
 def test_capability_snapshot_reports_fireworks_config_without_live_claim(monkeypatch) -> None:

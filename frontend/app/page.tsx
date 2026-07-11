@@ -25,6 +25,8 @@ import {
   MessageCircle,
   ScanSearch,
   Gauge,
+  PlugZap,
+  Settings,
   Menu,
   X,
 } from "lucide-react";
@@ -39,6 +41,7 @@ import ResumeScreener from "./components/ResumeScreener";
 import AttritionPanel from "./components/AttritionPanel";
 import OpenAccessBanner from "./components/OpenAccessBanner";
 import ByokControl from "./components/ByokControl";
+import SettingsPanel from "./components/SettingsPanel";
 import { useAuth } from "./auth/AuthContext";
 import LoginScreen from "./auth/LoginScreen";
 import Launchpad from "./auth/Launchpad";
@@ -73,6 +76,8 @@ export default function Page() {
   const [guest, setGuest] = useState(false);
   const [panel, setPanel] = useState<Panel>("chat");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"ai" | "llm" | "integrations">("ai");
   const {
     activeCases,
     byokActive,
@@ -122,6 +127,11 @@ export default function Page() {
   const selectPanel = (nextPanel: Panel) => {
     setPanel(nextPanel);
     setMobileNavOpen(false);
+  };
+
+  const openSettings = (tab: "ai" | "llm" | "integrations") => {
+    setSettingsTab(tab);
+    setSettingsOpen(true);
   };
 
   // Auth gate: enforced deployments require sign-in. In open-access local mode,
@@ -207,6 +217,24 @@ export default function Page() {
                     providerLabel={providerLabel}
                   />
                 )}
+                <button
+                  type="button"
+                  onClick={() => openSettings("ai")}
+                  title="Open AI and LLM settings"
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-purple/15 bg-white px-3 py-2 text-xs font-medium text-brand-purple transition hover:bg-brand-purple/10"
+                >
+                  <Settings size={14} />
+                  <span className="hidden sm:inline">AI settings</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openSettings("integrations")}
+                  title="Open integrations status"
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-purple/15 bg-white px-3 py-2 text-xs font-medium text-brand-purple transition hover:bg-brand-purple/10"
+                >
+                  <PlugZap size={14} />
+                  <span className="hidden sm:inline">Integrations</span>
+                </button>
                 {!llmOn && !byokActive && (
                   <span
                     title={`No live ${providerLabel} key/config — deterministic fallback mode`}
@@ -316,6 +344,18 @@ export default function Page() {
           </main>
         </div>
       </div>
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        initialTab={settingsTab}
+        providerLabel={providerLabel}
+        llmProvider={llmProvider}
+        llmOn={llmOn}
+        byokSupported={byokSupported}
+        byokActive={byokActive}
+        onByokActiveChange={setByokActive}
+        configIssues={llmConfigIssues}
+      />
     </div>
   );
 }

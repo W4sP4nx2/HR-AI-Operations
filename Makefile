@@ -1,4 +1,4 @@
-.PHONY: help preview preview-check evidence test-focused frontend-build verify \
+.PHONY: help preview preview-check evidence test test-focused frontend-build verify \
 	etl-certify etl-live-certify judge-static judge-fireworks-live judge-amd-live
 
 AMD_RUNTIME_EVIDENCE_FILE ?= /tmp/amd-runtime.json
@@ -8,6 +8,7 @@ help:
 	@echo ""
 	@echo "make preview        # start zero-spend local product view"
 	@echo "make preview-check  # verify a running local preview"
+	@echo "make test          # run the full backend regression suite"
 	@echo "make evidence       # write no-secret capability evidence package"
 	@echo "make verify         # focused backend tests + frontend production build"
 	@echo "make etl-certify    # execute synthetic governance ETL + notebook gates"
@@ -24,6 +25,9 @@ preview-check:
 
 evidence:
 	cd backend && python3 -m scripts.generate_capability_evidence --output ../capability-evidence.json
+
+test:
+	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -p pytest_asyncio.plugin backend/tests -q
 
 test-focused:
 	PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -p pytest_asyncio \
