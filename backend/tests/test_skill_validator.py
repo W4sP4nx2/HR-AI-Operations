@@ -3,8 +3,7 @@
 The live LLM path can't be exercised in CI (no key), so we test:
   * the re-scoring logic directly (deterministic), and
   * the screener integration with a *mocked* validator (proves the flip),
-  * plus the keyless fallback, which must mark mode=keyword_fallback and keep the
-    documented blind spot (it must never claim 'validated' without a real pass).
+  * plus the keyless fallback, which must mark the deterministic guard mode.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ def test_apply_audit_discounts_negated_and_aspirational_and_rescores() -> None:
 
     result = {
         "score": 72,
-        "recommendation": "hire",
+        "recommendation": "strong_fit",
         "reasoning": "Overall fit 72/100.",
         "matched_skills": ["python", "fastapi", "langgraph", "async"],
         "missing_skills": [],
@@ -45,7 +44,7 @@ def test_apply_audit_discounts_negated_and_aspirational_and_rescores() -> None:
     assert set(out["unverified_skills"]) == {"fastapi", "langgraph"}
     # demonstrated 2/4 → score = 100*(0.6*0.6 + 0.4*0.5) = 56  (< original 72)
     assert out["score"] == 56
-    assert out["recommendation"] == "no-hire"
+    assert out["recommendation"] == "review_recommended"
     assert out["needs_review"] is True
 
 
@@ -69,21 +68,17 @@ async def test_screener_validated_path_flips_score(monkeypatch) -> None:
 
     monkeypatch.setattr(sv.skill_validator, "validate", fake_validate)
     jd = "Senior engineer: FastAPI, LangGraph, Python, async."
-    resume = (
-        "Assisted a team that attempted FastAPI but abandoned it. Read books on "
-        "LangGraph but never built. Python and async in theory."
-    )
+    resume = "Experienced FastAPI and LangGraph engineer using Python and async in production."
     r = await resume_screener_agent.run(jd, resume)
     assert r["skill_audit_mode"] == "validated"
     assert r["matched_skills"] == []  # every keyword match was negated
     assert r["unverified_skills"]  # the dropped ones are surfaced
-    assert r["recommendation"] == "no-hire"
+    assert r["recommendation"] == "review_recommended"
 
 
 @pytest.mark.asyncio
-async def test_screener_fallback_marks_mode_and_keeps_blindspot() -> None:
-    """KNOWN LIMITATION on the keyless path: the negation pass is unavailable, so
-    the keyword blind spot persists — and the mode says so explicitly."""
+async def test_screener_fallback_uses_deterministic_negation_guard() -> None:
+    """The no-key path remains honest while its lexical guard removes negations."""
     from agents.resume_screener_agent import resume_screener_agent
 
     jd = "Senior engineer: FastAPI, LangGraph, Python, async."
@@ -93,4 +88,36 @@ async def test_screener_fallback_marks_mode_and_keeps_blindspot() -> None:
     )
     r = await resume_screener_agent.run(jd, resume)
     assert r["skill_audit_mode"] == "keyword_fallback"
-    assert "fastapi" in r["matched_skills"]  # documented blind spot on fallback
+    assert "fastapi" not in r["matched_skills"]
+    assert "langgraph" not in r["matched_skills"]
+
+
+@pytest.mark.asyncio
+async def test_screener_unavailable_validator_is_a_valid_empty_a2a_audit(monkeypatch) -> None:
+    """A keyless skill validator must not create a false failed-handoff audit row."""
+    from agents import skill_validator as sv
+    from agents.resume_screener_agent import resume_screener_agent
+    from core import a2a_envelope
+
+    captured = []
+    original_handoff = a2a_envelope.certified_handoff
+
+    async def no_live_validation(skills, resume):
+        return None
+
+    async def capture_handoff(*args, **kwargs):
+        envelope = await original_handoff(*args, **kwargs, persist=False)
+        captured.append(envelope)
+        return envelope
+
+    monkeypatch.setattr(sv.skill_validator, "validate", no_live_validation)
+    monkeypatch.setattr(a2a_envelope, "certified_handoff", capture_handoff)
+
+    result = await resume_screener_agent.run(
+        "Senior engineer: Python, Kubernetes.",
+        "Built Python services and Kubernetes deployment tooling.",
+    )
+
+    assert result["skill_audit_mode"] == "keyword_fallback"
+    assert captured and captured[-1].certification.is_valid is True
+    assert captured[-1].payload == {"items": []}

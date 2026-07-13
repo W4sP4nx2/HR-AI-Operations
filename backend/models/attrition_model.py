@@ -47,6 +47,19 @@ FACTOR_DISPLAY = {
     "disengagement_index": "slow-burn disengagement",
 }
 
+# These are planning assumptions, not payroll data. The API returns the basis
+# alongside every estimate so an HR team can replace the band midpoints and
+# multiplier with finance-approved values before using the feature in a live
+# planning workflow.
+SALARY_BAND_MIDPOINTS = {
+    1: 55_000,
+    2: 75_000,
+    3: 95_000,
+    4: 125_000,
+    5: 165_000,
+}
+REPLACEMENT_COST_MULTIPLIER = 0.45
+
 
 def disengagement_index(last_promotion_months: float, manager_rating: float) -> float:
     """Return the engineered slow-burn disengagement signal.
@@ -60,6 +73,36 @@ def disengagement_index(last_promotion_months: float, manager_rating: float) -> 
         weak manager relationship co-occur.
     """
     return float(max(last_promotion_months, 0.0) / max(manager_rating, 0.1))
+
+
+def estimate_business_impact(score: float, salary_band: float) -> dict[str, Any]:
+    """Return an explicit, replaceable planning estimate for retention impact.
+
+    The model does not receive compensation records. This helper therefore uses
+    a documented salary-band midpoint and replacement-cost multiplier as a
+    planning proxy, and returns both the full potential cost and its
+    risk-weighted exposure. It must not be presented as payroll truth.
+    """
+    band = min(5, max(1, int(round(salary_band))))
+    midpoint = SALARY_BAND_MIDPOINTS[band]
+    potential_cost = round(midpoint * REPLACEMENT_COST_MULTIPLIER / 1000) * 1000
+    risk_weighted = round(potential_cost * max(0.0, min(1.0, score)) / 1000) * 1000
+    if score >= 0.66:
+        action = "Schedule a retention interview and HRBP review this week."
+    elif score >= 0.33:
+        action = "Schedule a manager check-in and review growth opportunities."
+    else:
+        action = "Keep the employee in the regular engagement check-in cadence."
+    return {
+        "estimated_replacement_cost_usd": int(potential_cost),
+        "risk_adjusted_exposure_usd": int(risk_weighted),
+        "recommended_action": action,
+        "assumption": (
+            f"Salary band {band} midpoint ${midpoint:,.0f} × "
+            f"{REPLACEMENT_COST_MULTIPLIER:.0%} replacement-cost planning factor; "
+            "replace with finance-approved assumptions before operational use."
+        ),
+    }
 
 
 def _augment_matrix(x: np.ndarray) -> np.ndarray:
@@ -282,6 +325,7 @@ class AttritionModel:
             score = float(self._model.predict_proba(row)[0][1])
             factors = self._explain_factors(features)
         explanation = self._llm_explanation(score, factors, features)
+        business_impact = estimate_business_impact(score, features["salary_band"])
         # High-risk predictions are flagged for human bias review before any
         # action (EEOC disparate-impact safeguard). The model takes NO protected
         # attributes (race/gender/age) as input — only the six job features.
@@ -293,6 +337,7 @@ class AttritionModel:
             "attrition_risk_score": round(score, 4),
             "top_risk_factors": factors,
             "explanation": explanation,
+            "business_impact": business_impact,
             "needs_review": needs_review,
             "advisory_only": True,
         }

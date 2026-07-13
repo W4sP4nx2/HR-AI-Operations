@@ -28,7 +28,6 @@ def test_registry_is_complete() -> None:
     for spec in AGENT_SPECS.values():
         assert spec.purpose and spec.min_role in {
             "viewer",
-            "analyst",
             "manager",
             "admin",
         }
@@ -112,7 +111,7 @@ def test_resume_output_matches_contract() -> None:
     )
     validated = validate_output("resume_screener_agent", result)
     assert 0 <= validated.score <= 100
-    assert validated.recommendation in ("hire", "no-hire")
+    assert validated.recommendation in ("strong_fit", "review_recommended")
 
 
 def test_attrition_output_matches_contract() -> None:

@@ -3,8 +3,7 @@
 Roles (ascending privilege)::
 
     viewer   read-only: dashboards, cases, audit, chat
-    analyst  + trigger agents, screen resumes, score attrition
-    manager  + approve/reject human-in-the-loop tasks, manage policies
+    manager  + operate agents, cases, analytics, approvals and policies
     admin    + manage users and roles, delete data
 
 ``require_role(min_role)`` returns a FastAPI dependency that enforces the
@@ -27,7 +26,7 @@ from core.config import settings
 from core.memory import memory
 
 # Role hierarchy → privilege level.
-ROLES = ["viewer", "analyst", "manager", "admin"]
+ROLES = ["viewer", "manager", "admin"]
 _ROLE_LEVEL = {r: i for i, r in enumerate(ROLES)}
 
 ANONYMOUS: dict[str, Any] = {
@@ -136,7 +135,7 @@ def require_role(min_role: str):
     """Return a dependency enforcing a minimum role.
 
     Args:
-        min_role: One of ``viewer``/``analyst``/``manager``/``admin``.
+        min_role: One of ``viewer``/``manager``/``admin``.
 
     When ``settings.auth_enforce`` is False the check is advisory (anonymous is
     allowed); when True, insufficient privilege raises 403.

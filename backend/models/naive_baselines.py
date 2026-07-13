@@ -55,20 +55,25 @@ class TriageBaselineResult:
 class KeywordTriageBaseline:
     """Priority keyword classifier used when no live language model is active."""
 
+    _URGENCY_MODIFIERS = {"urgent", "asap", "emergency", "immediately"}
+
     def __init__(self, keywords: Mapping[str, Sequence[str]] = TRIAGE_KEYWORDS) -> None:
         self._keywords = {category: tuple(terms) for category, terms in keywords.items()}
 
     def predict(self, text: str) -> TriageBaselineResult:
         lower = text.lower()
         urgent_hits = tuple(term for term in self._keywords["URGENT"] if term in lower)
-        if urgent_hits:
-            return TriageBaselineResult("URGENT", urgent_hits, False)
-
         hits = {
             category: tuple(term for term in terms if term in lower)
             for category, terms in self._keywords.items()
             if category != "URGENT"
         }
+        # An explicit routine policy question dressed in urgency language is
+        # still a policy question. Serious signals (harassment, safety,
+        # retaliation, threat, etc.) retain the escalation override.
+        severe_hits = tuple(term for term in urgent_hits if term not in self._URGENCY_MODIFIERS)
+        if urgent_hits and (severe_hits or not hits["POLICY"]):
+            return TriageBaselineResult("URGENT", urgent_hits, False)
         category = max(hits, key=lambda name: len(hits[name]))
         if hits[category]:
             return TriageBaselineResult(category, hits[category], False)
@@ -117,6 +122,24 @@ class ResumeOverlapResult:
 class SkillOverlapBaseline:
     """Exact/stem overlap floor for resume-to-job skill coverage."""
 
+    _NEGATION_TERMS = {"never", "not", "without", "abandoned", "attempted", "no"}
+
+    @classmethod
+    def _negated(cls, skill: str, ordered_terms: Sequence[str]) -> bool:
+        """Detect a nearby negation in the token stream.
+
+        This is intentionally conservative: a negated match is removed from
+        the baseline and sent to human review rather than treated as evidence.
+        It is a lexical guard, not a claim of full language understanding.
+        """
+        for index, term in enumerate(ordered_terms):
+            if term != skill:
+                continue
+            window = ordered_terms[max(0, index - 3) : index] + ordered_terms[index + 1 : index + 5]
+            if any(token.lower() in cls._NEGATION_TERMS for token in window):
+                return True
+        return False
+
     @staticmethod
     def _present(skill: str, resume_terms: set[str]) -> bool:
         if skill in resume_terms:
@@ -135,8 +158,13 @@ class SkillOverlapBaseline:
         resume_terms: Iterable[str],
     ) -> ResumeOverlapResult:
         required = tuple(dict.fromkeys(skill.lower() for skill in required_skills if skill))
-        terms = {term.lower() for term in resume_terms if term}
-        matched = tuple(skill for skill in required if self._present(skill, terms))
+        ordered_terms = [term.lower() for term in resume_terms if term]
+        terms = set(ordered_terms)
+        matched = tuple(
+            skill
+            for skill in required
+            if self._present(skill, terms) and not self._negated(skill, ordered_terms)
+        )
         missing = tuple(skill for skill in required if skill not in matched)
         score = len(matched) / len(required) if required else 0.0
         return ResumeOverlapResult(score, matched, missing)

@@ -1,0 +1,30 @@
+# Reproducible, zero-spend judge/demo overlay.
+#
+# Run from the repository root:
+#   docker compose -f docker-compose.yml -f docker-compose.hackathon.yml up --build
+#
+# The overlay deliberately uses deterministic fallbacks and seeds synthetic
+# policies/cases before the API starts. It is safe for a recorded demo and does
+# not imply that Fireworks or AMD inference is live.
+services:
+  backend:
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        python -m scripts.seed_data &&
+        exec uvicorn api.main:app --host 0.0.0.0 --port 8000
+    environment:
+      AUTH_ENFORCE: "false"
+      AUTH_OPEN_REGISTRATION: "true"
+      DEMO_MODE: "true"
+      MOCK_LLM: "true"
+      LLM_PROVIDER: fireworks
+      EMBEDDING_PROVIDER: hashing
+      FIREWORKS_BASE_URL: https://api.fireworks.ai/inference/v1
+      ALLOWED_MODELS: accounts/fireworks/models/gemma-3-27b-it
+
+  frontend:
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+      NEXT_PUBLIC_WS_URL: ws://localhost:8000/ws/feed

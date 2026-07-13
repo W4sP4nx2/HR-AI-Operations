@@ -12,7 +12,7 @@ It separates three things that are easy to blur during a demo:
 
 ## Win thesis
 
-HR AI Command Center is strongest when pitched as:
+Govern.ai is strongest when pitched as:
 
 > A governed HR agent control plane that can run without model spend, authenticate
 > to Fireworks with request-scoped keys for live structured AI, and switch the
@@ -71,7 +71,7 @@ the Serverless base URL.
 export LLM_PROVIDER=fireworks
 export FIREWORKS_API_KEY=fw_...                 # secret manager or judge harness
 export FIREWORKS_BASE_URL=https://api.fireworks.ai/inference/v1
-export ALLOWED_MODELS=accounts/fireworks/models/deepseek-v3p1
+export ALLOWED_MODELS=accounts/fireworks/models/kimi-k2p6
 export AUTH_ENFORCE=true
 export REDACT_PII=true
 ```
@@ -171,6 +171,11 @@ Hugging Face, so `HF_TOKEN` is required after accepting Google's usage terms.
 The judged Compose profile disables public registration, requires first-admin
 and database credentials, passes vLLM auth through `VLLM_API_KEY` rather than a
 process argument, and binds direct database/vLLM host ports to loopback.
+The vLLM API key protects the OpenAI-compatible `/v1` surface; it is not a
+replacement for network isolation on health, metrics, or other HTTP routes.
+Keep the direct port loopback-only (or behind an equivalent private firewall)
+and retain the Kubernetes NetworkPolicies below when this profile is exposed
+outside the host.
 
 The Kubernetes overlay is future-state reference material only. It is not part
 of the hackathon runbook and is not required for the primary Compose demo. If a
@@ -314,7 +319,7 @@ full` additionally requires two simultaneously running provider-specific
 backends and distinct settings:
 
 ```bash
-export FIREWORKS_ALLOWED_MODELS=accounts/fireworks/models/deepseek-v3p1
+export FIREWORKS_ALLOWED_MODELS=accounts/fireworks/models/kimi-k2p6
 export AMD_VLLM_ALLOWED_MODELS=amd-gemma-3-27b-it
 export FIREWORKS_BACKEND_BASE_URL=http://localhost:8000
 export AMD_BACKEND_BASE_URL=http://localhost:8002
@@ -337,7 +342,7 @@ memory, and correctness/error data.
 
 Use this:
 
-> HR AI Command Center is Fireworks-authenticated and AMD-Gemma deployable. The
+> Govern.ai is Fireworks-authenticated and AMD-Gemma deployable. The
 > same governed HR workflow can run in deterministic mode, with request-scoped
 > Fireworks BYOK for live structured inference, or against a Gemma-family model
 > hosted on AMD ROCm/vLLM. Model selection is allowlisted, outputs are certified,

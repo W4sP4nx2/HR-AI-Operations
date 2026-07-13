@@ -114,7 +114,8 @@ of any decision is reconstructable from `decided_by_id` + `role` + `reason` + `t
 - **Name-blind disparity test** — two resumes differing only by name (e.g.
   "Lakisha" vs "Emily") score **identically**. CI gate:
   `tests/test_compliance.test_resume_name_blind_identical_scores`.
-- **Never auto-rejects** — the screener returns hire/no-hire *recommendations*;
+- **Never auto-rejects** — the screener returns advisory fit labels
+  (`strong_fit` or `review_recommended`);
   a human decides. `test_resume_never_auto_rejects_and_no_age`.
 - **Attrition takes no protected attributes** (race/gender/age not in the input
   schema) and is **advisory-only**; high risk → `needs_review` for human bias

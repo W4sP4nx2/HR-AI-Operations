@@ -1,6 +1,10 @@
 """Tests for the bounded exact-vector benchmark gate."""
 
-from scripts.benchmark_vector_search import run_benchmark
+import pytest
+
+torch = pytest.importorskip("torch", reason="optional GPU benchmark dependency is not installed")
+
+from scripts.benchmark_vector_search import run_benchmark  # noqa: E402
 
 
 def test_vector_search_benchmark_reports_scope_and_correctness():

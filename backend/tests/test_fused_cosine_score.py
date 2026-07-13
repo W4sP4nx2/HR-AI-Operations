@@ -8,9 +8,10 @@ Triton kernel against that independent reference.
 from __future__ import annotations
 
 import pytest
-import torch
 
-from kernels.fused_cosine_score import active_backend, fused_cosine_score, top_k
+torch = pytest.importorskip("torch", reason="optional GPU kernel dependency is not installed")
+
+from kernels.fused_cosine_score import active_backend, fused_cosine_score, top_k  # noqa: E402
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

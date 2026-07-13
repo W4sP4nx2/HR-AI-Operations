@@ -61,7 +61,7 @@ async def build_lifecycle_analysis() -> dict[str, Any]:
 
 @router.get("")
 async def lifecycle(
-    _: dict[str, Any] = Depends(require_role("analyst")),
+    _: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
     """Return reviewable GenAI lifecycle controls and collection analysis."""
     return ok(await build_lifecycle_analysis())
@@ -69,7 +69,7 @@ async def lifecycle(
 
 @router.get("/fireworks")
 async def fireworks(
-    _: dict[str, Any] = Depends(require_role("analyst")),
+    _: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
     """Return no-secret Fireworks capability, routing, and promotion controls."""
     return ok(fireworks_manifest())
@@ -77,7 +77,7 @@ async def fireworks(
 
 @router.get("/capabilities")
 async def capabilities(
-    _: dict[str, Any] = Depends(require_role("analyst")),
+    _: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
     """Return evidence-based provider and hardware capability discovery."""
     return ok(capability_snapshot())
@@ -85,7 +85,7 @@ async def capabilities(
 
 @router.get("/hallucination_metrics")
 async def hallucination_metrics(
-    _: dict[str, Any] = Depends(require_role("analyst")),
+    _: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
     """Return anti-hallucination metrics from certification and audit evidence."""
     return ok(
@@ -98,7 +98,7 @@ async def hallucination_metrics(
 
 @router.get("/cost-controls")
 async def cost_controls(
-    _: dict[str, Any] = Depends(require_role("analyst")),
+    _: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
     """Return zero-spend cost-governance certification evidence."""
     from scripts.certify_cost_controls import run_certification

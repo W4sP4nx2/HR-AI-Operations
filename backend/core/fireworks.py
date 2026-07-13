@@ -16,6 +16,21 @@ from typing import Any, Literal
 from core.config import settings
 
 ServingMode = Literal["serverless", "batch", "dedicated"]
+GEMMA_4_26B_A4B_IT = "accounts/fireworks/models/gemma-4-26b-a4b-it"
+
+
+def gemma_route_status() -> dict[str, Any]:
+    """Describe exact Gemma eligibility without confusing DOD with Serverless."""
+    configured = os.environ.get("FIREWORKS_GEMMA_MODEL", settings.fireworks_gemma_model).strip()
+    allowlisted = bool(configured and configured in configured_models())
+    return {
+        "model_id": configured or GEMMA_4_26B_A4B_IT,
+        "allowlisted": allowlisted,
+        "fireworks_serving_path": "deploy_on_demand",
+        "serverless_supported": False,
+        "capabilities": ["multimodal", "reasoning", "function_calling"],
+        "live_gate": "allowlist plus a configured DOD OpenAI-compatible endpoint",
+    }
 
 RESUME_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -120,9 +135,20 @@ def affinity_token(session_id: str | None) -> str | None:
 
 
 def client_headers(session_id: str | None) -> dict[str, str]:
-    """Build optional Fireworks cache-locality headers."""
+    """Build optional Fireworks cache-locality and usage-attribution headers."""
     token = affinity_token(session_id)
-    return {"x-session-affinity": token} if token else {}
+    headers = {"Fireworks-Annotations": _usage_annotations()}
+    if token:
+        headers["x-session-affinity"] = token
+    return headers
+
+
+def _usage_annotations() -> str:
+    """Return non-secret Fireworks usage tags for billing/cost grouping."""
+    environment = "".join(
+        char for char in settings.environment.lower() if char.isalnum() or char in {"-", "_"}
+    )
+    return f"team=hr,project=hr-command-center,environment={environment or 'unknown'}"
 
 
 def choose_serving_mode(
@@ -156,6 +182,7 @@ def build_chat_body(
 ) -> dict[str, Any]:
     """Build a bounded OpenAI-compatible Fireworks chat request body."""
     from core.cost_guard import TokenBudgetGuard
+    from core.runtime_settings import runtime_settings
 
     validate_model(model_id)
     if not messages:
@@ -176,6 +203,9 @@ def build_chat_body(
         max_output_tokens=settings.max_llm_output_tokens,
     ).validate_messages([dict(message) for message in messages], max_output_tokens=max_tokens)
 
+    if runtime_settings.active:
+        max_tokens = min(max_tokens, int(runtime_settings.value("max_tokens", max_tokens)))
+        temperature = float(runtime_settings.value("temperature", temperature))
     body: dict[str, Any] = {
         "model": model_id,
         "messages": [dict(message) for message in messages],
@@ -195,6 +225,11 @@ def build_chat_body(
         body["top_k"] = top_k
     if top_p is not None:
         body["top_p"] = top_p
+    if runtime_settings.active:
+        effort = float(runtime_settings.value("reasoning_effort", 0.0))
+        body["reasoning_effort"] = (
+            "high" if effort >= 0.67 else "medium" if effort >= 0.34 else "low"
+        )
     pruned_tools = prune_tool_schemas(tools or (), allowed_tool_names)
     if pruned_tools:
         body["tools"] = pruned_tools
@@ -367,7 +402,6 @@ def scale_up_delays(
 
 def fireworks_manifest() -> dict[str, Any]:
     """Return a secret-free implementation and scaling manifest."""
-    from agents.a2a_cards import a2a_card_manifest
     from agents.orchestrator import orchestrator_manifest
     from core.a2a_envelope import telemetry_snapshot
     from core.cost_attribution import cost_attribution_snapshot
@@ -414,10 +448,7 @@ def fireworks_manifest() -> dict[str, Any]:
                 "tiers": ["economy", "standard", "premium"],
             },
         },
-        "a2a_orchestration": {
-            "cards": a2a_card_manifest(),
-            "orchestrator": orchestrator_manifest(),
-        },
+        "orchestration": orchestrator_manifest(),
         "batch_async_contract": {
             "reference": batch_status_view({"state": "JOB_STATE_PENDING"}),
             "poll_seconds": 10,

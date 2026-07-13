@@ -2,8 +2,10 @@ anthropic
 fastapi
 uvicorn[standard]
 langchain
+langsmith>=0.4,<1
 langgraph
-crewai
+# LiteLLM enables Fireworks and private AMD/vLLM OpenAI-compatible endpoints.
+crewai>=1.14,<2
 sentence-transformers
 qdrant-client
 pypdf
@@ -19,6 +21,7 @@ aiosqlite
 asyncpg
 python-multipart
 httpx
+cryptography
 beautifulsoup4
 pydantic-ai==1.104.0
 pydantic-ai-slim[anthropic,openai]==1.104.0

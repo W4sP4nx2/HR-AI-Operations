@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Zero-spend local preview for the HR AI Command Center.
+# Zero-spend local preview for Govern.ai.
 # Starts FastAPI + Next.js with deterministic fallback mode enabled, Fireworks
 # routing configured but live calls gated until a key is supplied.
 
@@ -58,7 +58,9 @@ echo "Starting zero-spend backend on ${BACKEND_URL}"
   LLM_PROVIDER=fireworks \
   EMBEDDING_PROVIDER=hashing \
   FIREWORKS_BASE_URL="${FIREWORKS_BASE_URL:-https://api.fireworks.ai/inference/v1}" \
-  ALLOWED_MODELS="${ALLOWED_MODELS:-accounts/fireworks/models/gemma-3-27b-it,accounts/fireworks/models/llama-v3p1-8b-instruct}" \
+  ALLOWED_MODELS="${ALLOWED_MODELS:-accounts/fireworks/models/gemma-4-26b-a4b-it,accounts/fireworks/models/kimi-k2p6}" \
+  FIREWORKS_GEMMA_MODEL="${FIREWORKS_GEMMA_MODEL:-accounts/fireworks/models/gemma-4-26b-a4b-it}" \
+  FIREWORKS_BATCH_MODEL="${FIREWORKS_BATCH_MODEL:-accounts/fireworks/models/kimi-k2p6}" \
   python3 -m uvicorn api.main:app --host "${HOST}" --port "${BACKEND_PORT}"
 ) &
 BACKEND_PID=$!

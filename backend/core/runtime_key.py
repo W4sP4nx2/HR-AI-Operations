@@ -22,6 +22,7 @@ import contextvars
 import os
 
 from core.config import settings
+from core.runtime_settings import runtime_settings
 
 _request_api_key: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "request_api_key", default=None
@@ -57,6 +58,8 @@ def effective_api_key() -> str:
 
 def llm_provider() -> str:
     """Configured LLM provider, read live so harness-injected env wins."""
+    if runtime_settings.active and runtime_settings.value("provider"):
+        return runtime_settings.provider().strip().lower()
     return (os.environ.get("LLM_PROVIDER") or settings.llm_provider or "").strip().lower()
 
 
@@ -67,7 +70,11 @@ def byok_supported() -> bool:
 
 def server_api_key() -> str:
     """Server-owned key for the configured provider."""
-    if llm_provider() == "fireworks":
+    provider = llm_provider()
+    persisted = runtime_settings.api_key_for(provider)
+    if persisted:
+        return persisted
+    if provider == "fireworks":
         return os.environ.get("FIREWORKS_API_KEY", settings.fireworks_api_key)
     if llm_provider() == "amd_vllm":
         return os.environ.get("AMD_VLLM_API_KEY", settings.amd_vllm_api_key)
@@ -95,7 +102,7 @@ def llm_config_issues() -> list[str]:
         if not os.environ.get("ALLOWED_MODELS", settings.allowed_models).strip():
             issues.append("ALLOWED_MODELS is missing")
         return issues
-    if provider not in ("", "anthropic"):
+    if provider not in ("", "anthropic", "deterministic"):
         return [f"LLM_PROVIDER '{provider}' is unsupported"]
     return []
 

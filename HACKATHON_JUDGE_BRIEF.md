@@ -2,10 +2,10 @@
 
 ## One-Line Thesis
 
-HR AI Command Center is a governed, cost-bounded A2A control plane for HR
-workflows: deterministic when no model is available, Fireworks-authenticated for
-live structured inference, and AMD-Gemma deployable through an OpenAI-compatible
-ROCm/vLLM route.
+Govern.ai is a governed, cost-bounded HR operations layer with A2A-style
+certified handoffs: deterministic when no model is available,
+Fireworks-authenticated for live structured inference, and AMD-Gemma deployable
+through an OpenAI-compatible ROCm/vLLM route.
 
 Keyword hooks for the submission title and recording: **AMD powered**, **Gemma
 powered** / **Gamma powered**, and **Fireworks powered**. Use “Gemma” for the
@@ -38,6 +38,8 @@ magic. This project treats model calls as governed infrastructure:
 | Split GPU/application secrets | The Hugging Face weight-download token is mounted only into the inference pod, not the backend. |
 | Policy Q&A with citations | RAG grounds answers in policy evidence rather than chat history. |
 | Resume / Batch path | Bulk work is asynchronous and auditable instead of fake-synchronous. |
+| `/a2a/graph` + two `message/send` calls | Resume Extractor and Policy Guard are independently addressable, certified, PII-safe, and end in a human checkpoint. |
+| Integrations panel | CrewAI is optional and certified; LangSmith is optional redacted observability, not the audit system of record. |
 | AMD/vLLM profile | The same workflow can target a Gemma-family model served on AMD ROCm/vLLM. |
 | `CLAIMS.md` | Static, Fireworks-live and AMD-live claims are separated by evidence status. |
 
@@ -77,6 +79,14 @@ Fast static gate before every rehearsal:
 
 ```bash
 make judge-static
+```
+
+Local A2A proof (no provider key):
+
+```bash
+curl -s http://127.0.0.1:8010/a2a/graph
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -p pytest_asyncio.plugin \
+  backend/tests/test_a2a_protocol_surface.py -q
 ```
 
 Fireworks live proof:

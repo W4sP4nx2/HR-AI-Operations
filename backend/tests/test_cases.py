@@ -157,14 +157,16 @@ async def test_reroute_records_override_and_reassigns(reroute_client) -> None:
 async def test_cases_endpoint_uses_cursor_pagination(reroute_client) -> None:
     """Large case lists are returned as bounded cursor pages."""
     c, mem = reroute_client
+    latest = None
     for i in range(205):
-        await mem.create_case(category="POLICY", summary=f"case {i}", status="open")
+        latest = await mem.create_case(category="POLICY", summary=f"case {i}", status="open")
 
     first = await c.get("/cases?limit=50")
     assert first.status_code == 200
     first_page = first.json()["data"]
     assert len(first_page["items"]) == 50
     assert first_page["next_cursor"]
+    assert first_page["items"][0]["id"] == latest["id"]
 
     second = await c.get(f"/cases?limit=50&cursor={first_page['next_cursor']}")
     second_page = second.json()["data"]

@@ -27,7 +27,18 @@ export interface ApiEnvelope<T> {
 
 /** Summary of what was passed into the system on an upload trigger. */
 export interface IntakeSummary {
-  source_type: "text" | "pdf" | "url";
+  source_type:
+    | "text"
+    | "pdf"
+    | "pdf_text"
+    | "pdf_scanned"
+    | "pdf_vlm"
+    | "docx"
+    | "html"
+    | "linkedin_json"
+    | "image"
+    | "image_vlm"
+    | "url";
   source_ref: string;
   chars: number;
   truncated: boolean;
@@ -208,12 +219,107 @@ export interface RuntimeControls {
   semantic_cache_ttl_seconds: number;
 }
 
+export type AIProvider = "" | "anthropic" | "fireworks" | "amd_vllm" | "deterministic";
+
+export interface AIModelOption {
+  id: string;
+  label: string;
+  family: string;
+  live_allowed: boolean;
+}
+
+export interface AIKeyStatus {
+  configured: boolean;
+  source: "settings" | "environment" | "none";
+  masked: string;
+}
+
+export interface AISettings {
+  provider: AIProvider;
+  selected_model: string;
+  temperature: number;
+  max_tokens: number;
+  reasoning_effort: number;
+  daily_budget_usd: number;
+  caching_enabled: boolean;
+  batch_processing_enabled: boolean;
+  pii_redaction_enabled: boolean;
+  human_review_required: boolean;
+  api_keys: Record<string, AIKeyStatus>;
+  models: AIModelOption[];
+  updated_at: string | null;
+}
+
+export interface AISettingsUpdate {
+  provider?: AIProvider;
+  selected_model?: string;
+  temperature?: number;
+  max_tokens?: number;
+  reasoning_effort?: number;
+  daily_budget_usd?: number;
+  caching_enabled?: boolean;
+  batch_processing_enabled?: boolean;
+  pii_redaction_enabled?: boolean;
+  human_review_required?: boolean;
+  api_key?: string;
+  clear_api_key?: boolean;
+}
+
+export interface AIConnectionTest {
+  provider: string;
+  model: string | null;
+  valid: boolean;
+  detail: string;
+  latency_ms: number;
+  persisted: boolean;
+}
+
 export interface IntegrationCapability {
   integration_id: string;
   label: string;
   status: CapabilityStatus | "not_configured";
   detail: string;
   missing_inputs: string[];
+  architecture?: string;
+  system_count?: number;
+  system_ids?: string[];
+}
+
+export interface HierarchicalCrewManifest {
+  architecture: "hierarchical";
+  system_count: number;
+  systems: Array<{
+    system_id: string;
+    label: string;
+    use_case: string;
+    process: "hierarchical";
+    manager_agent: { agent_id: string; role: string; allow_delegation: boolean };
+    worker_agents: Array<{ agent_id: string; role: string; allow_delegation: boolean }>;
+    human_decision_boundary: string;
+  }>;
+  runtime: {
+    crewai_importable: boolean;
+    langsmith_configured: boolean;
+    default_mode: string;
+    fallback: string;
+  };
+}
+
+export interface HierarchicalCrewEnvelope {
+  trace_id: string;
+  source_agent: string;
+  target_agent: string;
+  payload: {
+    system_id: string;
+    process: "hierarchical";
+    execution_mode: "deterministic_fallback" | "crewai_live";
+    manager_agent: string;
+    worker_agents: string[];
+    summary: string;
+    human_review_required: boolean;
+  };
+  certification: { is_valid: boolean; confidence: number; violations: string[] };
+  metadata: Record<string, unknown>;
 }
 
 const TOKEN_KEY = "hr_access_token";
@@ -380,6 +486,9 @@ export const api = {
   /** Four-Fifths rule evidence from the synthetic adverse-impact ATS dataset. */
   biasAudit: () => request<BiasAudit>("/metrics/bias-audit"),
 
+  /** Application-observed token/cost telemetry plus Fireworks billing readiness. */
+  inferenceUsage: () => request<InferenceUsage>("/metrics/inference-usage"),
+
   /** Inspect a known Fireworks Batch job (manager+ in enforced deployments). */
   fireworksBatchStatus: (jobId: string) =>
     request<FireworksBatchStatus>(
@@ -391,6 +500,49 @@ export const api = {
 
   /** Evidence-driven provider and hardware discovery. */
   capabilities: () => request<CapabilitySnapshot>("/lifecycle/capabilities"),
+
+  /** Judge-visible route, cost, cache, certification, audit, and fallback evidence. */
+  fireworksLifecycle: () => request<FireworksLifecycle>("/lifecycle/fireworks"),
+
+  /** Plan one route without making a provider call; result is certified and audited. */
+  orchestratorPlan: (requestType: string, payload: Record<string, unknown>) =>
+    request<OrchestrationResult>("/agents/orchestrator/plan", {
+      method: "POST",
+      body: JSON.stringify({ request_type: requestType, payload }),
+    }),
+
+  /** Discover the two manager-plus-two-worker CrewAI hierarchies. */
+  hierarchicalCrews: () => request<HierarchicalCrewManifest>("/crews/hierarchical"),
+
+  /** Execute a governed hierarchy; auto visibly falls back when live CrewAI is unavailable. */
+  runHierarchicalCrew: (
+    systemId: string,
+    inputs: Record<string, unknown>,
+    mode: "auto" | "deterministic" | "live" = "auto",
+  ) => inferenceRequest<HierarchicalCrewEnvelope>(`/crews/hierarchical/${encodeURIComponent(systemId)}/run`, {
+    method: "POST",
+    body: JSON.stringify({ inputs, mode }),
+  }),
+
+  /** Read manager-controlled AI settings with masked key status. */
+  aiSettings: () => request<AISettings>("/settings"),
+
+  /** Persist AI controls; provider keys are encrypted server-side. */
+  updateAISettings: (payload: AISettingsUpdate) =>
+    request<AISettings>("/settings", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
+  /** Restore safe defaults and erase operator-managed provider keys. */
+  resetAISettings: () => request<AISettings>("/settings/reset", { method: "POST" }),
+
+  /** Run a no-token provider handshake and return measured latency. */
+  testAIConnection: (payload: { provider: AIProvider; model?: string; api_key?: string }) =>
+    request<AIConnectionTest>("/settings/test-connection", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   /** Manually trigger an agent. */
   triggerAgent: (name: string, input: string, payload?: unknown) =>
@@ -439,13 +591,14 @@ export const api = {
    */
   triggerUpload: async (
     name: string,
-    opts: { text?: string; file?: File | null; url?: string; jobDescription?: string }
+    opts: { text?: string; file?: File | null; url?: string; jobDescription?: string; documentPassword?: string }
   ): Promise<ApiEnvelope<unknown>> => {
     const form = new FormData();
     if (opts.file) form.append("file", opts.file);
     if (opts.url) form.append("url", opts.url);
     if (opts.text) form.append("text", opts.text);
     if (opts.jobDescription) form.append("job_description", opts.jobDescription);
+    if (opts.documentPassword) form.append("document_password", opts.documentPassword);
     // NB: do not set Content-Type — the browser adds the multipart boundary.
     const res = await fetch(`${API_BASE}/agents/${name}/trigger/upload`, {
       method: "POST",
@@ -471,7 +624,7 @@ export const api = {
   caseDetail: (caseId: string) =>
     request<{ case: HRCase; activity: AuditRow[] }>(`/cases/${caseId}/detail`),
 
-  /** Manually resolve / reopen a case (analyst+). */
+  /** Manually resolve / reopen a case (manager+). */
   updateCaseStatus: (caseId: string, status: string, note = "") =>
     request<HRCase>(`/cases/${caseId}/status`, {
       method: "PATCH",
@@ -592,7 +745,7 @@ export const api = {
     request<{ session_id: string; deleted: boolean }>(`/chat/sessions/${id}`, { method: "DELETE" }),
 };
 
-export type Role = "viewer" | "analyst" | "manager" | "admin";
+export type Role = "viewer" | "manager" | "admin";
 
 export interface AuthUser {
   id: string;
@@ -676,6 +829,153 @@ export interface BiasAudit {
   available: boolean;
 }
 
+export interface InferenceUsageTier {
+  queries: number;
+  provider_calls: number;
+  total_usd: number;
+  avg_per_query: number;
+  input_tokens: number;
+  output_tokens: number;
+  token_efficiency_ratio: number | null;
+}
+
+export interface FireworksLifecycle {
+  orchestration: {
+    pattern: "single_orchestrator";
+    stages: string[];
+    serving_paths: string[];
+    model_selection: string;
+    visible_metrics: string[];
+    controls: Record<string, string | boolean>;
+    runtime: {
+      plans_total: number;
+      cache_hits: number;
+      certifications_passed: number;
+      certifications_failed: number;
+      audit_events_recorded: number;
+      cache_hit_rate: number;
+    };
+    last_route: {
+      workflow?: string;
+      serving_path?: string;
+      selected_model?: string;
+      cost_tier?: string;
+      human_review_required?: boolean;
+      execution_mode?: string;
+    };
+  };
+}
+
+export interface OrchestrationResult {
+  request_id: string;
+  execution_mode: "deterministic_fallback" | "planned_live";
+  provider_call: false;
+  plan: {
+    workflow: string;
+    serving_path: string;
+    selected_model: string;
+    cost_tier: string;
+    human_review_required: boolean;
+  };
+  certification: { is_valid: boolean; violations: string[] };
+  cache: { hit: boolean; context_hash: string };
+  audit: { recorded: boolean; event_id: string | number | null };
+}
+
+export interface InferenceUsage {
+  source: "mixed_provenance";
+  provider: string;
+  provider_live_enabled: boolean;
+  totals: {
+    queries: number;
+    provider_calls: number;
+    input_tokens: number;
+    output_tokens: number;
+    estimated_usd: number;
+  };
+  provider_observed: {
+    source: "provider_response_usage";
+    requests: number;
+    prompt_tokens: number;
+    cached_prompt_tokens: number;
+    completion_tokens: number;
+    rated_cost_usd: number | null;
+    models: Record<string, {
+      requests: number;
+      prompt_tokens: number;
+      cached_prompt_tokens: number;
+      completion_tokens: number;
+    }>;
+    note: string;
+  };
+  tiers: Record<"economy" | "standard" | "premium", InferenceUsageTier>;
+  cache_hit_rate: number | null;
+  prefilter_skip_rate: number | null;
+  token_efficiency_ratio: number | null;
+  budget_circuit_breaker: {
+    active: boolean;
+    estimated_spend_usd: number;
+    daily_threshold_usd: number;
+    forced_tier: string | null;
+    cache_ttl_seconds: number;
+  };
+  estimation: {
+    type: string;
+    currency: string;
+    rates_per_1k_tokens: Record<string, number>;
+    billing_export_connected: boolean;
+  };
+  cost_benchmark: {
+    benchmark: string;
+    workload_size: number;
+    cost_reduction: number;
+    quality_delta: number;
+    passed: boolean;
+    uncontrolled: CostBenchmarkArm;
+    controlled: CostBenchmarkArm;
+    target: Record<string, number>;
+    notes: string[];
+    controls: Record<string, boolean>;
+  };
+  blended_cost_scenario: {
+    status: "illustrative_target_not_measured";
+    blended_reduction: number;
+    plain_language: string;
+    assumptions: Record<string, number>;
+    caveats: string[];
+  };
+  fireworks_serverless: {
+    configured: boolean;
+    billing_export_ready: boolean;
+    billing_export_configured: boolean;
+    account_id_configured: boolean;
+    api_key_configured: boolean;
+    billing_export_method: string;
+    billing_export_max_range_days: number;
+    billing_api_fetch_implemented: boolean;
+    request_annotations: Record<string, string>;
+    dashboard_note: string;
+  };
+  fireworks_batch: {
+    ready: boolean;
+    issues: string[];
+    detail: string;
+  };
+}
+
+export interface CostBenchmarkArm {
+  queries: number;
+  provider_calls: number;
+  cache_hits: number;
+  prefilter_skips: number;
+  estimated_usd: number;
+  input_tokens: number;
+  output_tokens: number;
+  useful_output_tokens: number;
+  token_efficiency_ratio: number | null;
+  quality_proxy: number;
+}
+
 export interface AttritionFeatures {
   tenure_months: number;
   performance_score: number;
@@ -707,6 +1007,12 @@ export interface AttritionResult {
   attrition_risk_score: number;
   top_risk_factors: { factor: string; contribution: number }[];
   explanation: string;
+  business_impact?: {
+    estimated_replacement_cost_usd: number;
+    risk_adjusted_exposure_usd: number;
+    recommended_action: string;
+    assumption: string;
+  };
   needs_review: boolean;
   advisory_only: boolean;
   // Policy-grounded retention suggestions, composed from Policy Q&A on high risk.
@@ -717,7 +1023,7 @@ export interface AttritionResult {
 
 export interface ResumeScreenResult {
   score: number;
-  recommendation: string;
+  recommendation: "strong_fit" | "review_recommended";
   reasoning: string;
   matched_skills: string[];
   missing_skills: string[];
@@ -729,6 +1035,23 @@ export interface ResumeScreenResult {
   // = keyword-only (blind to negation → confidence downgraded). Dropped matches listed.
   skill_audit_mode?: "validated" | "keyword_fallback";
   unverified_skills?: string[];
+  resume_pipeline?: {
+    mode: "fireworks_structured" | "deterministic_fallback";
+    source_type: string;
+    normalized_skills: Array<{
+      name: string;
+      original: string;
+      category: string | null;
+      confidence: number;
+    }>;
+    quality: {
+      score: number;
+      quality_grade: string;
+      issues: string[];
+      needs_human_review: boolean;
+    };
+    warnings: string[];
+  };
   _mode?: "full" | "degraded";
 }
 
@@ -739,6 +1062,14 @@ export interface PolicyDoc {
   char_count: number;
   status: string;
   ingested_at: string;
+  chunking?: {
+    size_tokens: number;
+    overlap_tokens: number;
+    strategy: string;
+    goal?: string;
+    reason?: string;
+    section_count?: number;
+  };
 }
 
 export interface ChatMessage {

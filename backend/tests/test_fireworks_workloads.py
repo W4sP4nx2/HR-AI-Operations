@@ -41,8 +41,14 @@ def test_affinity_is_stable_and_does_not_leak_the_session_id():
     token = affinity_token("employee@example.com/session-123")
     assert token == affinity_token("employee@example.com/session-123")
     assert "employee" not in token
-    assert client_headers("employee@example.com/session-123") == {"x-session-affinity": token}
-    assert client_headers("") == {}
+    headers = client_headers("employee@example.com/session-123")
+    assert headers["x-session-affinity"] == token
+    assert headers["Fireworks-Annotations"] == (
+        "team=hr,project=hr-command-center,environment=development"
+    )
+    assert client_headers("") == {
+        "Fireworks-Annotations": "team=hr,project=hr-command-center,environment=development"
+    }
 
 
 def test_structured_chat_body_is_bounded_and_allowlisted(allowed_models):
@@ -229,6 +235,24 @@ def test_sampling_parameters_reject_out_of_range_values(allowed_models):
             messages=[{"role": "user", "content": "hello"}],
             top_p=1.1,
         )
+
+
+def test_exact_gemma_routes_only_on_deploy_on_demand(monkeypatch) -> None:
+    from core.fireworks import GEMMA_4_26B_A4B_IT, gemma_route_status
+    from core.llm_factory import pick_model_for_role
+
+    batch_model = "accounts/example/models/serverless-batch"
+    models = [batch_model, GEMMA_4_26B_A4B_IT]
+    monkeypatch.setenv("ALLOWED_MODELS", ",".join(models))
+    monkeypatch.setenv("FIREWORKS_GEMMA_MODEL", GEMMA_4_26B_A4B_IT)
+    monkeypatch.setenv("FIREWORKS_SERVING_MODE", "serverless")
+    assert pick_model_for_role("multimodal synthesis", models) != GEMMA_4_26B_A4B_IT
+
+    monkeypatch.setenv("FIREWORKS_SERVING_MODE", "deploy_on_demand")
+    assert pick_model_for_role("multimodal synthesis", models) == GEMMA_4_26B_A4B_IT
+    status = gemma_route_status()
+    assert status["allowlisted"] is True
+    assert status["serverless_supported"] is False
 
 
 def test_batch_jsonl_has_unique_ids_and_request_bodies(allowed_models):

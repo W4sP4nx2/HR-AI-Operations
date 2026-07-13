@@ -140,6 +140,28 @@ failed, or expired. A job that stays pending for more than 30 minutes should be
 checked for model batch support, JSONL validity, and quota before escalation.
 See [Fireworks Batch inference](https://docs.fireworks.ai/guides/batch-inference).
 
+## Token cost and serverless usage telemetry
+
+The product now exposes two separate cost surfaces because they answer different
+questions:
+
+| Surface | Source | What it proves |
+|---|---|---|
+| Application-observed estimate | `core.cost_attribution` and `/metrics/inference-usage` | Token budget, provider-call count, cache/prefilter savings, tier spend, and budget circuit-breaker state for workflows this app routed |
+| Fireworks account billing | Fireworks billing usage export / `firectl billing get-usage` | Rated account usage grouped by serverless model, API key, deployment, or annotations |
+
+In local preview the Analytics card must say `local estimate`, show `$0.000000`
+when no live provider call occurred, and mark Fireworks billing export as not
+ready unless `FIREWORKS_ACCOUNT_ID` and `FIREWORKS_API_KEY` are present. Live
+Serverless requests include non-secret attribution tags:
+
+```text
+team=hr,project=hr-command-center,environment=<ENVIRONMENT>
+```
+
+These tags line up with Fireworks' documented custom usage grouping dimensions
+without sending employee or case context to the billing plane.
+
 ## Functional requirements
 
 | ID | Requirement | Acceptance |

@@ -181,15 +181,21 @@ class RAGPipeline:
             Dict with ``answer``, ``source_documents`` and ``confidence_score``.
         """
         from core.observability import record_policy_cache
+        from core.runtime_settings import runtime_settings
         from services.semantic_cache import context_hash
 
+        cache_enabled = (
+            bool(runtime_settings.value("caching_enabled", True))
+            if runtime_settings.active
+            else True
+        )
         policy_context = context_hash(
             "rag",
             self.prompt_version,
             str(top_k or settings.retrieval_top_k),
             settings.qdrant_collection,
         )
-        cached = self._cache.get(query, policy_context)
+        cached = self._cache.get(query, policy_context) if cache_enabled else None
         if cached is not None:
             record_policy_cache("hit")
             return {**cached, "cached": True}
@@ -207,8 +213,15 @@ class RAGPipeline:
             }
             for c in contexts
         ]
-        # Low-confidence answers are flagged so the UI / triage can route to a human.
-        needs_review = confidence < settings.confidence_threshold
+        # Low-confidence answers are flagged so the UI / triage can route to a
+        # human. The saved operator control overrides the env default here too,
+        # keeping the compatibility wrapper behavior aligned with services.rag.
+        from core.runtime_settings import runtime_settings
+
+        review_threshold = settings.confidence_threshold
+        if runtime_settings.active and not runtime_settings.value("human_review_required", True):
+            review_threshold = 0.0
+        needs_review = confidence < review_threshold
         result = {
             "answer": answer,
             "mode": mode,  # what produced the answer: llm vs deterministic excerpt
@@ -218,7 +231,8 @@ class RAGPipeline:
             "prompt_version": self.prompt_version,
             "cached": False,
         }
-        self._cache.set(query, policy_context, result)
+        if cache_enabled:
+            self._cache.set(query, policy_context, result)
         return result
 
 

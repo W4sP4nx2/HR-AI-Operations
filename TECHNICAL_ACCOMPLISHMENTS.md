@@ -23,7 +23,7 @@ LangGraph workflows"* still surfaces the high-value tokens, so the
 extract-then-embed blend in [`agents/resume_screener_agent.py`](backend/agents/resume_screener_agent.py)
 counts them as matched skills.
 
-- **Measured:** that résumé scores **72/100 → "hire"**, with `fastapi` and
+- **Measured:** that résumé scores **72/100 → "strong_fit"**, with `fastapi` and
   `langgraph` in `matched_skills`.
 - **Decision:** rather than fudge the scoring, the failure is encoded as a
   **KNOWN LIMITATION** assertion — `test_KNOWN_LIMITATION_screener_does_not_discount_negative_context`

@@ -12,7 +12,7 @@ the API, the docs ([AGENT_PLAYBOOK.md]) and the tests all derive from.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -112,7 +112,7 @@ class ResumeScore(BaseModel):
 
     case_id: str | None = None
     score: int = Field(..., ge=0, le=100)
-    recommendation: str
+    recommendation: Literal["strong_fit", "review_recommended"]
     reasoning: str
     matched_skills: list[str] = []
     missing_skills: list[str] = []
@@ -143,6 +143,7 @@ class AttritionResult(BaseModel):
     attrition_risk_score: float = Field(..., ge=0, le=1)
     top_risk_factors: list[RiskFactor]
     explanation: str
+    business_impact: dict[str, Any] = {}
     needs_review: bool = False  # high risk → human bias review before action
     advisory_only: bool = True  # never an automated adverse decision
     # Grounded, policy-cited retention suggestions composed from Policy Q&A when
@@ -176,7 +177,7 @@ class AgentSpec(BaseModel):
     purpose: str
     input_model: type[BaseModel]
     output_model: type[BaseModel]
-    min_role: str  # viewer | analyst | manager | admin
+    min_role: str  # viewer | manager | admin
     tools: list[str] = []
     guardrails: list[str] = []
     risk: str  # advisory | decision-support | gated-write | escalate
@@ -188,11 +189,11 @@ AGENT_SPECS: dict[str, AgentSpec] = {
     "triage_agent": AgentSpec(
         name="triage_agent",
         label="Triage",
-        framework="CrewAI",
+        framework="Pydantic AI + deterministic fallback",
         purpose="Classify an HR ticket and route it: URGENT→human, POLICY→auto-resolve, else categorise.",
         input_model=TicketInput,
         output_model=TriageResult,
-        min_role="analyst",
+        min_role="manager",
         tools=["keyword_classifier|llm_classifier", "rag_pipeline", "cases_store"],
         guardrails=[
             "URGENT always escalates to a human; never auto-resolved.",
@@ -222,11 +223,11 @@ AGENT_SPECS: dict[str, AgentSpec] = {
         purpose="Score a resume against a JD and explain the fit.",
         input_model=ResumeInput,
         output_model=ResumeScore,
-        min_role="analyst",
+        min_role="manager",
         tools=["embedding_similarity", "skill_matcher", "crewai_crew"],
         guardrails=[
             "Decision-support only — never auto-rejects a candidate.",
-            "Every screen is audited with the score and recommendation.",
+            "Every screen is audited with the score and advisory fit label.",
         ],
         risk="decision-support",
     ),

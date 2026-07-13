@@ -1,132 +1,139 @@
-"""No-key tests for the Fireworks-aware A2A orchestrator."""
+"""No-key tests for the visible single-orchestrator product contract."""
 
 from __future__ import annotations
+
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 
-from agents.a2a_cards import AGENT_CARDS, cards_to_tools, get_card
-from agents.orchestrator import (
-    build_orchestration_plan,
-    orchestrate,
-    select_model_for_card,
-)
+from agents.orchestrator import build_orchestration_plan, orchestrate, orchestrator_manifest
 from api.main import app
 
-
-@pytest.fixture
-def fireworks_allowlist(monkeypatch):
-    models = [
-        "accounts/fireworks/models/deepseek-v4-flash",
-        "accounts/fireworks/models/kimi-k2p6",
-        "accounts/fireworks/models/gemma-3-vision",
-        "accounts/fireworks/models/deepseek-r1-distill-qwen-32b",
-    ]
-    monkeypatch.setenv("ALLOWED_MODELS", ",".join(models))
-    return models
+FAST_MODEL = "tenant/models/fast-8b"
+STANDARD_MODEL = "tenant/models/standard-32b"
+GEMMA_MODEL = "tenant/models/gemma-4-26b-a4b-it"
 
 
-def test_cards_become_fireworks_tool_descriptions():
-    tools = cards_to_tools()
-    names = {tool["function"]["name"] for tool in tools}
-    triage_tool = next(
-        tool for tool in tools if tool["function"]["name"] == "dispatch_triage_agent"
+@pytest.fixture(autouse=True)
+def orchestrator_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "ALLOWED_MODELS", f"{FAST_MODEL},{STANDARD_MODEL},{GEMMA_MODEL}"
     )
-
-    assert len(tools) == len(AGENT_CARDS)
-    assert "dispatch_policy_qa_agent" in names
-    assert "Serving path: serverless_streaming" in triage_tool["function"]["description"]
-    assert "Fireworks primitives: streaming, json_schema, tool_calling" in (
-        triage_tool["function"]["description"]
-    )
+    monkeypatch.setenv("FIREWORKS_GEMMA_MODEL", GEMMA_MODEL)
+    monkeypatch.setenv("FIREWORKS_BATCH_MODEL", STANDARD_MODEL)
 
 
-def test_model_selection_uses_only_allowed_models_and_family_hints(fireworks_allowlist):
-    resume_card = get_card("resume_analysis")
-    selected = select_model_for_card(resume_card)
-
-    assert selected == "accounts/fireworks/models/gemma-3-vision"
-    assert selected in fireworks_allowlist
-
-
-def test_model_selection_requires_allowlist(monkeypatch):
-    monkeypatch.delenv("ALLOWED_MODELS", raising=False)
-
-    with pytest.raises(RuntimeError, match="ALLOWED_MODELS"):
-        select_model_for_card(get_card("triage"))
-
-
-def test_orchestration_plan_builds_streaming_contract(fireworks_allowlist):
+def test_simple_policy_query_exposes_economy_cost_route() -> None:
     plan = build_orchestration_plan(
-        "structured_classification",
-        {"input": "Employee asks about dental benefits", "session_id": "demo-session"},
+        "policy_qa",
+        {"query": "What is the vacation leave policy?"},
     )
 
-    assert plan.selected_agent == "triage_agent"
-    assert plan.selected_model in fireworks_allowlist
-    assert plan.dispatch_mode == "stream"
-    assert plan.request_contract["body"]["stream"] is True
-    assert plan.request_contract["body"]["stream_options"] == {"include_usage": True}
-    assert plan.request_contract["body"]["response_format"]["type"] == "json_schema"
+    assert plan.workflow == "policy_qa"
+    assert plan.serving_path == "standard"
+    assert plan.cost_tier == "economy"
+    assert plan.selected_model == FAST_MODEL
+    assert plan.model_selection_source == "ALLOWED_MODELS"
 
 
-def test_orchestration_plan_builds_reasoning_contract(fireworks_allowlist):
+def test_urgent_triage_uses_fast_path_and_human_review() -> None:
+    plan = build_orchestration_plan(
+        "triage",
+        {"input": "Payroll is down today, urgent."},
+    )
+
+    assert plan.workflow == "triage"
+    assert plan.serving_path == "fast"
+    assert plan.human_review_required is True
+    assert plan.fallback_available is True
+
+
+def test_bulk_attrition_uses_batch_route() -> None:
     plan = build_orchestration_plan(
         "attrition_explanation",
         {
-            "prompt": "Explain a high attrition risk advisory.",
-            "reasoning_effort": "low",
+            "prompt": "Produce advisory retention summaries.",
+            "records": [{"custom_id": "employee-1", "prompt": "review"}],
         },
     )
 
-    assert plan.selected_agent == "attrition_agent"
-    assert plan.selected_model in fireworks_allowlist
-    assert plan.dispatch_mode == "reasoning"
-    assert plan.request_contract["body"]["reasoning_effort"] == "low"
+    assert plan.workflow == "attrition"
+    assert plan.serving_path == "batch"
+    assert plan.selected_model == STANDARD_MODEL
+    assert plan.human_review_required is True
 
 
 @pytest.mark.asyncio
-async def test_orchestrate_returns_certified_envelope(fireworks_allowlist):
-    envelope = await orchestrate(
-        "policy_qa",
-        {"query": "What is our PTO rollover policy?"},
-    )
+async def test_orchestrator_result_is_certified_cached_and_audited(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    audit_events: list[dict[str, object]] = []
 
-    assert envelope.source_agent == "orchestrator_agent"
-    assert envelope.target_agent == "policy_qa_agent"
-    assert envelope.certification.is_valid
-    assert envelope.payload["selected_model"] in fireworks_allowlist
-    assert envelope.metadata["provider_call"] is False
-    assert envelope.metadata["prefilter_skip"] is True
+    async def fake_record_action(**kwargs):
+        audit_events.append(kwargs)
+        return {"id": "audit-1"}
+
+    monkeypatch.setattr("agents.orchestrator.record_action", fake_record_action)
+    query = f"Explain PTO for test {uuid4()}"
+    first = await orchestrate("policy_qa", {"query": query})
+    second = await orchestrate("policy_qa", {"query": query})
+
+    assert first.provider_call is False
+    assert first.certification.is_valid is True
+    assert first.cache.hit is False
+    assert first.audit.recorded is True
+    assert first.audit.event_id == "audit-1"
+    assert second.cache.hit is True
+    assert len(audit_events) == 2
+    assert "input_hash" in audit_events[0]["input_data"]
+    assert query not in str(audit_events[0])
 
 
-def test_lifecycle_manifest_surfaces_a2a_topology(fireworks_allowlist):
+def test_manifest_exposes_observability_not_agent_handoffs() -> None:
+    manifest = orchestrator_manifest()
+
+    assert manifest["pattern"] == "single_orchestrator"
+    assert "cost_tier" in manifest["visible_metrics"]
+    assert "cache_hit" in manifest["visible_metrics"]
+    assert "certification_status" in manifest["visible_metrics"]
+    assert "cache_hit_rate" in manifest["runtime"]
+    assert isinstance(manifest["last_route"], dict)
+    assert "gemma_multimodal" in {
+        tool["function"]["name"] for tool in manifest["tools"]
+    }
+    assert manifest["a2a_handoff"] == "certified_handoff with redacted route payload"
+
+
+def test_lifecycle_manifest_surfaces_visible_orchestration() -> None:
     client = TestClient(app)
     response = client.get("/lifecycle/fireworks")
 
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["a2a_orchestration"]["cards"]["card_count"] == len(AGENT_CARDS)
-    policy_card = data["a2a_orchestration"]["cards"]["cards"]["policy_qa_agent"]
-    assert policy_card["serving_path"] == "serverless_online"
-    assert policy_card["model_selection"] == "runtime ALLOWED_MODELS only"
+    assert data["orchestration"]["pattern"] == "single_orchestrator"
+    assert "gemma_multimodal" in {
+        tool["function"]["name"]
+        for tool in data["orchestration"]["tools"]
+    }
 
 
-def test_orchestrator_plan_endpoint_is_key_free(fireworks_allowlist):
+def test_orchestrator_plan_endpoint_returns_plain_product_result() -> None:
     client = TestClient(app)
     response = client.post(
         "/agents/orchestrator/plan",
         json={
-            "request_type": "resume_analysis",
-            "payload": {
-                "image_urls": ["data:image/png;base64,AAAA"],
-                "prompt": "Extract this scanned resume.",
-            },
+            "request_type": "policy_qa",
+            "payload": {"query": f"What is the leave policy? {uuid4()}"},
         },
     )
 
     assert response.status_code == 200
-    envelope = response.json()["data"]
-    assert envelope["target_agent"] == "resume_screener_agent"
-    assert envelope["payload"]["dispatch_mode"] == "vision"
-    assert envelope["payload"]["selected_model"] in fireworks_allowlist
+    result = response.json()["data"]
+    assert result["provider_call"] is False
+    assert result["certification"]["is_valid"] is True
+    assert result["audit"]["recorded"] is True
+    assert result["plan"]["workflow"] == "policy_qa"
+    assert result["a2a"]["certified"] is True
+    assert result["a2a"]["source_agent"] == "orchestrator_agent"
+    assert "payload" not in result["a2a"]

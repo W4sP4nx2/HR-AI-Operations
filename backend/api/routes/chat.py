@@ -42,6 +42,56 @@ class ChatRequest(BaseModel):
     session_id: str = ""
 
 
+def _record_stream_usage(stream: Any, agent: Any, query: str) -> str | None:
+    """Record provider-reported usage for one completed Pydantic AI stream.
+
+    Pydantic AI exposes run usage after the stream closes. Capturing it here
+    keeps the operations UI honest for the browser-scoped Fireworks path while
+    retaining no prompt content or API key.
+    """
+    try:
+        usage = getattr(stream, "usage", None)
+        # New Pydantic AI releases expose ``usage`` as a property. Older
+        # releases used a callable compatibility wrapper, so only invoke it
+        # when it is not already a RunUsage-shaped value.
+        if usage is not None and not hasattr(usage, "input_tokens") and callable(usage):
+            usage = usage()
+        if usage is None:
+            return None
+        model = getattr(agent, "model", None)
+        model_id = str(
+            getattr(model, "model_name", None)
+            or getattr(model, "model_id", None)
+            or "unknown"
+        )
+        if model_id == "unknown":
+            return None
+        from core.cost_attribution import record_cost_event, record_provider_usage
+        from core.cost_router import CostRouter
+
+        prompt_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+        completion_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+        record_provider_usage(
+            model_id=model_id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cached_prompt_tokens=int(getattr(usage, "cache_read_tokens", 0) or 0),
+        )
+        # The cost tier is classified before recording the completed call, so
+        # command and analytics surfaces show the same governed route that the
+        # operator sees in the browser. The dollar value remains a local
+        # estimate until an external billing export is connected.
+        record_cost_event(
+            tier=CostRouter.classify(query).tier,
+            input_tokens=prompt_tokens,
+            output_tokens=completion_tokens,
+            provider_call=True,
+        )
+        return model_id
+    except Exception:  # noqa: BLE001 - telemetry must not disrupt a response
+        return None
+
+
 async def _ensure_session(session_id: str, message: str, user: dict[str, Any]) -> str:
     """Return a valid session id, creating one (titled from the message) if needed."""
     if session_id:
@@ -195,7 +245,8 @@ async def chat_stream(
                                         yield f"data: {json.dumps({'type': 'tool', 'name': name, 'args': {}})}\n\n"
 
                     mode = "full"
-                    yield f"data: {json.dumps({'type': 'done', 'mode': 'full', 'session_id': session_id})}\n\n"
+                    model_id = _record_stream_usage(stream, agent, prompt)
+                    yield f"data: {json.dumps({'type': 'done', 'mode': 'full', 'session_id': session_id, 'model': model_id})}\n\n"
 
                 except Exception as exc:  # noqa: BLE001 — stream fallback
                     from core.fireworks import is_scale_up_exception

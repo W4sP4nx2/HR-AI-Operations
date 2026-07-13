@@ -93,9 +93,9 @@ _VALID_STATUSES = {"open", "resolved", "escalated"}
 async def update_case_status(
     case_id: str,
     body: StatusUpdate,
-    user: dict[str, Any] = Depends(require_role("analyst")),
+    user: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
-    """Manually resolve / reopen a case (analyst+). Audited and broadcast.
+    """Manually resolve / reopen a case (manager+). Audited and broadcast.
 
     Closes the loop the agents can't: an ``open`` or ``escalated`` case can be
     marked ``resolved`` by a human, or a resolved case reopened.
@@ -127,7 +127,7 @@ async def update_case_status(
 async def reroute_case(
     case_id: str,
     body: TriageReroute,
-    user: dict[str, Any] = Depends(require_role("analyst")),
+    user: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
     """Reject the AI's triage routing and hand the case to a human queue.
 

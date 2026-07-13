@@ -168,9 +168,11 @@ export default function ByokControl({
             {state !== "idle" && (
               <button
                 onClick={clear}
+                aria-label="Remove browser API key"
+                title="Remove browser API key"
                 className="flex items-center gap-1 rounded-lg border border-brand-purple/15 px-2.5 py-1.5 text-xs text-ink-700/70 hover:bg-brand-cream"
               >
-                <X size={13} /> Clear
+                <X size={13} /> Remove key
               </button>
             )}
           </div>

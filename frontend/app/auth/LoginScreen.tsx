@@ -44,12 +44,12 @@ export default function LoginScreen({ onGuest }: { onGuest: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-brand-purple p-4">
       <div className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-2xl">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex items-center gap-2 text-lg font-semibold text-brand-purple">
-            <Activity size={22} className="text-brand-magenta" />
-            Command Center
-          </div>
-          <p className="text-xs text-ink-700/60">HR AI Operations</p>
-        </div>
+	          <div className="flex items-center gap-2 text-lg font-semibold text-brand-purple">
+	            <Activity size={22} className="text-brand-magenta" />
+	            Govern.ai
+	          </div>
+	          <p className="text-xs text-ink-700/60">Governed HR operations</p>
+	        </div>
 
         <div className="mb-4 flex rounded-xl bg-brand-cream p-1 text-sm">
           {(["login", "register"] as const).map((m) => (

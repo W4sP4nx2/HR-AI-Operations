@@ -1,78 +1,126 @@
-"""Fireworks-aware A2A orchestrator.
+"""Visible single-orchestrator routing for governed HR workflows.
 
-This module plans and certifies dispatches without performing network I/O. Live
-execution stays in the existing agent/provider paths; the orchestrator's job is
-to make the routing topology explicit, testable, and visible in the product.
+The orchestrator does not model inter-agent communication. It chooses one
+serving path and allowlisted model, exposes cost/cache/certification metadata,
+and writes a privacy-safe audit event. Provider execution remains behind
+``core.llm_factory`` in the workflow that consumes the plan.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
+from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from agents.a2a_cards import (
-    AGENT_CARDS,
-    REQUEST_ALIASES,
+    GEMMA_MULTIMODAL_CARD,
+    ORCHESTRATOR_CARDS,
     A2ACard,
     cards_to_tools,
     get_card,
 )
-from core.a2a_envelope import A2AEnvelope, certified_handoff
-from core.fireworks import (
-    build_batch_jsonl,
-    build_chat_body,
-    build_resume_vision_body,
-    configured_models,
-)
-from core.llm_factory import pick_model_for_role
+from core.a2a_envelope import certified_handoff
+from core.config import settings
+from core.cost_router import CostRoute, CostRouter
+from core.fireworks import configured_models
+from core.fireworks_certifier import CertifiedResult
+from core.runtime_key import llm_active
+from services.audit_service import record_action
+from services.semantic_cache import HRSemanticCache, context_hash
 
-ORCHESTRATOR_SYSTEM_PROMPT = """You are the HR AI Command Center orchestrator.
-Choose exactly one A2A tool by reading each tool description. Prefer the card
-whose serving path, Fireworks primitives, cost posture, and risk posture match
-the request. Never invent a model id. The selected dispatcher must use only
-models injected through ALLOWED_MODELS, and every cross-agent handoff must return
-a certified A2A envelope before another agent consumes it."""
+Workflow = Literal[
+    "attrition",
+    "onboarding",
+    "policy_qa",
+    "resume_screening",
+    "triage",
+]
+ServingPath = Literal["batch", "deploy_on_demand", "fast", "standard"]
+ExecutionMode = Literal["deterministic_fallback", "planned_live"]
 
-DispatchMode = Literal["batch", "reasoning", "standard", "stream", "vision"]
+ORCHESTRATOR_VERSION = "single-orchestrator-v2-a2a"
+TOOLS = cards_to_tools(ORCHESTRATOR_CARDS)
+_PLAN_CACHE = HRSemanticCache(maxsize=128, ttl_seconds=settings.semantic_cache_ttl)
+_METRICS = {
+    "plans_total": 0,
+    "cache_hits": 0,
+    "certifications_passed": 0,
+    "certifications_failed": 0,
+    "audit_events_recorded": 0,
+}
+_LAST_ROUTE: dict[str, Any] = {}
 
 
 class OrchestrationPlan(BaseModel):
-    """Concrete dispatch plan derived from one A2A card."""
+    """Privacy-safe route decision suitable for UI and lifecycle surfaces."""
 
     request_type: str
-    selected_agent: str
+    workflow: Workflow
     selected_tool: str
-    owner_team: str
-    serving_path: str
-    dispatch_mode: DispatchMode
-    fireworks_primitives: list[str]
-    selected_model: str
-    model_selection_source: str = "ALLOWED_MODELS"
-    cost_posture: str
-    risk_posture: str
-    human_review_triggers: list[str]
+    target_agent: str
     collaboration_targets: list[str]
+    human_review_triggers: list[str]
+    serving_path: ServingPath
+    selected_model: str
+    model_selection_source: Literal["ALLOWED_MODELS"] = "ALLOWED_MODELS"
+    cost_tier: Literal["economy", "standard", "premium"]
+    cost_reason: str
+    matched_keyword: str | None = None
+    cache_eligible: bool = True
+    certification_required: bool = True
+    audit_action: str = "orchestrator_route"
+    human_review_required: bool
+    fallback_available: bool = True
     reason: str
-    request_contract: dict[str, Any]
 
 
-def select_model_for_card(card: A2ACard, models: Sequence[str] | None = None) -> str:
-    """Select a concrete model for a card from the injected allow-list only."""
-    allowed = list(models) if models is not None else configured_models()
-    if not allowed:
-        raise RuntimeError("ALLOWED_MODELS is empty or unset")
+class CertificationSummary(BaseModel):
+    is_valid: bool
+    confidence: float
+    violations: list[str]
+    redaction_count: int
 
-    lowered_preferences = [hint.lower() for hint in card.model_family_preferences]
-    for hint in lowered_preferences:
-        for model_id in allowed:
-            if hint and hint in model_id.lower():
-                return model_id
 
-    role = f"{card.agent_name}:{','.join(card.fireworks_primitives)}:{card.cost_posture}"
-    return pick_model_for_role(role, list(allowed))
+class CacheSummary(BaseModel):
+    eligible: bool
+    hit: bool
+    context_hash: str
+
+
+class AuditSummary(BaseModel):
+    recorded: bool
+    event_id: int | str | None = None
+    action: str
+
+
+class A2ASummary(BaseModel):
+    """Privacy-safe view of the certified route envelope."""
+
+    trace_id: str
+    source_agent: str
+    target_agent: str
+    selected_tool: str
+    model_id: str
+    certified: bool
+    metadata: dict[str, Any]
+
+
+class OrchestrationResult(BaseModel):
+    """Visible result returned by the no-provider-call planning endpoint."""
+
+    request_id: str
+    execution_mode: ExecutionMode
+    provider_call: Literal[False] = False
+    plan: OrchestrationPlan
+    a2a: A2ASummary
+    certification: CertificationSummary
+    cache: CacheSummary
+    audit: AuditSummary
 
 
 def build_orchestration_plan(
@@ -81,26 +129,49 @@ def build_orchestration_plan(
     *,
     models: Sequence[str] | None = None,
 ) -> OrchestrationPlan:
-    """Build a no-key Fireworks/A2A dispatch plan for one workload."""
-    card = _infer_card(request_type, payload)
-    model_id = select_model_for_card(card, models)
-    dispatch_mode = _dispatch_mode(card, payload)
-    request_contract = _dispatch_contract(card, payload, model_id, dispatch_mode)
+    """Choose one visible route without making a provider call."""
+    allowed = list(models) if models is not None else configured_models()
+    if not allowed:
+        raise RuntimeError("ALLOWED_MODELS is empty or unset")
+
+    workflow = _infer_workflow(request_type, payload)
+    query = _payload_prompt(payload)
+    has_images = workflow == "resume_screening" and _has_images(payload)
+    card = _card_for_workflow(workflow, has_images)
+    if has_images:
+        selected_model = _gemma_model(allowed)
+        cost_route = CostRoute(
+            tier="premium",
+            selected_model=selected_model,
+            reason="multimodal_resume_requires_gemma",
+        )
+        serving_path: ServingPath = "deploy_on_demand"
+    else:
+        eligible = _non_multimodal_models(allowed)
+        cost_route = CostRouter.classify(query, allowed_models=eligible)
+        serving_path = _serving_path(workflow, payload)
+        selected_model = _batch_model(allowed) if serving_path == "batch" else None
+        selected_model = selected_model or cost_route.selected_model
+
+    review_required = _human_review_required(workflow, query)
     return OrchestrationPlan(
         request_type=request_type,
-        selected_agent=card.agent_name,
+        workflow=workflow,
         selected_tool=card.tool_name(),
-        owner_team=card.owner_team,
-        serving_path=card.serving_path,
-        dispatch_mode=dispatch_mode,
-        fireworks_primitives=list(card.fireworks_primitives),
-        selected_model=model_id,
-        cost_posture=card.cost_posture,
-        risk_posture=card.risk_posture,
-        human_review_triggers=list(card.human_review_triggers),
+        target_agent=card.agent_name,
         collaboration_targets=list(card.collaboration_targets),
-        reason=_routing_reason(card, dispatch_mode),
-        request_contract=request_contract,
+        human_review_triggers=list(card.human_review_triggers),
+        serving_path=serving_path,
+        selected_model=selected_model,
+        cost_tier=cost_route.tier,
+        cost_reason=cost_route.reason,
+        matched_keyword=cost_route.matched_keyword,
+        human_review_required=review_required,
+        reason=(
+            f"Route {workflow} through {card.tool_name()} at {serving_path} and "
+            f"{cost_route.tier} tier; "
+            f"human_review_required={str(review_required).lower()}."
+        ),
     )
 
 
@@ -109,14 +180,40 @@ async def orchestrate(
     payload: Mapping[str, Any],
     *,
     models: Sequence[str] | None = None,
-) -> A2AEnvelope:
-    """Return a certified envelope containing the dispatch plan."""
-    plan = build_orchestration_plan(request_type, payload, models=models)
-    return await certified_handoff(
+) -> OrchestrationResult:
+    """Return a certified, cached, and audited orchestration decision."""
+    query = _payload_prompt(payload)
+    cache_context = context_hash(ORCHESTRATOR_VERSION, request_type)
+    cached = _PLAN_CACHE.get(query, cache_context)
+    if cached:
+        plan = OrchestrationPlan.model_validate(cached)
+        cache_hit = True
+        _METRICS["cache_hits"] += 1
+    else:
+        plan = build_orchestration_plan(request_type, payload, models=models)
+        _PLAN_CACHE.set(query, cache_context, plan.model_dump(mode="json"))
+        cache_hit = False
+    _METRICS["plans_total"] += 1
+    _LAST_ROUTE.update(
+        {
+            "workflow": plan.workflow,
+            "selected_tool": plan.selected_tool,
+            "serving_path": plan.serving_path,
+            "selected_model": plan.selected_model,
+            "cost_tier": plan.cost_tier,
+            "human_review_required": plan.human_review_required,
+            "execution_mode": "planned_live" if llm_active() else "deterministic_fallback",
+        }
+    )
+
+    envelope = await certified_handoff(
         source_agent="orchestrator_agent",
-        target_agent=plan.selected_agent,
-        func=lambda _: plan.model_dump(),
-        payload=dict(payload),
+        target_agent=plan.target_agent,
+        func=lambda _: plan.model_dump(mode="json"),
+        payload={
+            "request_type": request_type,
+            "input_hash": hashlib.sha256(query.encode("utf-8")).hexdigest(),
+        },
         objectives={
             "schema": OrchestrationPlan.model_json_schema(),
             "require_pii_free": True,
@@ -124,137 +221,225 @@ async def orchestrate(
         model_id=plan.selected_model,
         metadata={
             "selected_tool": plan.selected_tool,
+            "workflow": plan.workflow,
             "serving_path": plan.serving_path,
-            "dispatch_mode": plan.dispatch_mode,
-            "fireworks_primitives": plan.fireworks_primitives,
-            "cost_tier": (plan.cost_posture if plan.cost_posture != "batch" else "standard"),
+            "cost_tier": plan.cost_tier,
+            "human_review_required": plan.human_review_required,
             "provider_call": False,
-            "prefilter_skip": True,
         },
         persist=False,
+    )
+    certified = envelope.certification
+    certification = _certification_summary(certified)
+    if not certification.is_valid:
+        _METRICS["certifications_failed"] += 1
+        raise RuntimeError(
+            "orchestrator output failed certification: "
+            + ", ".join(certification.violations)
+        )
+    _METRICS["certifications_passed"] += 1
+
+    audit_row = await record_action(
+        agent="orchestrator",
+        action=plan.audit_action,
+        input_data={
+            "request_type": request_type,
+            "input_hash": hashlib.sha256(query.encode("utf-8")).hexdigest(),
+        },
+        output_data={
+            "workflow": plan.workflow,
+            "serving_path": plan.serving_path,
+            "selected_model": plan.selected_model,
+            "selected_tool": plan.selected_tool,
+            "a2a_trace_id": envelope.trace_id,
+            "target_agent": plan.target_agent,
+            "cost_tier": plan.cost_tier,
+            "cache_hit": cache_hit,
+            "certified": certification.is_valid,
+            "human_review_required": plan.human_review_required,
+        },
+        status="success",
+    )
+    _METRICS["audit_events_recorded"] += 1
+    return OrchestrationResult(
+        request_id=str(uuid4()),
+        execution_mode="planned_live" if llm_active() else "deterministic_fallback",
+        plan=plan,
+        a2a=A2ASummary(
+            trace_id=envelope.trace_id,
+            source_agent=envelope.source_agent,
+            target_agent=envelope.target_agent,
+            selected_tool=plan.selected_tool,
+            model_id=envelope.model_id or plan.selected_model,
+            certified=envelope.certification.is_valid,
+            metadata=dict(envelope.metadata),
+        ),
+        certification=certification,
+        cache=CacheSummary(
+            eligible=plan.cache_eligible,
+            hit=cache_hit,
+            context_hash=cache_context,
+        ),
+        audit=AuditSummary(
+            recorded=True,
+            event_id=audit_row.get("id"),
+            action=plan.audit_action,
+        ),
     )
 
 
 def orchestrator_manifest() -> dict[str, Any]:
-    """Return no-secret orchestrator metadata for product/lifecycle views."""
+    """Return the judge-visible single-orchestrator product contract."""
+    plans_total = _METRICS["plans_total"]
     return {
-        "system_prompt_contract": ORCHESTRATOR_SYSTEM_PROMPT,
-        "model_selection": "preferences are hints; selected_model must be in ALLOWED_MODELS",
-        "tools": cards_to_tools(),
-        "routing_examples": {
-            workload: {
-                "agent": get_card(workload).agent_name,
-                "serving_path": get_card(workload).serving_path,
-                "fireworks_primitives": get_card(workload).fireworks_primitives,
-            }
-            for workload in [
-                "structured_classification",
-                "policy_qa",
-                "resume_analysis",
-                "attrition_explanation",
-                "onboarding",
-            ]
+        "pattern": "single_orchestrator",
+        "stages": [
+            "route",
+            "cost_select",
+            "cache_check",
+            "certify",
+            "audit",
+            "respond",
+        ],
+        "serving_paths": ["fast", "standard", "batch", "deploy_on_demand"],
+        "model_selection": "ALLOWED_MODELS only",
+        "tools": TOOLS,
+        "a2a_handoff": "certified_handoff with redacted route payload",
+        "controls": {
+            "cost_router": "core.cost_router.CostRouter",
+            "semantic_cache": "services.semantic_cache.HRSemanticCache",
+            "certifier": "core.fireworks_certifier.FireworksOutputCertifier",
+            "audit": "services.audit_service.record_action",
+            "deterministic_fallback": True,
         },
+        "visible_metrics": [
+            "selected_model",
+            "serving_path",
+            "cost_tier",
+            "cache_hit",
+            "certification_status",
+            "audit_event_id",
+            "human_review_required",
+        ],
+        "runtime": {
+            **_METRICS,
+            "cache_hit_rate": (
+                _METRICS["cache_hits"] / plans_total if plans_total else 0.0
+            ),
+        },
+        "last_route": dict(_LAST_ROUTE),
     }
 
 
-def _infer_card(request_type: str, payload: Mapping[str, Any]) -> A2ACard:
+def _infer_workflow(request_type: str, payload: Mapping[str, Any]) -> Workflow:
     normalized = request_type.strip().lower()
-    if normalized in AGENT_CARDS or normalized in REQUEST_ALIASES:
-        return get_card(normalized)
+    aliases: dict[str, Workflow] = {
+        "attrition": "attrition",
+        "attrition_explanation": "attrition",
+        "case_triage": "triage",
+        "classification": "triage",
+        "complex_reasoning": "attrition",
+        "onboarding": "onboarding",
+        "policy": "policy_qa",
+        "policy_qa": "policy_qa",
+        "rag": "policy_qa",
+        "resume": "resume_screening",
+        "resume_analysis": "resume_screening",
+        "resume_screening": "resume_screening",
+        "streaming_chat": "policy_qa",
+        "structured_classification": "triage",
+        "triage": "triage",
+    }
+    if normalized in aliases:
+        return aliases[normalized]
 
-    text = " ".join(
-        str(value).lower()
-        for key, value in payload.items()
-        if key in {"input", "message", "query", "text", "prompt"} and value is not None
-    )
+    text = _payload_prompt(payload).lower()
     if any(term in text for term in ("resume", "candidate", "job description", "skills")):
-        return get_card("resume_analysis")
+        return "resume_screening"
     if any(term in text for term in ("attrition", "retention", "promotion", "risk")):
-        return get_card("attrition_explanation")
+        return "attrition"
     if any(term in text for term in ("onboard", "new hire", "training", "account")):
-        return get_card("onboarding")
+        return "onboarding"
     if any(term in text for term in ("policy", "benefit", "pto", "leave", "compliance")):
-        return get_card("policy_qa")
-    return get_card("triage")
+        return "policy_qa"
+    return "triage"
 
 
-def _dispatch_mode(card: A2ACard, payload: Mapping[str, Any]) -> DispatchMode:
-    if "vision" in card.fireworks_primitives and payload.get("image_urls"):
-        return "vision"
-    if "reasoning" in card.fireworks_primitives:
-        return "reasoning"
-    if card.serving_path == "serverless_batch":
+def _card_for_workflow(workflow: Workflow, has_images: bool) -> A2ACard:
+    if has_images:
+        return GEMMA_MULTIMODAL_CARD
+    aliases = {
+        "attrition": "attrition_agent",
+        "onboarding": "onboarding_agent",
+        "policy_qa": "policy_qa_agent",
+        "resume_screening": "resume_screener_agent",
+        "triage": "triage_agent",
+    }
+    return get_card(aliases[workflow])
+
+
+def _serving_path(workflow: Workflow, payload: Mapping[str, Any]) -> ServingPath:
+    records = payload.get("records")
+    has_batch = (
+        isinstance(records, Sequence)
+        and not isinstance(records, (str, bytes))
+        and bool(records)
+    )
+    if has_batch and workflow in {"attrition", "resume_screening"}:
         return "batch"
-    if card.serving_path == "serverless_streaming":
-        return "stream"
+    if workflow == "triage":
+        return "fast"
     return "standard"
 
 
-def _dispatch_contract(
-    card: A2ACard,
-    payload: Mapping[str, Any],
-    model_id: str,
-    dispatch_mode: DispatchMode,
-) -> dict[str, Any]:
-    prompt = _payload_prompt(payload)
-    if dispatch_mode == "vision":
-        image_urls = payload.get("image_urls")
-        if not isinstance(image_urls, Sequence) or isinstance(image_urls, (str, bytes)):
-            raise ValueError("vision dispatch requires image_urls")
-        return {
-            "kind": "chat.completions",
-            "mode": "vision_json_schema",
-            "body": build_resume_vision_body(
-                model_id=model_id,
-                image_urls=[str(url) for url in image_urls],
-                session_id=_session_id(payload),
-            ),
-        }
-
-    if dispatch_mode == "batch":
-        records = payload.get("records")
-        if not isinstance(records, Sequence) or isinstance(records, (str, bytes)) or not records:
-            records = [{"custom_id": "a2a-request-1", "prompt": prompt}]
-        jsonl = build_batch_jsonl(
-            [dict(record) for record in records],
-            model_id=model_id,
-            system_prompt=_system_prompt(card),
-            max_tokens=int(payload.get("max_tokens", 800) or 800),
+def _gemma_model(allowed: Sequence[str]) -> str:
+    configured = os.environ.get(
+        "FIREWORKS_GEMMA_MODEL", settings.fireworks_gemma_model
+    ).strip()
+    if configured and configured in allowed:
+        return configured
+    candidates = [
+        model_id
+        for model_id in allowed
+        if all(token in model_id.lower() for token in ("gemma", "4", "26b", "a4b"))
+    ]
+    if not candidates:
+        raise RuntimeError(
+            "ALLOWED_MODELS contains no Gemma 4 26B A4B IT model for multimodal routing"
         )
-        return {
-            "kind": "batch",
-            "mode": "jsonl",
-            "model": model_id,
-            "jsonl_preview": jsonl.splitlines()[:3],
-            "record_count": len(jsonl.splitlines()),
-        }
+    return candidates[0]
 
-    body = build_chat_body(
-        model_id=model_id,
-        messages=[
-            {"role": "system", "content": _system_prompt(card)},
-            {"role": "user", "content": prompt},
-        ],
-        max_tokens=int(payload.get("max_tokens", 600) or 600),
-        temperature=float(payload.get("temperature", 0.0) or 0.0),
-        schema_name=card.output_contract,
-        json_schema=_output_schema(card),
-        session_id=_session_id(payload),
-        service_tier="standard",
+
+def _non_multimodal_models(allowed: Sequence[str]) -> list[str]:
+    configured_gemma = os.environ.get(
+        "FIREWORKS_GEMMA_MODEL", settings.fireworks_gemma_model
+    ).strip()
+    candidates = [model_id for model_id in allowed if model_id != configured_gemma]
+    return candidates or list(allowed)
+
+
+def _batch_model(allowed: Sequence[str]) -> str | None:
+    configured = os.environ.get(
+        "FIREWORKS_BATCH_MODEL", settings.fireworks_batch_model
+    ).strip()
+    return configured if configured in allowed else None
+
+
+def _human_review_required(workflow: Workflow, query: str) -> bool:
+    if workflow in {"attrition", "onboarding", "resume_screening"}:
+        return True
+    return workflow == "triage" and any(
+        term in query.lower() for term in ("urgent", "harassment", "termination", "legal")
     )
-    if dispatch_mode == "stream":
-        body["stream"] = True
-        body["stream_options"] = {"include_usage": True}
-    if dispatch_mode == "reasoning":
-        body["reasoning_effort"] = str(payload.get("reasoning_effort", "medium"))
-    return {"kind": "chat.completions", "mode": dispatch_mode, "body": body}
 
 
-def _output_schema(card: A2ACard) -> dict[str, Any]:
-    from agents.contracts import AGENT_SPECS
-
-    return dict(AGENT_SPECS[card.agent_name].output_model.model_json_schema())
+def _has_images(payload: Mapping[str, Any]) -> bool:
+    image_urls = payload.get("image_urls")
+    return (
+        isinstance(image_urls, Sequence)
+        and not isinstance(image_urls, (str, bytes))
+        and bool(image_urls)
+    )
 
 
 def _payload_prompt(payload: Mapping[str, Any]) -> str:
@@ -265,22 +450,19 @@ def _payload_prompt(payload: Mapping[str, Any]) -> str:
     return json.dumps(dict(payload), sort_keys=True, default=str)
 
 
-def _session_id(payload: Mapping[str, Any]) -> str | None:
-    value = payload.get("session_id")
-    return value if isinstance(value, str) and value else None
-
-
-def _system_prompt(card: A2ACard) -> str:
-    return (
-        f"You are {card.label}. Return JSON matching {card.output_contract}. "
-        "Keep HR output advisory, citation-backed when policy is involved, and "
-        "safe for certified A2A handoff."
-    )
-
-
-def _routing_reason(card: A2ACard, dispatch_mode: DispatchMode) -> str:
-    primitives = ", ".join(card.fireworks_primitives)
-    return (
-        f"Selected {card.agent_name} because {dispatch_mode} uses {primitives} "
-        f"with {card.cost_posture} cost posture and {card.risk_posture} risk posture."
+def _certification_summary(
+    result: CertifiedResult | ValidationError,
+) -> CertificationSummary:
+    if isinstance(result, ValidationError):
+        return CertificationSummary(
+            is_valid=False,
+            confidence=0.0,
+            violations=["schema_validation_failed"],
+            redaction_count=0,
+        )
+    return CertificationSummary(
+        is_valid=result.is_valid,
+        confidence=result.confidence,
+        violations=list(result.violations),
+        redaction_count=result.redaction_count,
     )

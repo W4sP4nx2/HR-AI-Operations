@@ -75,6 +75,28 @@ def _apply_title_boost(query: str, hits: list[dict[str, Any]]) -> list[dict[str,
     return hits
 
 
+def _apply_section_boost(query: str, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Use hierarchical section metadata to reduce irrelevant RAG matches.
+
+    A section heading is a compact semantic prior (for example, "Records and
+    privacy"). When its meaningful terms overlap the query, the chunk gets a
+    bounded ranking lift without bypassing the normal grounding threshold.
+    """
+    query_terms = _title_tokens(query)
+    if not query_terms:
+        return hits
+    for hit in hits:
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        section_terms = _title_tokens(str(metadata.get("section_title", "")))
+        if not section_terms:
+            continue
+        overlap = len(query_terms & section_terms) / len(query_terms)
+        if overlap >= 0.25:
+            hit["score"] = min(1.0, float(hit.get("score", 0.0)) + 0.12 * overlap)
+    hits.sort(key=lambda h: h.get("score", 0.0), reverse=True)
+    return hits
+
+
 def _apply_active_policy_version_filter(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Collapse policy conflicts using temporal metadata, then filename fallback.
 
@@ -162,7 +184,20 @@ _LOCAL_CONFIDENCE_FLOOR = 0.35
 
 def _review_threshold() -> float:
     """Confidence floor below which an answer is flagged for human review."""
-    return _LOCAL_CONFIDENCE_FLOOR if active_backend() == "local" else settings.confidence_threshold
+    from core.runtime_settings import runtime_settings
+
+    threshold = (
+        settings.confidence_threshold
+        if not runtime_settings.active
+        else (
+            settings.confidence_threshold
+            if runtime_settings.value("human_review_required", True)
+            else 0.0
+        )
+    )
+    if runtime_settings.active and not runtime_settings.value("human_review_required", True):
+        return 0.0
+    return _LOCAL_CONFIDENCE_FLOOR if active_backend() == "local" else threshold
 
 
 def active_backend() -> str:
@@ -198,6 +233,7 @@ async def retrieve(query: str, top_k: int | None = None) -> list[dict[str, Any]]
     k = top_k or settings.retrieval_top_k
     hits = await _vector_search(query, max(k, 12))
     hits = _apply_title_boost(query, hits)
+    hits = _apply_section_boost(query, hits)
     hits = _apply_active_policy_version_filter(hits)
     return hits[:k]
 

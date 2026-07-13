@@ -57,7 +57,7 @@ cd backend
 export LLM_PROVIDER=fireworks
 export FIREWORKS_API_KEY=...
 export FIREWORKS_BASE_URL=https://api.fireworks.ai/inference/v1
-export ALLOWED_MODELS=accounts/fireworks/models/deepseek-v3p1
+export ALLOWED_MODELS=accounts/fireworks/models/kimi-k2p6
 export FIREWORKS_EVIDENCE_DIR=hackathon-evidence/fireworks-run-001
 python -m scripts.verify_hackathon_env --mode fireworks-auth
 python -m scripts.fireworks_smoke --enable-cost-tracking

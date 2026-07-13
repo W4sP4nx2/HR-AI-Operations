@@ -1,4 +1,4 @@
-"""FastAPI application entrypoint for the HR AI Command Center.
+"""FastAPI application entrypoint for Govern.ai.
 
 Wires together:
   * CORS for the Next.js frontend (localhost:3000 and the local preview on
@@ -29,22 +29,27 @@ from starlette.middleware.sessions import SessionMiddleware
 from agents.onboarding_agent import onboarding_agent
 from agents.triage_agent import triage_agent
 from api.responses import ok
+from api.routes import a2a as a2a_routes
 from api.routes import agents as agents_routes
 from api.routes import audit as audit_routes
 from api.routes import auth as auth_routes
 from api.routes import byok as byok_routes
 from api.routes import cases as cases_routes
 from api.routes import chat as chat_routes
+from api.routes import crews as crews_routes
 from api.routes import feedback as feedback_routes
 from api.routes import lifecycle as lifecycle_routes
 from api.routes import metrics as metrics_routes
+from api.routes import osint as osint_routes
 from api.routes import policies as policies_routes
+from api.routes import settings as settings_routes
 from api.routes import webhooks as webhooks_routes
 from api.websocket_manager import manager
 from core.config import settings
 from core.memory import memory
 from core.observability import record_http, render_metrics
 from core.runtime_key import byok_supported, llm_active, llm_config_issues, llm_provider
+from core.runtime_settings import runtime_settings
 
 _SECRET_CONFIG_TOKENS = ("key", "secret", "password", "token")
 
@@ -66,6 +71,11 @@ def _byok_capable_request(method: str, path: str) -> bool:
         and parts[0] == "agents"
         and bool(parts[1])
         and parts[2:] == ["trigger", "upload"]
+    ) or (
+        len(parts) == 4
+        and parts[:2] == ["crews", "hierarchical"]
+        and bool(parts[2])
+        and parts[3] == "run"
     )
 
 
@@ -102,6 +112,7 @@ async def lifespan(_app: FastAPI):
     """Startup: wire broadcasters, seed agent rows, warn on insecure prod config."""
     onboarding_agent.set_broadcaster(manager.broadcast)
     triage_agent.set_broadcaster(manager.broadcast)
+    await runtime_settings.load()
     for entry in agents_routes.AGENT_REGISTRY:
         await memory.upsert_agent(entry["name"], status="idle", last_action="initialised")
 
@@ -128,9 +139,9 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="HR AI Command Center",
+    title="Govern.ai",
     version="1.0.0",
-    description="Multi-agent HR operations control plane.",
+    description="Governed HR operations layer with auditable agent workflows.",
     lifespan=lifespan,
 )
 
@@ -282,13 +293,17 @@ async def _rate_limit(request, call_next):
 app.include_router(auth_routes.router)
 app.include_router(byok_routes.router)
 app.include_router(agents_routes.router)
+app.include_router(a2a_routes.router)
 app.include_router(cases_routes.router)
 app.include_router(feedback_routes.router)
 app.include_router(lifecycle_routes.router)
 app.include_router(audit_routes.router)
 app.include_router(chat_routes.router)
+app.include_router(crews_routes.router)
 app.include_router(metrics_routes.router)
+app.include_router(osint_routes.router)
 app.include_router(policies_routes.router)
+app.include_router(settings_routes.router)
 app.include_router(webhooks_routes.router)
 
 

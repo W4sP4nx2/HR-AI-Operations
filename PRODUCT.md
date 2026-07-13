@@ -1,4 +1,4 @@
-# Product Direction
+# Govern.ai product direction
 
 This document defines who the product serves and where its boundaries sit.
 Current implementation status belongs in [README.md](./README.md); trust
@@ -97,3 +97,24 @@ into a role-scoped product. The split is configuration, not a separate build.
 
 See [MISSION.md](./MISSION.md) for principles and [COMPLIANCE.md](./COMPLIANCE.md)
 for how the access model maps to privacy obligations.
+
+## 6. Flagship workflow and integration boundary
+
+**Auditable Resume Review** is the flagship proof of the Govern.ai operating
+layer. The workflow is:
+
+```text
+resume intake → identity blinding → structured profile → policy guard
+→ transparent advisory rubric → explanation → human approval → audit
+```
+
+The extractor and policy guard are independently addressable A2A-shaped HTTP
+roles (`/a2a/agents/.../rpc`) and exchange certified, PII-safe artifacts. The
+current demo proves two endpoints in one service; it does not claim remote
+federation or two separately deployed services. See
+[A2A_TECHNICAL_PLAN.md](./A2A_TECHNICAL_PLAN.md).
+
+CrewAI is an optional bounded narrative adapter around already blinded data.
+LangSmith is an optional redacted trace/evaluation sink. Neither framework is
+the authorization source, audit system of record, or hiring decision-maker. See
+[INTEGRATIONS.md](./INTEGRATIONS.md) for the concrete use cases and gates.

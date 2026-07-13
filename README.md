@@ -1,11 +1,12 @@
-# HR AI Command Center
+# Govern.ai
 
-![HR AI Command Center governance command center hero](./docs/assets/hr-command-center-hero-raster.png)
+![Govern.ai governed HR operations dashboard hero](./docs/assets/hr-command-center-hero-raster.png)
 
-> **An open-source control plane for governed HR agent workflows.** It routes
-> tickets, answers questions from versioned policy evidence, screens resumes,
-> coordinates onboarding, and produces attrition advisories. Sensitive outcomes
-> remain reviewable, auditable, and reversible.
+> **A governed HR operations layer for recruiting and people teams.** It
+> coordinates specialized agents, grounds work in policy, and keeps sensitive
+> decisions under human control. Auditable Resume Review is the flagship
+> workflow: resumes become structured, blinded, rubric-scored review packets
+> with human approval and audit evidence.
 
 > **Demo status:** no hosted demo URL is claimed. The former hosted demo path is
 > retired; run the local Docker Compose stack or the AMD overlay described below.
@@ -15,18 +16,18 @@
 > stored, logged, or written to the database. Without a key, every feature still
 > works in deterministic fallback mode.
 
-A FastAPI backend orchestrates five specialised agents plus a Pydantic AI
-assistant over a RAG pipeline backed by **Postgres + pgvector**. A Next.js 16
-dashboard provides authentication, RBAC, policy management, fleet monitoring,
-case workflows, human approvals, audit evidence, analytics, and asynchronous
-Fireworks Batch status. Docker Compose is the local/demo runtime; Fireworks
-Serverless is the hosted inference path when explicitly configured.
+Govern.ai's FastAPI backend runs five specialised agents and a Pydantic AI
+assistant over a RAG pipeline backed by **Postgres + pgvector**. The Next.js 16
+dashboard handles authentication, RBAC, policy management, fleet monitoring,
+case workflows, human approvals, audit evidence, analytics, and Fireworks Batch
+status. Docker Compose runs the local demo; Fireworks Serverless is available
+when hosted inference is explicitly configured.
 
-The common product rule is simple: **Fleet acts, policy evidence grounds, and
-governance controls.** Deterministic workflows remain usable without a model;
-allowlisted Fireworks or self-hosted AMD inference adds capability when it is
-explicitly configured. The system supports human decisions and never performs
-autonomous adverse employment actions.
+The operating rule is simple: **agents act, policy evidence grounds the work,
+and governance stays in control.** Deterministic workflows remain usable without
+a model. Allowlisted Fireworks or self-hosted AMD inference adds capability only
+when it is explicitly configured. The system supports human decisions and never
+performs autonomous adverse employment actions.
 
 Authentication has three separate trust boundaries: the application JWT proves
 the user's identity and role; a Fireworks key funds hosted inference (server
@@ -52,6 +53,22 @@ In a second terminal, verify the running preview:
 ```bash
 make preview-check
 ```
+
+For a judge-ready Docker run that seeds synthetic policies, cases, chat
+context, and the agent fleet automatically:
+
+```bash
+# Terminal 1
+make judge-demo
+
+# Terminal 2
+make judge-demo-check
+```
+
+Open `http://127.0.0.1:3000` and follow
+[HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md). This overlay is
+deterministic and zero-spend; Fireworks and AMD/Gemma remain explicitly
+`live_gated` until their credentialed/runtime evidence gates pass.
 
 Useful release checks:
 
@@ -112,70 +129,64 @@ treated as dedicated-deployment candidates.
 
 ## Provider-Orchestrated Product Core
 
-The hackathon thesis is not "one chatbot calls one model." The backend now
-models hosted and self-hosted inference as a governed capability layer with
-explicit serving primitives: streaming, JSON schema, tool calling, reasoning,
-vision, embeddings, prompt-cache locality, and Batch. Fireworks' current docs
+This is not a chatbot front end with one model behind it. The backend treats
+hosted and self-hosted inference as a governed capability layer with explicit
+serving primitives: streaming, JSON schema, tool calling, reasoning, vision,
+embeddings, prompt-cache locality, and Batch. Fireworks' current docs
 recommend choosing models by workload class, and the quickstart documents
 OpenAI-compatible streaming, function calling, structured outputs, reasoning,
 and vision requests:
 [recommended models](https://docs.fireworks.ai/guides/recommended-models) and
 [serverless quickstart](https://docs.fireworks.ai/getting-started/quickstart).
 
-The implementation rule remains strict: **no model ID is a code default**.
-`backend/agents/a2a_cards.py` records model-family preferences such as `flash`,
-`qwen`, `kimi`, `deepseek`, `reason`, `vision`, `gemma`, and `gamma`; concrete
-selection happens in `backend/agents/orchestrator.py` from `ALLOWED_MODELS`
-only. If your Fireworks project uses a Gemma/Gamma-family model, put its exact
-Fireworks model ID in `ALLOWED_MODELS`; the resume/VLM card will prefer that
-family without hardcoding it.
+The rule is strict: the single orchestrator selects only models injected through
+`ALLOWED_MODELS`. `CostRouter` chooses the cheapest sufficient tier, the semantic
+cache handles repeats, `FireworksOutputCertifier` validates output, and the audit
+service records the material decision. The integrated Gemma target is multimodal
+and **Deploy-on-Demand, not Serverless**. Configure it through
+`FIREWORKS_GEMMA_MODEL`; keep a separate allowlisted Serverless-compatible
+`FIREWORKS_BATCH_MODEL` for Batch and standard online workloads.
 
-| Product feature | Fireworks primitive | Backend building block | Cross-team A2A handoff |
-|---|---|---|---|
-| Real-time HR ops intake | Streaming + JSON schema | `triage_agent` card, `/agents/orchestrator/plan`, SSE chat stream | HR Ops → People Policy or Onboarding |
-| Policy Q&A and retention support | Tool calling + prompt cache + structured output | RAG over pgvector, `FireworksOutputCertifier`, citation checks | People Policy → Retention Resolver |
-| Resume screening | Vision + Batch + JSON schema | `resume_screener_agent`, `build_resume_vision_body`, certified Batch outputs | Recruiting → Skill Validator |
-| Attrition advisory | Reasoning + Batch + JSON schema | sklearn score plus reasoning-path narrative contract | People Analytics → Policy Q&A |
-| Onboarding workflow | Tool calling + schema-bound state | LangGraph checkpoint and human approval gate | HR Ops → IT/account tools |
-| Governance dashboard | Certified A2A envelopes + cost telemetry | `/lifecycle/fireworks`, `/lifecycle/hallucination_metrics` | Audit, security, and ops review |
+![Fireworks and AMD two-plane topology](./docs/diagrams/fireworks-amd-two-plane.png)
 
-The orchestrator exposes every agent as an OpenAI-compatible tool description,
-including serving path, Fireworks primitives, cost posture, risk posture, and
-human-review triggers. This gives the system a concrete A2A collaboration
-contract: agents do not hand off raw text; they hand off certified envelopes
-with model route, cost tier, cross-agent consistency metadata, and certifier
-evidence.
+| Product feature | Serving path | Visible control |
+|---|---|---|
+| Real-time HR intake | Fast | selected model, cost tier, fallback state, audit event |
+| Policy Q&A | Standard | cache hit, citations, certification, audit event |
+| Resume screening | Batch or Gemma deploy-on-demand | route, human-review flag, advisory result |
+| Attrition advisory | Standard or Batch | cost tier, review requirement, audit event |
+| Onboarding | Standard | explicit approval checkpoint and audit history |
+| Governance dashboard | Local observability | cost attribution, cache rate, certification, audit export |
+
+The orchestrator returns one privacy-safe product result. It does not expose
+agent cards or inter-agent envelopes. The visible result contains the selected
+serving path and model, cost tier, cache state, certification status, audit event,
+fallback mode, and human-review requirement.
 
 ```mermaid
-flowchart TD
-    UI["Next.js HR dashboard"] --> ORCH["Orchestrator Agent<br/>A2A cards as tools"]
-    ORCH -->|"stream + json_schema"| TRIAGE["Triage<br/>HR Ops Intake"]
-    ORCH -->|"tool_calling + prompt_cache"| POLICY["Policy Q&A<br/>People Policy"]
-    ORCH -->|"vision + batch"| RESUME["Resume Screener<br/>Recruiting"]
-    ORCH -->|"reasoning + batch"| ATTRITION["Attrition Advisory<br/>People Analytics"]
-    ORCH -->|"tool_calling + checkpoint"| ONBOARD["Onboarding<br/>HR Ops"]
-    TRIAGE --> ENV["Certified A2A Envelope"]
-    POLICY --> ENV
-    RESUME --> ENV
-    ATTRITION --> ENV
-    ONBOARD --> ENV
-    ENV --> AUDIT["Redacted audit, hallucination metrics, cost telemetry"]
-    ENV --> HUMAN["Human review for low confidence, disagreement, or sensitive action"]
+flowchart LR
+    UI["Next.js HR dashboard"] --> ORCH["Single orchestrator"]
+    ORCH --> ROUTE["Fast · Standard · Batch · Gemma DOD"]
+    ROUTE --> COST["Cost router + semantic cache"]
+    COST --> MODEL["Allowlisted provider model"]
+    MODEL --> CERT["Output certifier"]
+    CERT --> AUDIT["Audit + visible telemetry"]
+    CERT --> HUMAN["Human review when required"]
 ```
 
 No-key validation:
 
 ```bash
 cd backend
-ALLOWED_MODELS="accounts/fireworks/models/deepseek-v3p1" \
+ALLOWED_MODELS="accounts/fireworks/models/kimi-k2p6" \
 python3 - <<'PY'
 from agents.orchestrator import build_orchestration_plan
 
 plan = build_orchestration_plan(
-    "resume_analysis",
-    {"image_urls": ["data:image/png;base64,AAAA"], "prompt": "Extract this scanned resume."},
+    "policy_qa",
+    {"query": "What is the leave policy?"},
 )
-print(plan.selected_agent, plan.dispatch_mode, plan.selected_model)
+print(plan.serving_path, plan.cost_tier, plan.selected_model)
 PY
 ```
 
@@ -183,13 +194,11 @@ Follow-up gates:
 
 - Live smoke: run `python3 backend/scripts/fireworks_smoke.py --enable-cost-tracking`
   only after `FIREWORKS_API_KEY`, `FIREWORKS_BASE_URL`, and `ALLOWED_MODELS` are set.
-- Product UI: surface `/agents/orchestrator/plan` beside each manual agent trigger
-  so judges can see the selected Fireworks primitive before execution.
+- Product UI: surface `/lifecycle/fireworks` and the orchestration plan so judges
+  can see route, cost, cache, certification, audit, and fallback state.
 - Benchmarks: report TTFT, tokens/sec, JSON schema pass rate, batch completion
   time, and certification failure rate; do not publish AMD performance claims
   without named hardware and captured evidence.
-- A2A expansion: keep the current in-process envelope contract, then replace one
-  edge at a time with remote A2A once the Agent Card/task lifecycle is stable.
 
 ## Implementation status
 
@@ -205,16 +214,16 @@ Follow-up gates:
 | hipVS vector search | **Experiment only** | Not integrated |
 | SFT/RLHF | **Not implemented** | Feedback is collected for analysis but never trains or steers a model automatically |
 
-Published performance claims require committed benchmark artifacts. The project
-does **not** currently claim 10x retrieval, 5x resume throughput, 40% lower cost,
+Performance claims require committed benchmark artifacts. The project does
+**not** currently claim 10x retrieval, 5x resume throughput, 40% lower cost,
 99.99% availability, 10,000 concurrent users, or production fine-tuning.
 
 ## Documentation map
 
-`README.md` is the current-state contract. [MISSION.md](./MISSION.md) defines the
-non-negotiable principles, [PRODUCT.md](./PRODUCT.md) defines users and product
-boundaries, and the implementation/evidence documents must agree with those
-three sources. Dated reports are snapshots, not statements about the current
+`README.md` is the current-state contract. [MISSION.md](./MISSION.md) defines
+the non-negotiable principles, [PRODUCT.md](./PRODUCT.md) defines users and
+product boundaries, and implementation/evidence documents should agree with
+those sources. Dated reports are snapshots, not descriptions of the current
 worktree.
 
 | Doc | What |
@@ -223,6 +232,10 @@ worktree.
 | [MISSION.md](./MISSION.md) · [PRODUCT.md](./PRODUCT.md) | Shared vision, users, boundaries and product direction |
 | [CONTEXT.md](./CONTEXT.md) | Compact assistant handoff context for Qwen/Codex without token overload |
 | [IMPLEMENTATION.md](./IMPLEMENTATION.md) · [PITCH.md](./PITCH.md) | Current engineering map and concise project narrative |
+| [ARCHITECTURE_PLAYBOOK.md](./ARCHITECTURE_PLAYBOOK.md) | Current runtime topology, agent playbooks, tested calculations, evidence boundaries and vLLM/CrewAI/LangSmith roadmap |
+| [FIREWORKS_USAGE_EVAL.md](./FIREWORKS_USAGE_EVAL.md) | Fireworks model-selection argument, token/cost surfaces, rate-limit semantics, guardrails and evaluation gates |
+| [HACKATHON_PITCH_WALKTHROUGH.md](./HACKATHON_PITCH_WALKTHROUGH.md) | Evidence-bounded use cases, five-minute demo script, backup branches and judge-safe claims |
+| [HACKATHON_SUBMISSION.md](./HACKATHON_SUBMISSION.md) | Single-command seeded container, automated walkthrough gate, and submission wording |
 | [CLAIMS.md](./CLAIMS.md) | Judge-facing claim ledger for Fireworks powered auth, Gemma/Gamma powered routing, and AMD powered deployment evidence |
 | [HACKATHON_JUDGE_BRIEF.md](./HACKATHON_JUDGE_BRIEF.md) | One-page judge brief with thesis, demo moments, evidence commands and safe wording |
 | [HACKATHON_GEMMA_AMD_DEPLOYMENT.md](./HACKATHON_GEMMA_AMD_DEPLOYMENT.md) | Fireworks auth profile, AMD-hosted Gemma deployment path, judge winpoints and evidence pack |
@@ -242,7 +255,7 @@ worktree.
 | [MODEL_CARDS.md](./MODEL_CARDS.md) | Per-agent model cards (EU AI Act / LL144) |
 | [BASELINE_MODELS.md](./BASELINE_MODELS.md) | Three CPU-safe baselines, metrics, limitations and discard gates |
 | [GENAI_LIFECYCLE.md](./GENAI_LIFECYCLE.md) | Inputs, transformations, prompts, scoring, labels and lifecycle stages |
-| [DATA_ENGINEERING_ARCHITECTURE.md](./DATA_ENGINEERING_ARCHITECTURE.md) | ETL/data lifecycle, calculations, A2A relationships, environment promotion and evidence boundaries |
+| [DATA_ENGINEERING_ARCHITECTURE.md](./DATA_ENGINEERING_ARCHITECTURE.md) | ETL/data lifecycle, calculations, workflow relationships, environment promotion and evidence boundaries |
 | [notebooks/hr_governance_etl_validation.ipynb](./notebooks/hr_governance_etl_validation.ipynb) | Executable synthetic ETL and governance validation walkthrough |
 | [PLATFORM_OPERATIONS.md](./PLATFORM_OPERATIONS.md) | GPU scaling, GitOps, observability, security and multi-pod operations |
 | [GPU_OPTIMIZATION.md](./GPU_OPTIMIZATION.md) | Batch ingestion, portable Triton design, benchmark gates and pending results |
@@ -319,26 +332,26 @@ flowchart LR
     C --> P[("Postgres + pgvector")]
 ```
 
-The frontend and API containers are stateless deployment targets. Postgres is
-the authoritative datastore in production; SQLite remains a local-development
-mode. The Kubernetes manifests are retained as future-state templates and are
-not part of the current demo or hackathon acceptance path.
+The frontend and API containers are stateless. Postgres is the authoritative
+production datastore; SQLite remains available for local development. The
+Kubernetes manifests are future-state templates, not part of the current demo
+or hackathon acceptance path.
 
 ## Anti-Hallucination Architecture
 
 Hallucination in HR AI is treated as a compliance failure, not a cosmetic model
-mistake. The product uses a triple-lock path before an answer reaches another
-agent or the UI:
+mistake. The product uses a triple-lock path before an answer reaches the UI or
+a human workflow:
 
 | Layer | Enforcement | Failure behavior |
 | --- | --- | --- |
 | Schema enforcement | `ChatResponse` and Pydantic AI structured output enforce required fields, `max_length=500`, confidence bounds, and enum values. | Invalid model shape is rejected before it becomes a user-facing answer. |
-| Certification enforcement | `FireworksOutputCertifier` re-validates JSON schema, checks PII with regex fallback, extracts confidence, and redacts unsafe payloads. | Failed certification produces an empty A2A payload, so the next agent receives `{}` instead of garbage. |
+| Certification enforcement | `FireworksOutputCertifier` re-validates JSON schema, checks PII with regex fallback, extracts confidence, and redacts unsafe payloads. | Failed certification blocks the response and records a visible failure instead of returning unsafe output. |
 | RAG grounding enforcement | Policy Q&A retrieves top-k policy chunks through pgvector/vector backends, requires citations, and stores source policy IDs in governed chat output. | Missing citations lower confidence and trigger human review instead of fabricated policy guidance. |
 
-Triple-lock guarantee: a hallucinated response must bypass schema validation,
-pass certification, and fabricate valid policy citations before it can be
-accepted. Runtime evidence is exposed at `/lifecycle/hallucination_metrics`:
+For a hallucinated response to be accepted, it would have to bypass schema
+validation, survive certification, and carry valid-looking policy citations.
+Runtime evidence is exposed at `/lifecycle/hallucination_metrics`:
 certification failure rate by agent, human override/rejection rate, citation
 completeness, and PII leak incidents.
 
@@ -346,10 +359,9 @@ completeness, and PII leak incidents.
 flowchart LR
     LLM["LLMs / Fireworks structured output"] --> P["Pydantic schema lock"]
     P --> C["FireworksOutputCertifier"]
-    C --> A2A["Certified A2A Envelope"]
-    A2A --> Crew["CrewAI task wrappers"]
-    A2A --> RAG["Policy RAG + pgvector HNSW"]
-    Crew --> LS["LangSmith cost + trace metadata"]
+    C --> R["Single orchestrator result"]
+    R --> RAG["Policy RAG + pgvector HNSW"]
+    R --> LS["Cost + trace metadata"]
     RAG --> Pipe["HR pipelines: triage, policy, retention, resumes"]
     Pipe --> H["Human review on low confidence, disagreement, or PII"]
     H --> Audit["Redacted audit + hallucination metrics"]
@@ -358,10 +370,9 @@ flowchart LR
 Key connections:
 - LLMs produce structured JSON, but Pydantic and the certifier decide whether it
   is usable.
-- A2A envelopes carry certification, cost, latency, model route, and
-  cross-agent consistency metadata.
-- CrewAI and LangSmith are observability/adaptation layers; they do not bypass
-  certification.
+- The orchestrator result exposes certification, cost, model route, cache state,
+  audit evidence, and the human-review requirement.
+- Observability layers do not bypass certification.
 - RAG citations are product evidence. Answers without source policy IDs become
   reviewable, not authoritative.
 - The real-time budget circuit breaker forces economy routing and extends cache
@@ -417,12 +428,17 @@ shows how those controls fit into delivery, runtime, observability, and release.
 | **Policy Q&A** | LangGraph `StateGraph` | RAG over HR policy PDFs in **pgvector** (top-k cosine via the RAG service). Returns answer, source documents, a confidence score and a `needs_review` flag; refuses prompt-injection; logs every query to the audit table. |
 | **Onboarding Orchestrator** | LangGraph | `validate → create_accounts → assign_training → [human checkpoint] → send_welcome_email → notify_manager`. State persists to SQLite; pauses for human approval and emits a WebSocket event. |
 | **Resume Screener** | CrewAI (3 agents) | JD Parser → Resume Scorer → Recommendation. Uses sentence-transformers for semantic similarity. Returns `{score, recommendation, reasoning, matched_skills, missing_skills}`. |
-| **Triage** | CrewAI | Classifies tickets into BENEFITS / POLICY / ONBOARDING / PERFORMANCE / COMPLIANCE / URGENT. URGENT → human; POLICY → auto-resolved via RAG. |
+| **Triage** | Pydantic AI + deterministic fallback | Classifies tickets into BENEFITS / POLICY / ONBOARDING / PERFORMANCE / COMPLIANCE / URGENT. URGENT → human; POLICY → auto-resolved via RAG. |
 | **Attrition Predictor** | scikit-learn | `RandomForestClassifier` on six features; returns risk score + top factors, with an optional provider-generated explanation. Trains on synthetic data at startup. |
 
 Agent outputs are advisory. Resume recommendations and attrition scores cannot
 perform automated rejection, termination, compensation, or other adverse
 employment actions.
+
+The expanded multi-format parser, strict `ExtractedResume` contract, skill
+ontology, quality gates, and consent-gated professional-source boundary are
+documented in [RESUME_PIPELINE.md](./RESUME_PIPELINE.md). OSINT is disabled by
+default and never produces an autonomous employment decision.
 
 ## Project layout
 
@@ -522,6 +538,14 @@ bound temperature, top-k, retries, token budgets and timeouts. Fireworks
 sampling controls improve repeatability but do not replace schema validation,
 policy citations, confidence thresholds, or human review.
 
+The Analytics view separates provider-response token counts from local dollar
+estimates. Fireworks rated usage is exported with
+`firectl billing export-metrics` (maximum 31 days per export); the app does not
+pretend that configured credentials are already imported billing data. The
+displayed ~35% blended saving is an illustrative scenario using a disclosed mix
+of Batch, eligible cached input, and measured retry avoidance—not an achieved
+claim until a billing export validates it.
+
 Prepare and submit an asynchronous job:
 
 ```bash
@@ -545,10 +569,15 @@ python -m scripts.fireworks_batch_job watch \
 
 The dashboard can inspect a known job and displays normalized
 `validating/pending/running/completed/failed/expired/cancelled` states. Batch
-submission remains an operator action rather than a browser-accessible bulk-data
-upload. The monitor persists status and counts, not candidate content. Review
+submission is available through the manager-gated API below, limited to 50
+records per request. The monitor persists status and counts, not candidate
+content. Review
 model compatibility and current behaviour in the
 [official Fireworks Batch documentation](https://docs.fireworks.ai/guides/batch-inference).
+
+Batch route status, record counts, cost evidence, and failures are exposed in
+the lifecycle and Analytics surfaces; candidate content is not persisted in
+telemetry.
 
 ## AMD and pipeline optimization
 
@@ -633,6 +662,7 @@ and a capability being unavailable.
 | GET | `/agents` | All agents with live status, last action, run counts |
 | POST | `/agents/{name}/trigger` | Manually invoke an agent (JSON `{input, payload}`) |
 | POST | `/agents/{name}/trigger/upload` | Invoke from typed text, a **PDF** attachment, or a **URL** to scrape (multipart) |
+| POST | `/agents/orchestrator/plan` | Return the visible route, cost, cache, certification, audit, fallback, and human-review decision without a provider call |
 | POST | `/webhooks/{source}` | Inbound trigger from external systems (ATS, ticketing, forms) |
 | GET | `/cases` | List HR cases (filter by `category`, `status`) |
 | POST | `/cases` | Create a case |
@@ -679,13 +709,19 @@ All settings load from the environment via `pydantic-settings` (`backend/core/co
 | `FIREWORKS_SESSION_AFFINITY` | `true` | Hashed session routing for prompt-cache locality |
 | `FIREWORKS_CONTROL_BASE_URL` | — | HTTPS Batch management API base |
 | `FIREWORKS_ACCOUNT_ID` | — | Batch account identifier |
+| `FIREWORKS_BATCH_MODEL` | — | Allowlisted Serverless/Batch-compatible model; do not use the DOD-only Gemma target |
 | `FIREWORKS_VISION_MODEL` | — | Optional allowlisted VLM for scanned resumes |
+| `FIREWORKS_GEMMA_MODEL` | — | Exact DOD target: `accounts/fireworks/models/gemma-4-26b-a4b-it`; must also be allowlisted |
+| `FIREWORKS_SERVING_MODE` | `serverless` | Set `deploy_on_demand` only when the Gemma deployment endpoint is configured |
+| `FIREWORKS_RESUME_MODEL` | — | Optional allowlisted structured resume/Gemma model |
 | `AMD_VLLM_BASE_URL` | — | OpenAI-compatible AMD/vLLM endpoint for the judged Gemma route |
 | `AMD_VLLM_API_KEY` | — | Service key for the AMD/vLLM endpoint |
 | `AMD_VLLM_SERVED_MODEL` | — | Served Gemma-family model name; must also appear in `ALLOWED_MODELS` |
 | `AMD_RUNTIME_EVIDENCE_FILE` | — | JSON captured by `scripts/capture_amd_runtime_evidence.py` and verified before AMD claims |
 | `ENABLE_RESUME_VLM` | `false` | Explicitly allow scanned resume page images to leave the instance |
 | `RESUME_VLM_MAX_PAGES` | `10` | Bound pages rendered into one VLM request |
+| `OSINT_ENABLED` | `false` | Opt-in only after consent, legal, and retention review |
+| `OSINT_ALLOWED_DOMAINS` | `github.com,orcid.org` | HTTPS source allow-list for reviewed observations |
 | `ENABLE_RAG` | `true` | Enable retrieval-augmented policy answers |
 | `VECTOR_BACKEND` | auto | `pgvector`, `local`, or explicitly pinned `qdrant` |
 | `ENABLE_GPU_KERNELS` | `false` | Opt in only after the kernel integration gates pass |

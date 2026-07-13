@@ -91,13 +91,13 @@ def test_pregnancy_ignored_in_scoring() -> None:
 
 
 def test_screener_never_auto_rejects() -> None:
-    """Output is a recommendation, never an automated rejection (human-in-the-loop)."""
+    """Output is an advisory fit label, never an automated rejection."""
     res_score = _score("Sam Carter")
     assert isinstance(res_score, int)
     from agents.resume_screener_agent import resume_screener_agent
 
     res = asyncio.run(resume_screener_agent.run(JD, f"Name: Sam Carter\n{BASE_RESUME}"))
-    assert res["recommendation"] in ("hire", "no-hire")  # advisory, not "rejected"
+    assert res["recommendation"] in ("strong_fit", "review_recommended")
     assert res["blinded"] is True
 
 

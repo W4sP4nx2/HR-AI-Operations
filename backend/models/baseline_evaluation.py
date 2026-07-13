@@ -40,8 +40,8 @@ RESUME_GOLDEN: tuple[tuple[tuple[str, ...], tuple[str, ...], int, str], ...] = (
     (("aws", "terraform"), ("aws", "terraform", "linux"), 1, "cloud_match"),
     (("kubernetes",), ("docker", "compose"), 0, "missing_orchestrator"),
     (("c++", "linux"), ("c++", "linux", "cmake"), 1, "systems_match"),
-    # Lexical overlap cannot understand negation. This is an expected failure
-    # and the reason the product keeps the separate skill-validation guard.
+    # The deterministic baseline uses a conservative nearby-negation guard;
+    # keep this case in the golden set so a regression is visible.
     (
         ("python", "langgraph"),
         ("never", "used", "python", "langgraph"),
@@ -268,10 +268,10 @@ def evaluate_resume_overlap() -> dict[str, Any]:
         "samples": len(labels),
         "average_precision": average_precision,
         "scores_by_case": by_case,
-        "known_failure": {
+        "negation_guard": {
             "case": "negation_trap",
             "score": by_case["negation_trap"],
-            "reason": "lexical overlap does not establish demonstrated experience",
+            "reason": "nearby negation removes unsupported skill evidence",
         },
         "gate": average_precision >= 0.70,
     }

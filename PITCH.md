@@ -1,12 +1,12 @@
 # Project Pitch
 
-![HR AI Command Center governance command center hero](./docs/assets/hr-command-center-hero-raster.png)
+![Govern.ai governed HR operations dashboard hero](./docs/assets/hr-command-center-hero-raster.png)
 
 ## One sentence
 
-**HR AI Command Center is an open-source control plane where specialized agents
-act, policy evidence grounds their work, and governance keeps sensitive HR
-decisions human-reviewed and auditable.**
+**Govern.ai is a governed HR operations layer where specialized agents act,
+policy evidence grounds their work, and sensitive HR decisions stay
+human-reviewed and auditable.**
 
 ## The problem
 
@@ -40,6 +40,8 @@ Provider hosts and models are injected and allowlisted.
   unavailability.
 - Human checkpoints, PII controls, RBAC modes and append-only audit evidence.
 - Visible asynchronous Batch lifecycle rather than fake synchronous progress.
+- Token-cost and serverless usage telemetry that distinguishes local estimates
+  from real Fireworks account billing.
 - Portable PyTorch plus optional Triton kernels governed by named-hardware
   correctness and end-to-end performance gates.
 - Docker Compose for the evaluation path; Fireworks Serverless for hosted
@@ -61,9 +63,12 @@ still required before claiming live provider compatibility.
 1. Enter the open-access sandbox without credentials and choose a seeded persona.
 2. Ask a policy question and inspect its evidence.
 3. Triage an urgent case and show human escalation.
-4. Submit or inspect a Fireworks Batch job in visible `PENDING` state.
-5. Pause onboarding for approval, then show the audit record.
-6. Close on the platform risk-control diagram and the evidence boundary.
+4. Open Analytics and show the Dynamic Capability Engine plus Token Cost &
+   Serverless Usage: local estimates are visible, Fireworks billing export is
+   credential-gated, and no live provider call is claimed without evidence.
+5. Submit or inspect a Fireworks Batch job in visible `PENDING` state.
+6. Pause onboarding for approval, then show the audit record.
+7. Close on the platform risk-control diagram and the evidence boundary.
 
 ## Honest stage
 

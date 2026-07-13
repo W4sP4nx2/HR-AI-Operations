@@ -48,7 +48,19 @@ def test_hackathon_dataset_generator_creates_required_traps(tmp_path):
         str(tmp_path / "poisoned_policies" / "policy_pto_2024.pdf"),
         doc_id="policy_pto_2024",
     )
-    assert pto_chunks[0]["metadata"] == {
+    metadata = pto_chunks[0]["metadata"]
+    assert {
+        key: metadata[key]
+        for key in {
+            "source",
+            "effective_date",
+            "expires_on",
+            "status",
+            "policy_family",
+            "policy_version",
+            "chunk_index",
+        }
+    } == {
         "source": str(tmp_path / "poisoned_policies" / "policy_pto_2024.pdf"),
         "effective_date": "2024-01-01",
         "expires_on": "",
@@ -57,6 +69,8 @@ def test_hackathon_dataset_generator_creates_required_traps(tmp_path):
         "policy_version": 2024,
         "chunk_index": 0,
     }
+    assert metadata["chunk_strategy"] == "fixed"
+    assert metadata["chunking_plan"]["goal"] == "policy_retrieval"
 
     ats_rows = _read_csv(outputs["adverse_impact_ats"])
     assert len(ats_rows) == 400

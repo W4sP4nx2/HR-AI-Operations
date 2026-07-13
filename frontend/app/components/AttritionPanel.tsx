@@ -21,7 +21,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Loader2, Gauge, ShieldCheck, AlertTriangle, Info, Check, X } from "lucide-react";
+import { Loader2, Gauge, ShieldCheck, AlertTriangle, Info, Check, X, BriefcaseBusiness } from "lucide-react";
 import {
   api,
   type AttritionFeatures,
@@ -225,6 +225,34 @@ export default function AttritionPanel() {
               </div>
             )}
 
+            {result.business_impact && (
+              <section className="rounded-xl border border-brand-purple/15 bg-brand-purple/[0.04] p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-purple">
+                  <BriefcaseBusiness size={14} /> Business impact
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-brand-purple/10 bg-white px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wide text-ink-700/50">Potential replacement cost</div>
+                    <div className="mt-1 text-lg font-semibold text-brand-purple">
+                      {currency(result.business_impact.estimated_replacement_cost_usd)}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-brand-purple/10 bg-white px-3 py-2">
+                    <div className="text-[10px] uppercase tracking-wide text-ink-700/50">Risk-adjusted exposure</div>
+                    <div className="mt-1 text-lg font-semibold" style={{ color: band.color }}>
+                      {currency(result.business_impact.risk_adjusted_exposure_usd)}
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm font-medium text-ink-800">
+                  Recommended action: {result.business_impact.recommended_action}
+                </p>
+                <p className="mt-1 text-[10px] leading-relaxed text-ink-700/50">
+                  Planning estimate only. {result.business_impact.assumption}
+                </p>
+              </section>
+            )}
+
             <div>
               <h4 className="mb-2 text-xs font-medium uppercase text-ink-700/60">Top risk factors</h4>
               <ResponsiveContainer width="100%" height={140}>
@@ -274,6 +302,14 @@ export default function AttritionPanel() {
       </div>
     </div>
   );
+}
+
+function currency(value: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 /** One retention suggestion with accept/reject capture (append-only feedback). */

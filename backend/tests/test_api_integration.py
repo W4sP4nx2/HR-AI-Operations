@@ -201,7 +201,7 @@ async def test_rbac_enforced_blocks_then_allows(client) -> None:
 async def test_agent_trigger_envelope(client) -> None:
     """Triggering triage returns the ok/error/unavailable envelope.
 
-    Triggering is write-authority (triage needs analyst+); under enforcement we
+    Triggering is write-authority (triage needs manager+); under enforcement we
     authenticate as the first user (admin) before triggering.
     """
     reg = await client.post(

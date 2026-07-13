@@ -3,7 +3,7 @@
 /**
  * ResumeScreener — paste a job description + a candidate resume, get a
  * structured, **demographically-blinded** fit assessment from the resume
- * screener agent: a 0–100 score, hire / no-hire recommendation, the reasoning,
+ * screener agent: a 0–100 score, advisory fit label, the reasoning,
  * and matched vs. missing skills.
  *
  * Mission alignment: this is **decision-support, never an auto-reject**. The UI
@@ -17,17 +17,17 @@ import {
   ScanSearch,
   ShieldCheck,
   CheckCircle2,
-  XCircle,
   AlertTriangle,
   Check,
   X,
   UploadCloud,
+  Zap,
 } from "lucide-react";
 import { api, type ResumeScreenResult } from "../../lib/api";
 
 // Client pre-flight: catch bad files before they ever hit the network.
-const MAX_RESUME_BYTES = 2 * 1024 * 1024; // 2 MB
-const PDF_MAGIC = "%PDF-";
+const MAX_RESUME_BYTES = 10 * 1024 * 1024; // mirrors backend MAX_UPLOAD_SIZE_MB
+const SUPPORTED_RESUME_EXTENSIONS = new Set(["pdf", "doc", "docx", "html", "htm", "json", "txt", "md", "csv", "png", "jpg", "jpeg", "webp"]);
 
 const SAMPLE_JD =
   "Senior Backend Engineer. Required: Python, FastAPI, PostgreSQL, async programming, " +
@@ -125,20 +125,19 @@ export default function ResumeScreener() {
     setResult(null);
     const sizeMB = file.size / 1024 / 1024;
     if (file.size > MAX_RESUME_BYTES) {
-      setError(`File too large (${sizeMB.toFixed(1)} MB). Resumes must be under 2 MB.`);
+      setError(`File too large (${sizeMB.toFixed(1)} MB). Resumes must be under 10 MB.`);
       return;
     }
-    // Magic-byte check: a real PDF starts with "%PDF-".
-    const head = new TextDecoder().decode(new Uint8Array(await file.slice(0, 5).arrayBuffer()));
-    if (head !== PDF_MAGIC) {
-      setError("That file isn't a PDF (missing %PDF- signature).");
+    const extension = file.name.toLowerCase().split(".").pop() ?? "";
+    if (!SUPPORTED_RESUME_EXTENSIONS.has(extension)) {
+      setError("Unsupported resume format. Use PDF, DOC/DOCX, HTML, JSON, text, or an image.");
       return;
     }
     setUploading(true);
     setLog([
       `[OK] File size verified (${sizeMB.toFixed(1)} MB)`,
-      "[OK] PDF structure signature authenticated.",
-      "[RUNNING] Splitting career nodes and parsing layout boundaries…",
+      `[OK] ${extension.toUpperCase()} format accepted by the parser boundary.`,
+      "[RUNNING] Extracting layout, skills, and quality signals…",
     ]);
     try {
       const env = await api.triggerUpload("resume_screener_agent", {
@@ -146,10 +145,10 @@ export default function ResumeScreener() {
         jobDescription: jd,
       });
       if (env.success && env.data) {
-        const data = env.data as { result?: ResumeScreenResult };
+        const data = env.data as { result?: ResumeScreenResult; resume_pipeline?: ResumeScreenResult["resume_pipeline"] };
         const r = (data.result ?? data) as ResumeScreenResult;
-        setLog((l) => [...l.slice(0, 2), "[OK] Layout parsed · candidate scored."]);
-        setResult(r);
+        setLog((l) => [...l.slice(0, 2), "[OK] Parsed · normalized · quality-gated · candidate scored."]);
+        setResult(data.resume_pipeline ? { ...r, resume_pipeline: data.resume_pipeline } : r);
       } else {
         setError(env.error ?? "screening failed");
         setLog([]);
@@ -162,7 +161,7 @@ export default function ResumeScreener() {
     }
   };
 
-  const hire = result?.recommendation?.toLowerCase() === "hire";
+  const strongFit = result?.recommendation?.toLowerCase() === "strong_fit";
   const keywordFallback = result?.skill_audit_mode === "keyword_fallback";
 
   return (
@@ -213,12 +212,12 @@ export default function ResumeScreener() {
             <input
               ref={fileRef}
               type="file"
-              accept="application/pdf"
+              accept="application/pdf,.doc,.docx,.html,.htm,.json,.txt,.md,.csv,image/png,image/jpeg,image/webp"
               className="hidden"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
             />
             <UploadCloud size={16} />
-            Drop a resume PDF here, or click to browse — or paste text below
+            Drop a resume document here, or click to browse — or paste text below
           </div>
           <textarea
             value={resume}
@@ -242,6 +241,15 @@ export default function ResumeScreener() {
           <span className="inline-flex items-center gap-1 text-[11px] text-ink-700/50">
             <ShieldCheck size={12} className="text-brand-purple" />
             Names &amp; protected attributes are blinded before scoring
+          </span>
+        </div>
+        <div className="rounded-lg border border-brand-purple/10 bg-brand-cream/45 px-3 py-2 text-[11px] text-ink-700/60">
+          <span className="inline-flex items-center gap-1 font-semibold text-brand-purple">
+            <Zap size={12} /> Interactive screening route
+          </span>
+          <span className="ml-2">This action calls the online agent path. No Batch job is created here.</span>
+          <span className="mt-1 block">
+            Image resumes are eligible for the allowlisted Gemma 4 deploy-on-demand route. If that route is not configured, the capability remains visibly gated.
           </span>
         </div>
         {error && <p className="text-sm text-red-500">{error}</p>}
@@ -268,7 +276,7 @@ export default function ResumeScreener() {
         ) : !result ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 py-16 text-center text-ink-700/50">
             <ScanSearch size={36} className="text-brand-magenta/40" />
-            <p className="text-sm">Run a screen to see the fit score, recommendation and skill match.</p>
+            <p className="text-sm">Run a screen to see the fit score, advisory label and skill match.</p>
           </div>
         ) : (
           <div className="space-y-5">
@@ -279,23 +287,23 @@ export default function ResumeScreener() {
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${
                     keywordFallback
                       ? "bg-amber-100 text-amber-800"
-                      : hire
+                      : strongFit
                         ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-600"
+                        : "bg-amber-100 text-amber-800"
                   }`}
                 >
                   {keywordFallback ? (
                     <AlertTriangle size={15} />
-                  ) : hire ? (
+                  ) : strongFit ? (
                     <CheckCircle2 size={15} />
                   ) : (
-                    <XCircle size={15} />
+                    <AlertTriangle size={15} />
                   )}
                   {keywordFallback
                     ? "Review required: fallback mode"
-                    : hire
-                      ? "Recommend: advance"
-                      : "Recommend: do not advance"}
+                    : strongFit
+                      ? "Strong alignment"
+                      : "Reviewer attention"}
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {result.blinded && (
@@ -334,6 +342,43 @@ export default function ResumeScreener() {
               <h4 className="mb-1 text-xs font-medium uppercase text-ink-700/60">Reasoning</h4>
               <p className="text-sm leading-relaxed text-ink-800">{result.reasoning}</p>
             </div>
+
+            {result.resume_pipeline && (
+              <div className="rounded-xl border border-brand-purple/10 bg-brand-cream/30 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-brand-purple">
+                    Resume intelligence pipeline
+                  </h4>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-ink-700/60">
+                    {result.resume_pipeline.source_type} · {result.resume_pipeline.mode.replace("_", " ")}
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-[auto_1fr]">
+                  <div className="rounded-lg border border-brand-purple/10 bg-white px-3 py-2 text-center">
+                    <div className="text-2xl font-bold text-brand-purple">{result.resume_pipeline.quality.score}</div>
+                    <div className="text-[10px] uppercase tracking-wide text-ink-700/50">
+                      quality {result.resume_pipeline.quality.quality_grade}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-medium text-ink-700/70">Canonical skills</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {result.resume_pipeline.normalized_skills.length ? result.resume_pipeline.normalized_skills.map((skill) => (
+                        <span key={`${skill.name}-${skill.original}`} className="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[10px] text-green-700">
+                          {skill.original === skill.name ? skill.name : `${skill.original} → ${skill.name}`}
+                        </span>
+                      )) : <span className="text-[11px] text-ink-700/45">No explicit skills extracted</span>}
+                    </div>
+                  </div>
+                </div>
+                {(result.resume_pipeline.quality.issues.length > 0 || result.resume_pipeline.warnings.length > 0) && (
+                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                    <span className="font-semibold">Review signals:</span>{" "}
+                    {[...result.resume_pipeline.quality.issues, ...result.resume_pipeline.warnings].join(" · ")}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>

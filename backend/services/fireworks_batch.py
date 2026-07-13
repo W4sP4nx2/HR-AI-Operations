@@ -219,6 +219,33 @@ class FireworksBatchClient:
         return _json_object(response)
 
 
+async def submit_jsonl_batch(
+    payload: bytes,
+    *,
+    model_id: str,
+    job_id: str,
+) -> dict[str, Any]:
+    """Submit one bounded JSONL payload and return only provider identifiers."""
+    config = BatchConfig.from_env()
+    input_id = _resource_id(f"{job_id}-input")
+    output_id = _resource_id(f"{job_id}-output")
+    async with FireworksBatchClient(config) as client:
+        await client.create_dataset(input_id)
+        await client.create_dataset(output_id)
+        await client.upload_jsonl(input_id, payload, filename=f"{job_id}.jsonl")
+        await client.create_job(
+            job_id=job_id,
+            model_id=model_id,
+            input_dataset_id=input_id,
+            output_dataset_id=output_id,
+        )
+    return {
+        "job_id": job_id,
+        "input_dataset_id": input_id,
+        "output_dataset_id": output_id,
+    }
+
+
 def batch_config_status() -> dict[str, Any]:
     """Return Batch readiness without exposing credentials or account values."""
     try:

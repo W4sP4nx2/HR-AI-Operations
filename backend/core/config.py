@@ -12,7 +12,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Central settings object for the HR AI Command Center backend.
+    """Central settings object for the Govern.ai backend.
 
     Attributes:
         llm_provider: LLM backend ("anthropic", "fireworks", or empty/mock).
@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     fireworks_serving_mode: str = "serverless"
     fireworks_batch_timeout_seconds: float = 30.0
     fireworks_vision_model: str = ""
+    fireworks_batch_model: str = ""
+    fireworks_gemma_model: str = ""
     amd_vllm_api_key: str = ""
     amd_vllm_base_url: str = ""
     allowed_models: str = ""
@@ -148,7 +150,7 @@ class Settings(BaseSettings):
     attrition_review_threshold: float = 0.35
 
     # --- RAG tuning ------------------------------------------------------
-    chunk_size: int = 512
+    chunk_size: int = 500
     chunk_overlap: int = 50
     retrieval_top_k: int = 5
     # Vector backend: "auto" (pgvector on Postgres, else Qdrant if set, else
@@ -161,6 +163,11 @@ class Settings(BaseSettings):
     # side effect of a boot. Default off: on mismatch we log loudly and degrade
     # (RAG returns no hits) instead of destroying retained embeddings.
     allow_destructive_reindex: bool = False
+
+    # Master key for encrypting provider credentials saved by the Settings UI.
+    # Production should inject a dedicated secret; the JWT secret is only the
+    # local fallback so a fresh development install remains usable.
+    ai_settings_encryption_key: str = ""
 
     @property
     def sqlite_path(self) -> str:

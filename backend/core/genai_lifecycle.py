@@ -157,8 +157,19 @@ def controlled_parameters(
 ) -> dict[str, int | float]:
     """Clamp caller preferences to the reviewed role-specific envelope."""
     policy = policy_for(role)
-    tokens = min(max(1, max_tokens or policy.max_tokens), policy.max_tokens)
-    requested_temperature = policy.temperature_min if temperature is None else float(temperature)
+    from core.runtime_settings import runtime_settings
+
+    runtime_tokens = int(runtime_settings.value("max_tokens", policy.max_tokens))
+    runtime_temperature = float(runtime_settings.value("temperature", policy.temperature_min))
+    requested_tokens = max_tokens or policy.max_tokens
+    if runtime_settings.active:
+        requested_tokens = min(requested_tokens, runtime_tokens)
+    tokens = min(max(1, requested_tokens), policy.max_tokens)
+    requested_temperature = (
+        runtime_temperature
+        if runtime_settings.active
+        else policy.temperature_min if temperature is None else float(temperature)
+    )
     bounded_temperature = min(
         max(requested_temperature, policy.temperature_min),
         policy.temperature_max,
@@ -171,6 +182,11 @@ def controlled_parameters(
         parameters["top_k"] = min(max(policy.top_k, 0), 100)
     if policy.top_p is not None:
         parameters["top_p"] = min(max(policy.top_p, 0.0), 1.0)
+    if runtime_settings.active:
+        effort = float(runtime_settings.value("reasoning_effort", 0.0))
+        parameters["reasoning_effort"] = (
+            "high" if effort >= 0.67 else "medium" if effort >= 0.34 else "low"
+        )
     return parameters
 
 

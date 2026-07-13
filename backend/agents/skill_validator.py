@@ -110,7 +110,9 @@ def apply_audit(result: dict[str, Any], audit: SkillAudit) -> dict[str, Any]:
     result["matched_skills"] = demonstrated
     result["unverified_skills"] = dropped
     result["score"] = new_score
-    result["recommendation"] = "hire" if new_score >= 65 else "no-hire"
+    from agents.resume_screener_agent import advisory_fit_label
+
+    result["recommendation"] = advisory_fit_label(new_score)
     result["skill_audit_mode"] = "validated"
     if dropped:
         result["needs_review"] = True

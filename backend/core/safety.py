@@ -83,7 +83,14 @@ def redact_pii(text: str) -> str:
     No-op when ``settings.redact_pii`` is False. Applied before writing free text
     to the audit log, chat history, and (optionally) before external tool calls.
     """
-    if not settings.redact_pii or not text:
+    from core.runtime_settings import runtime_settings
+
+    enabled = (
+        bool(runtime_settings.value("pii_redaction_enabled", settings.redact_pii))
+        if runtime_settings.active
+        else settings.redact_pii
+    )
+    if not enabled or not text:
         return text
     if settings.pii_engine == "presidio":
         return _presidio_redact(text)

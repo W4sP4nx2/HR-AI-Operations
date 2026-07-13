@@ -32,13 +32,13 @@ def test_triage_fast_path_requires_urgent_or_unambiguous_multi_keyword_evidence(
     assert triage_keyword_baseline.confident_predict("Benefits policy for remote work") is None
 
 
-def test_resume_overlap_exposes_negation_limitation():
+def test_resume_overlap_conservatively_blocks_negated_skills():
     result = resume_overlap_baseline.predict(
         ("python", "langgraph"),
         ("never", "used", "python", "langgraph"),
     )
-    assert result.score == 1.0
-    assert result.matched_skills == ("python", "langgraph")
+    assert result.score == 0.0
+    assert result.matched_skills == ()
 
 
 def test_attrition_rule_ranks_stalled_profile_above_healthy_profile():
@@ -104,4 +104,4 @@ def test_golden_evaluation_passes_without_training_or_gpu():
         "total_golden_samples": 30,
     }
     assert report["all_gates_pass"] is True
-    assert report["baselines"]["resume_skill_overlap"]["known_failure"]["score"] == 1.0
+    assert report["baselines"]["resume_skill_overlap"]["negation_guard"]["score"] == 0.0

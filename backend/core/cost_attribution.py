@@ -22,6 +22,14 @@ COST_PER_1K_TOKENS = {
 }
 
 _LOCK = Lock()
+_PROVIDER_USAGE: dict[str, dict[str, int]] = defaultdict(
+    lambda: {
+        "requests": 0,
+        "prompt_tokens": 0,
+        "cached_prompt_tokens": 0,
+        "completion_tokens": 0,
+    }
+)
 _LEDGER: dict[str, dict[str, float | int]] = defaultdict(
     lambda: {
         "queries": 0,
@@ -110,6 +118,47 @@ def record_cost_event(
     return estimate
 
 
+def record_provider_usage(
+    *,
+    model_id: str,
+    prompt_tokens: int,
+    completion_tokens: int,
+    cached_prompt_tokens: int = 0,
+) -> None:
+    """Record token counts returned by the provider without inventing a dollar bill.
+
+    The ledger deliberately stores only aggregate counts keyed by model id. Raw
+    prompts, API keys, request bodies, and response text never enter telemetry.
+    """
+    model = model_id.strip() or "unknown"
+    with _LOCK:
+        row = _PROVIDER_USAGE[model]
+        row["requests"] += 1
+        row["prompt_tokens"] += max(0, int(prompt_tokens))
+        row["cached_prompt_tokens"] += min(
+            max(0, int(cached_prompt_tokens)), max(0, int(prompt_tokens))
+        )
+        row["completion_tokens"] += max(0, int(completion_tokens))
+
+
+def provider_usage_snapshot() -> dict[str, Any]:
+    """Return provider-observed token totals, separately from local estimates."""
+    with _LOCK:
+        models = {model: dict(values) for model, values in _PROVIDER_USAGE.items()}
+    return {
+        "source": "provider_response_usage",
+        "requests": sum(int(row["requests"]) for row in models.values()),
+        "prompt_tokens": sum(int(row["prompt_tokens"]) for row in models.values()),
+        "cached_prompt_tokens": sum(
+            int(row["cached_prompt_tokens"]) for row in models.values()
+        ),
+        "completion_tokens": sum(int(row["completion_tokens"]) for row in models.values()),
+        "rated_cost_usd": None,
+        "models": models,
+        "note": "Token counts come from provider responses; rated cost requires a billing export.",
+    }
+
+
 def cost_attribution_snapshot() -> dict[str, Any]:
     """Return dashboard-ready cost and efficiency counters."""
     with _LOCK:
@@ -186,7 +235,14 @@ def budget_circuit_breaker_snapshot(snapshot: dict[str, Any] | None = None) -> d
             for row in cost_rows.values():
                 if isinstance(row, dict):
                     total_usd += float(row.get("total_usd") or 0.0)
-    threshold = max(0.0, float(settings.daily_inference_budget_usd))
+    from core.runtime_settings import runtime_settings
+
+    configured_budget = (
+        runtime_settings.value("daily_budget_usd", settings.daily_inference_budget_usd)
+        if runtime_settings.active
+        else settings.daily_inference_budget_usd
+    )
+    threshold = max(0.0, float(configured_budget))
     active = bool(threshold and total_usd >= threshold)
     return {
         "active": active,
@@ -205,3 +261,4 @@ def reset_cost_attribution() -> None:
     """Clear the process-local ledger for tests."""
     with _LOCK:
         _LEDGER.clear()
+        _PROVIDER_USAGE.clear()

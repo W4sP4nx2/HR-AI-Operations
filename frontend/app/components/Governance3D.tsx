@@ -10,6 +10,8 @@ type Governance3DProps = {
   snapshot: CapabilitySnapshot | null;
   biasAudit: BiasAudit | null;
   measuredSavingsPct?: number | null;
+  observedProviderResponses?: number;
+  batchReady?: boolean;
 };
 
 const COLORS = {
@@ -25,10 +27,13 @@ export default function Governance3D({
   snapshot,
   biasAudit,
   measuredSavingsPct = null,
+  observedProviderResponses = 0,
+  batchReady = false,
 }: Governance3DProps) {
   const routes = snapshot?.routing ?? [];
-  const providerLabel = snapshot?.active_provider?.replaceAll("_", " ") ?? "deterministic";
-  const batchRoute = routes.find((route) => route.task_type.includes("batch"));
+  const providerLabel = observedProviderResponses > 0
+    ? "fireworks BYOK"
+    : snapshot?.active_provider?.replaceAll("_", " ") ?? "deterministic";
   const liveAllowed = routes.filter((route) => route.live_call_allowed).length;
   const auditedDimensions =
     biasAudit?.dimensions && biasAudit.dimensions.length > 0
@@ -67,10 +72,14 @@ export default function Governance3D({
           </Canvas>
           <div className="absolute bottom-5 left-5 right-5 z-10 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
             <TopologyChip label="Active route" value={providerLabel} tone="cyan" />
-            <TopologyChip label="Live calls" value={String(liveAllowed)} tone="green" />
+            <TopologyChip
+              label={observedProviderResponses > 0 ? "Provider responses" : "Live calls"}
+              value={String(observedProviderResponses > 0 ? observedProviderResponses : liveAllowed)}
+              tone="green"
+            />
             <TopologyChip
               label="Batch path"
-              value={batchRoute?.selected_provider ?? "gated"}
+              value={batchReady ? "provider ready" : "not configured"}
               tone="amber"
             />
           </div>

@@ -138,7 +138,7 @@ async def open_access_switch(body: RoleSwitchRequest) -> dict[str, Any]:
     """Mint a token for a pre-seeded open-access account of the requested role.
 
     This is the no-login "switch roles" affordance: instead of creating
-    separate accounts, a reviewer flips between viewer / analyst / manager /
+    separate accounts, a reviewer flips between viewer / manager /
     admin to see how the surface changes. It is **only** available when
     ``AUTH_ENFORCE`` is off; in an enforced deployment it is
     disabled so it can never be used to escalate privilege.
@@ -152,7 +152,6 @@ async def open_access_switch(body: RoleSwitchRequest) -> dict[str, Any]:
 
     role_names = {
         "viewer": "Employee",
-        "analyst": "HR Analyst",
         "manager": "HR Manager",
         "admin": "Admin",
     }

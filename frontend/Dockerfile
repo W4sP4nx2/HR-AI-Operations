@@ -1,4 +1,4 @@
-# Frontend image for the HR AI Command Center Next.js app.
+# Frontend image for the Govern.ai Next.js app.
 FROM node:20-alpine
 
 WORKDIR /app

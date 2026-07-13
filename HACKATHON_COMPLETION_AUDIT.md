@@ -13,11 +13,11 @@ until the credentialed provider and hardware smoke tests run.
 
 Safe claim today:
 
-> HR AI Command Center is a governed, cost-bounded A2A control plane for HR
-> workflows. It runs without model spend, supports request-scoped Fireworks BYOK
-> for live structured inference, and includes an AMD/vLLM Gemma deployment
-> profile whose real hosting and performance claims are gated by smoke and
-> benchmark evidence.
+> Govern.ai is a governed, cost-bounded HR operations layer with A2A-style
+> certified handoffs. It runs without model spend, supports request-scoped
+> Fireworks BYOK for live structured inference, and includes an AMD/vLLM Gemma
+> deployment profile whose real hosting and performance claims are gated by
+> smoke and benchmark evidence.
 
 Short release wording: Fireworks-authenticated and AMD-Gemma deployable; live
 provider and hardware performance claims remain gated by smoke/benchmark
@@ -92,7 +92,7 @@ cd backend
 export LLM_PROVIDER=fireworks
 export FIREWORKS_API_KEY=...
 export FIREWORKS_BASE_URL=https://api.fireworks.ai/inference/v1
-export ALLOWED_MODELS=accounts/fireworks/models/deepseek-v3p1
+export ALLOWED_MODELS=accounts/fireworks/models/kimi-k2p6
 python -m scripts.verify_hackathon_env --mode fireworks-auth
 python -m scripts.fireworks_smoke --enable-cost-tracking
 ```

@@ -36,6 +36,7 @@ pydantic-ai-slim[anthropic,openai]==1.104.0
 pypdf
 pypdfium2>=4.30,<5
 httpx
+cryptography
 beautifulsoup4
 
 # --- Models / RAG client (light) ---

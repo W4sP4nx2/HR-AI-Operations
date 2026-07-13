@@ -82,6 +82,7 @@ class AttritionAgent:
                     "risk": score,
                     "case_id": case["id"],
                     "retention_suggestions": len(result["retention_context"]),
+                    "business_impact": result.get("business_impact", {}),
                 },
                 "success",
             )

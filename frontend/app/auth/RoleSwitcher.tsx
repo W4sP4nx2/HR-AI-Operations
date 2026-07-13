@@ -19,8 +19,7 @@ import type { Role } from "../../lib/api";
 
 const PERSONAS: { role: Role; label: string; blurb: string }[] = [
   { role: "viewer", label: "Employee", blurb: "Self-service chat only" },
-  { role: "analyst", label: "HR Analyst", blurb: "+ Fleet, Cases, Analytics" },
-  { role: "manager", label: "HR Manager", blurb: "+ Policies, Approvals, Audit" },
+  { role: "manager", label: "HR Manager", blurb: "Full HR operations console" },
   { role: "admin", label: "Admin", blurb: "Full access" },
 ];
 
@@ -69,14 +68,14 @@ export default function RoleSwitcher() {
       )}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-left text-sm text-brand-cream/90 hover:bg-white/15"
+        className="flex w-full items-center gap-2 rounded-lg border border-brand-purple/10 bg-brand-cream/45 px-3 py-2 text-left text-sm text-ink-800 hover:bg-brand-cream"
       >
         <Eye size={15} className="shrink-0 text-brand-peach" />
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] uppercase tracking-wide text-brand-cream/50">View as</span>
+          <span className="block text-[10px] uppercase tracking-wide text-ink-700/45">View as</span>
           <span className="block truncate font-medium">{currentLabel}</span>
         </span>
-        <ChevronDown size={14} className={`shrink-0 text-brand-cream/60 transition ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={14} className={`shrink-0 text-ink-700/50 transition ${open ? "rotate-180" : ""}`} />
       </button>
     </div>
   );

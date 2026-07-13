@@ -1,0 +1,19 @@
+flowchart TD
+  A["1. HR manager submits 1–50 resumes"] --> B["2. API gates consent, size, tokens and allowlist"]
+  B --> C["3. A2A orchestrator creates orchestration ID"]
+  C --> D["4. Registry resolves resume_screener_agent"]
+  D --> E["5. LangSmith gets hashes and counts, never raw resumes"]
+  E --> F["6. Fireworks creates datasets and receives JSONL"]
+  F --> G["7. Fireworks creates asynchronous Batch job"]
+  G --> H["8. API returns HTTP 202 with job and dataset IDs"]
+  H --> I["9. Product polls pending, running, then terminal"]
+  I --> J["10. Certifier checks each row; human decides"]
+
+  classDef person fill:#fff4e6,stroke:#7c3aed,color:#24143d
+  classDef app fill:#ede9fe,stroke:#7c3aed,color:#24143d
+  classDef trace fill:#e0f2fe,stroke:#0284c7,color:#082f49
+  classDef fireworks fill:#ffe8cc,stroke:#f97316,color:#431407
+  class A,J person
+  class B,C,D,H,I app
+  class E trace
+  class F,G fireworks

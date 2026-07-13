@@ -56,7 +56,13 @@ const CATEGORY_COLORS: Record<string, string> = {
   COMPLIANCE: "bg-indigo-500 text-white",
 };
 
-export default function CaseFeed() {
+export default function CaseFeed({
+  focusCaseId = null,
+  onFocusConsumed,
+}: {
+  focusCaseId?: string | null;
+  onFocusConsumed?: () => void;
+}) {
   const [cases, setCases] = useState<HRCase[]>([]);
   const [category, setCategory] = useState("ALL");
   const [status, setStatus] = useState("ALL");
@@ -100,6 +106,14 @@ export default function CaseFeed() {
     }
     return () => wsRef.current?.close();
   }, []);
+
+  useEffect(() => {
+    if (!focusCaseId) return;
+    const focusedCase = cases.find((caseRow) => caseRow.id === focusCaseId);
+    if (!focusedCase) return;
+    setSelected(focusedCase);
+    onFocusConsumed?.();
+  }, [cases, focusCaseId, onFocusConsumed]);
 
   const filtered = cases.filter(
     (c) =>
@@ -217,7 +231,12 @@ function AuditOutput({ raw }: { raw: string }) {
   if (o.recommended_action) rows.push({ label: "Recommended", value: String(o.recommended_action) });
   if (o.decision) rows.push({ label: "Decision", value: String(o.decision) });
   if (o.risk !== undefined) rows.push({ label: "Risk", value: `${Math.round(Number(o.risk) * 100)}%` });
-  if (o.score !== undefined) rows.push({ label: "Score", value: `${o.score}${o.recommendation ? ` · ${o.recommendation}` : ""}` });
+  if (o.score !== undefined) {
+    rows.push({
+      label: "Score",
+      value: `${o.score}${o.recommendation ? ` · ${formatResumeRecommendation(String(o.recommendation))}` : ""}`,
+    });
+  }
   if (o.confidence !== undefined) rows.push({ label: "Confidence", value: String(o.confidence) });
   if (Array.isArray(o.source_documents) && o.source_documents.length > 0) {
     const docs = o.source_documents as Array<{ doc_id?: string }>;
@@ -263,6 +282,12 @@ function AuditOutput({ raw }: { raw: string }) {
       )}
     </div>
   );
+}
+
+function formatResumeRecommendation(value: string): string {
+  if (value === "strong_fit") return "Strong alignment";
+  if (value === "review_recommended") return "Reviewer attention";
+  return value;
 }
 
 /** A 0–1 confidence rendered as a coloured gauge (green ≥0.7, amber ≥0.4, red below).
@@ -558,7 +583,7 @@ function CaseDrawer({
           </section>
         </div>
 
-        {/* Split action — resolve, or reject the AI's triage and re-route (analyst+).
+        {/* Split action — resolve, or reject the AI's triage and re-route (manager+).
             Re-routing keeps misclassifications out of the resolution metrics. */}
         <footer className="border-t border-brand-purple/10 px-6 py-4">
           {detail.status === "resolved" ? (

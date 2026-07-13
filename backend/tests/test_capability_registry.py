@@ -45,7 +45,10 @@ def test_capability_snapshot_is_zero_spend_when_keys_are_missing(monkeypatch) ->
     )
     assert snapshot["runtime_controls"]["max_input_tokens"] > 0
     integrations = {item["integration_id"]: item for item in snapshot["integrations"]}
-    assert integrations["a2a"]["status"] == "proven"
+    assert integrations["orchestrator"]["status"] == "proven"
+    assert integrations["orchestrator"]["architecture"] == "single_orchestrator"
+    assert "a2a" not in integrations
+    assert "crewai" not in integrations
     assert integrations["langsmith"]["status"] == "not_configured"
     assert any("LANGCHAIN_API_KEY" in item for item in integrations["langsmith"]["missing_inputs"])
     assert "fixture-fireworks-key" not in str(snapshot)
@@ -59,7 +62,7 @@ def test_capability_snapshot_reports_fireworks_config_without_live_claim(monkeyp
     monkeypatch.setenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
     monkeypatch.setenv(
         "ALLOWED_MODELS",
-        "accounts/fireworks/models/gemma-3-27b-it,accounts/fireworks/models/llama-v3p1-8b-instruct",
+        "accounts/fireworks/models/gemma-3-27b-it,accounts/fireworks/models/kimi-k2p6",
     )
     monkeypatch.delenv("AMD_RUNTIME_EVIDENCE_FILE", raising=False)
 
@@ -70,7 +73,7 @@ def test_capability_snapshot_reports_fireworks_config_without_live_claim(monkeyp
     assert fireworks["credentials_exposed"] is False if "credentials_exposed" in fireworks else True
     assert fireworks["models_available"] == [
         "accounts/fireworks/models/gemma-3-27b-it",
-        "accounts/fireworks/models/llama-v3p1-8b-instruct",
+        "accounts/fireworks/models/kimi-k2p6",
     ]
 
 

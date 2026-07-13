@@ -35,10 +35,12 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    and_,
     event,
     func,
     insert,
     inspect,
+    or_,
     select,
     update,
 )
@@ -203,6 +205,17 @@ batch_jobs_t = Table(
     Column("output_dataset_id", String(128)),
     Column("updated_at", String(40), nullable=False),
     Index("idx_batch_jobs_status", "status", "updated_at"),
+)
+
+# Singleton operator configuration. Non-secret settings are stored as JSON;
+# provider credentials are stored separately as encrypted ciphertext.
+runtime_settings_t = Table(
+    "runtime_settings",
+    metadata,
+    Column("scope", String(64), primary_key=True),
+    Column("payload", Text, nullable=False),
+    Column("encrypted_api_keys", Text, nullable=False, default="{}"),
+    Column("updated_at", String(40), nullable=False),
 )
 
 
@@ -601,11 +614,31 @@ class Memory:
         if status:
             stmt = stmt.where(cases_t.c.status == status)
         if cursor:
-            stmt = stmt.where(cases_t.c.id > cursor)
-        stmt = stmt.order_by(cases_t.c.id.asc()).limit(page_size + 1)
+            # The operator queue is newest-first. Keep the cursor opaque to the
+            # frontend while using a stable timestamp + id tie-breaker so a
+            # freshly-created case is visible on the first page.
+            cursor_created_at, separator, cursor_id = cursor.partition("|")
+            if separator:
+                stmt = stmt.where(
+                    or_(
+                        cases_t.c.created_at < cursor_created_at,
+                        and_(
+                            cases_t.c.created_at == cursor_created_at,
+                            cases_t.c.id < cursor_id,
+                        ),
+                    )
+                )
+            else:
+                # Accept legacy id-only cursors from older clients.
+                stmt = stmt.where(cases_t.c.id < cursor)
+        stmt = stmt.order_by(cases_t.c.created_at.desc(), cases_t.c.id.desc()).limit(page_size + 1)
         async with self._engine.connect() as conn:
             rows = [dict(row) for row in (await conn.execute(stmt)).mappings().all()]
-        next_cursor = rows[page_size - 1]["id"] if len(rows) > page_size else None
+        next_cursor = (
+            f"{rows[page_size - 1]['created_at']}|{rows[page_size - 1]['id']}"
+            if len(rows) > page_size
+            else None
+        )
         return {
             "items": rows[:page_size],
             "next_cursor": next_cursor,
@@ -860,6 +893,54 @@ class Memory:
                 .first()
             )
         return dict(row) if row else None
+
+    # ------------------------------------------------------------------ #
+    # Runtime AI settings
+    # ------------------------------------------------------------------ #
+    async def get_runtime_settings(self, scope: str = "global") -> dict[str, Any] | None:
+        """Return persisted AI settings for a scope, including ciphertext only."""
+        await self._ensure_schema()
+        async with self._engine.connect() as conn:
+            row = (
+                (
+                    await conn.execute(
+                        select(runtime_settings_t).where(runtime_settings_t.c.scope == scope)
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        return dict(row) if row else None
+
+    async def save_runtime_settings(
+        self,
+        payload: dict[str, Any],
+        encrypted_api_keys: str,
+        scope: str = "global",
+    ) -> dict[str, Any]:
+        """Upsert the encrypted operator settings record and return its row."""
+        await self._ensure_schema()
+        record = {
+            "scope": scope,
+            "payload": json.dumps(payload, sort_keys=True, default=str),
+            "encrypted_api_keys": encrypted_api_keys,
+            "updated_at": _utcnow(),
+        }
+        async with self._engine.begin() as conn:
+            existing = (
+                await conn.execute(
+                    select(runtime_settings_t.c.scope).where(runtime_settings_t.c.scope == scope)
+                )
+            ).first()
+            if existing:
+                await conn.execute(
+                    update(runtime_settings_t)
+                    .where(runtime_settings_t.c.scope == scope)
+                    .values(**{key: value for key, value in record.items() if key != "scope"})
+                )
+            else:
+                await conn.execute(insert(runtime_settings_t).values(**record))
+        return record
 
     # ------------------------------------------------------------------ #
     # Policy registry (tracks documents ingested into the vector store)

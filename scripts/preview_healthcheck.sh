@@ -68,7 +68,7 @@ PY
 echo "Checking frontend response: ${FRONTEND_URL}"
 html="$(curl -fsS "${FRONTEND_URL}")"
 case "${html}" in
-  *"HR AI Command Center"*)
+  *"Govern.ai"*)
     echo "  ok frontend title found"
     ;;
   *)

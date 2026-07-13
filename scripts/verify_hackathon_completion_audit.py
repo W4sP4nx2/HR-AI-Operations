@@ -52,7 +52,7 @@ REQUIRED_MATRIX_ROWS = (
 )
 
 REQUIRED_JUDGE_BRIEF_PHRASES = (
-    "HR AI Command Center is a governed, cost-bounded A2A control plane",
+    "Govern.ai is a governed, cost-bounded HR operations layer",
     "Route cheaply",
     "Retrieve narrowly",
     "Constrain outputs",

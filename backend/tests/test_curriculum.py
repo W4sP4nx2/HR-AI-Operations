@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import pytest
-import torch
 
-import kernels.curriculum as curriculum
-from kernels.curriculum import (
+torch = pytest.importorskip("torch", reason="optional GPU curriculum dependency is not installed")
+
+import kernels.curriculum as curriculum  # noqa: E402
+from kernels.curriculum import (  # noqa: E402
     achieved_bandwidth_gb_s,
     active_backend,
     bias_add,

@@ -1,6 +1,6 @@
-# Agent Playbook — Use Cases & Workflows
+# Govern.ai agent playbook — use cases & workflows
 
-The systematic reference for the five agents in the HR AI Command Center. Each
+The systematic reference for the five agents in Govern.ai. Each
 agent is **engineered, not loose**: it has a typed input model, a validated output
 contract, a required role, declared tools, and explicit guardrails — all defined in
 [`backend/agents/contracts.py`](./backend/agents/contracts.py) (`AGENT_SPECS`) and
@@ -35,7 +35,7 @@ mode the "Role to use" column is required.
 ## 1. Triage Agent
 
 - **Purpose:** classify an incoming HR ticket and route it.
-- **Framework:** CrewAI (LLM classifier) with a deterministic keyword fallback.
+- **Framework:** Pydantic AI (typed LLM classifier) with a deterministic keyword fallback.
 - **Validated input:** `TicketInput { text: str (non-empty) }`
 - **Validated output:** `TriageResult { category, case{id,category,status,assigned_agent}, resolution? }`
 - **Tools:** keyword/LLM classifier · RAG pipeline · cases store.
@@ -83,7 +83,7 @@ question ─▶ embed ─▶ pgvector top-k ─▶ [hit?] ─yes─▶ synthesis
 ## 3. Resume Screener Agent
 
 - **Purpose:** score a resume against a job description and explain the fit.
-- **Framework:** CrewAI (3-agent crew) with a deterministic embedding fallback.
+- **Framework:** deterministic embedding scorer with an optional certified CrewAI narrative crew.
 - **Validated input:** `ResumeInput { job_description, resume (non-empty) }`
 - **Validated output:** `ResumeScore { score 0..100, recommendation, reasoning, matched_skills[], missing_skills[] }`
 - **Tools:** embedding similarity · skill matcher · CrewAI crew.
@@ -96,7 +96,7 @@ JD + resume ─▶ extract skills ─▶ semantic + keyword score ─▶ recomme
 ```
 
 **Use cases**
-- Recruiter attaches a resume PDF + types the JD → "Score 95 · hire", matched/missing skills.
+- Recruiter attaches a resume PDF + types the JD → "Score 95 · strong alignment", matched/missing skills.
 - ATS webhook (`POST /webhooks/ats`) screens inbound applicants automatically.
 - A human always makes the final call; the score is a ranked first pass.
 
@@ -153,7 +153,7 @@ employee features ─▶ RandomForest.predict_proba ─▶ risk score
 
 ---
 
-## End-to-end: a day in the Command Center
+## End-to-end: a day in Govern.ai
 
 ```
 1. Admin signs in (or Google) ─▶ RBAC role attached to the session.

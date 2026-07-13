@@ -19,7 +19,7 @@ import { useToast } from "./Toast";
 
 type UploadState = { status: "idle" } | { status: "uploading"; name: string } | { status: "done"; doc: PolicyDoc; qdrant: boolean } | { status: "error"; name: string; message: string };
 
-const ROLE_RANK: Record<Role, number> = { viewer: 0, analyst: 1, manager: 2, admin: 3 };
+const ROLE_RANK: Record<Role, number> = { viewer: 0, manager: 1, admin: 2 };
 
 export default function PoliciesPanel() {
   const [policies, setPolicies] = useState<PolicyDoc[]>([]);
@@ -29,6 +29,7 @@ export default function PoliciesPanel() {
   const toast = useToast();
   const { user, isAuthed } = useAuth();
   const canMutatePolicies = isAuthed && ROLE_RANK[user?.role ?? "viewer"] >= ROLE_RANK.manager;
+  const chunking = policies[0]?.chunking;
 
   const load = useCallback(async () => {
     try { setPolicies(await api.policies()); } catch { /* keep */ }
@@ -100,6 +101,19 @@ export default function PoliciesPanel() {
 
   return (
     <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-magenta">Knowledge foundation</div>
+          <h2 className="mt-1 text-xl font-semibold text-brand-purple">Policy knowledge base</h2>
+          <p className="mt-1 text-sm text-ink-700/60">Versioned policy sources power grounded answers, triage resolution, and retention guidance.</p>
+        </div>
+        <span className="rounded-full border border-brand-purple/10 bg-brand-cream/60 px-3 py-1.5 text-[11px] font-medium text-brand-purple">
+          {chunking
+            ? `${chunking.size_tokens}-token windows · ${chunking.overlap_tokens}-token overlap · adaptive planner`
+            : "500-token windows · 50-token overlap · adaptive planner"}
+        </span>
+      </header>
+
       {/* Upload zone */}
       <div
         onDragOver={canMutatePolicies ? (e) => { e.preventDefault(); setDragging(true); } : undefined}
@@ -196,12 +210,21 @@ export default function PoliciesPanel() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate text-brand-purple">{p.filename}</p>
                   <p className="text-xs text-ink-700/60 mt-0.5">
-                    {p.chunks} chunks · {p.char_count.toLocaleString()} chars ·{" "}
+                    {p.chunks} {p.chunks === 1 ? "source chunk" : "retrieval chunks"} · {p.char_count.toLocaleString()} chars ·{" "}
                     <span className={p.status === "ingested" ? "text-green-600" : "text-amber-600"}>
                       {p.status}
                     </span>
                     {" · "}{new Date(p.ingested_at).toLocaleDateString()}
                   </p>
+                  {p.chunking && (
+                    <p className="mt-1 text-[11px] text-ink-700/55">
+                      <span className="rounded-full bg-brand-purple/10 px-1.5 py-0.5 font-medium text-brand-purple">
+                        {p.chunking.strategy}
+                      </span>
+                      {p.chunking.section_count ? ` · ${p.chunking.section_count} sections` : ""}
+                      {p.chunking.reason ? ` · ${p.chunking.reason}` : ""}
+                    </p>
+                  )}
                 </div>
                 <p className="text-xs font-mono text-ink-700/40 hidden md:block truncate max-w-[180px]">
                   {p.doc_id}

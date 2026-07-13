@@ -63,7 +63,7 @@ floor for semantic retrieval.
 **Implementation:** `SkillOverlapBaseline` computes matched required skills over
 all required skills, with conservative prefix matching for plurals/stems.
 
-**Golden result:** six pairs, average precision `0.75`. The deliberate negation
+**Golden result:** six pairs, average precision is reported by the local harness. The deliberate negation
 trap (“never used Python or LangGraph”) scores `1.0`, proving lexical presence
 does not establish demonstrated experience.
 
@@ -103,7 +103,7 @@ a retention conversation only.
 | Baseline | Primary metrics | Current gate | Product status |
 |---|---|---:|---|
 | Keyword triage | Macro-F1, URGENT recall | `>=0.80`, `=1.0` | Served fallback |
-| Skill overlap | Average precision + named negation failure | `>=0.70` | Score component only |
+| Skill overlap | Average precision + named negation guard | `>=0.70` | Score component only |
 | Attrition rules | Balanced accuracy, Brier | `>=0.80`, `<=0.20` | Resilience/evaluation floor |
 
 Golden gates are regression checks, not research claims. Before promotion:

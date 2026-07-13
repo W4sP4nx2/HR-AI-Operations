@@ -162,36 +162,39 @@ def capability_snapshot() -> dict[str, Any]:
 
 def _integration_snapshot() -> list[dict[str, Any]]:
     """Return secret-free orchestration and observability integration status."""
-    langsmith_key = os.environ.get("LANGCHAIN_API_KEY", os.environ.get("LANGSMITH_API_KEY", ""))
-    tracing = os.environ.get("LANGCHAIN_TRACING_V2", "").strip().lower() in {"1", "true", "yes"}
+    from agents.langsmith_cost_tracker import langsmith_configured
+    from agents.orchestrator import orchestrator_manifest
+
+    tracing = langsmith_configured()
     return [
         {
-            "integration_id": "a2a",
-            "label": "A2A handoffs",
+            "integration_id": "orchestrator",
+            "label": "Governed orchestrator",
             "status": "proven",
-            "detail": "Certified envelopes, schema checks, latency, and cost metadata are local.",
+            "detail": (
+                "Single-route planning exposes model, serving path, cost tier, cache, "
+                "certification, audit, fallback, and human review."
+            ),
             "missing_inputs": [],
-        },
-        {
-            "integration_id": "crewai",
-            "label": "CrewAI adapter",
-            "status": "configured",
-            "detail": "Resume and triage paths can use the adapter; deterministic fallback remains available.",
-            "missing_inputs": [],
+            "architecture": orchestrator_manifest()["pattern"],
+            "visible_controls": orchestrator_manifest()["visible_metrics"],
         },
         {
             "integration_id": "langsmith",
             "label": "LangSmith tracing",
-            "status": "configured" if tracing and bool(langsmith_key) else "not_configured",
+            "status": "configured" if tracing else "not_configured",
             "detail": (
-                "Tracing is enabled for certified CrewAI tasks."
-                if tracing and langsmith_key
+                "Privacy-safe orchestration tracing is enabled."
+                if tracing
                 else "Optional observability; no LangSmith key or tracing flag is active."
             ),
             "missing_inputs": (
                 []
-                if tracing and langsmith_key
-                else ["LANGCHAIN_API_KEY or LANGSMITH_API_KEY", "LANGCHAIN_TRACING_V2=true"]
+                if tracing
+                else [
+                    "LANGSMITH_API_KEY or LANGCHAIN_API_KEY",
+                    "LANGSMITH_TRACING=true or LANGCHAIN_TRACING_V2=true",
+                ]
             ),
         },
     ]

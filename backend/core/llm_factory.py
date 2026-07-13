@@ -14,6 +14,7 @@ from typing import Any
 
 from core.config import settings
 from core.runtime_key import effective_api_key, llm_active, llm_provider
+from core.runtime_settings import runtime_settings
 
 
 def _allowed_models() -> list[str]:
@@ -40,6 +41,23 @@ def pick_model_for_role(role: str, models: list[str]) -> str:
         raise RuntimeError("ALLOWED_MODELS is empty or unset - harness must inject this")
 
     unique = list(dict.fromkeys(models))
+    gemma_model = os.environ.get(
+        "FIREWORKS_GEMMA_MODEL", settings.fireworks_gemma_model
+    ).strip()
+    serving_mode = os.environ.get(
+        "FIREWORKS_SERVING_MODE", settings.fireworks_serving_mode
+    ).strip().lower()
+    if (
+        gemma_model in unique
+        and serving_mode in {"deploy_on_demand", "dedicated"}
+        and any(token in role.lower() for token in ("reason", "vision", "multimodal", "synthesis"))
+    ):
+        return gemma_model
+    if gemma_model in unique and serving_mode == "serverless" and len(unique) > 1:
+        unique = [model for model in unique if model != gemma_model]
+    selected = runtime_settings.selected_model()
+    if runtime_settings.active and selected in unique:
+        return selected
     ranked = sorted(enumerate(unique), key=lambda item: (_model_size_score(item[1]), item[0]))
     role_key = role.lower()
     small_roles = ("triage", "classif", "skill", "validator", "fast")
@@ -128,7 +146,10 @@ def anthropic_model_for_key(api_key: str | None) -> Any | None:
         from pydantic_ai.providers.anthropic import AnthropicProvider
     except Exception:  # noqa: BLE001 - optional dep absent -> caller falls back
         return None
-    return AnthropicModel(settings.claude_model, provider=AnthropicProvider(api_key=api_key))
+    model_id = runtime_settings.selected_model() if runtime_settings.active else ""
+    return AnthropicModel(
+        model_id or settings.claude_model, provider=AnthropicProvider(api_key=api_key)
+    )
 
 
 def model_for_key(
@@ -208,6 +229,7 @@ async def run_fireworks_chat_body(
     if not isinstance(content, str) or not content.strip():
         raise RuntimeError("Fireworks returned an empty structured response")
     token_count = _response_token_count(response)
+    _record_response_usage(response, model_id=model_id)
     response_format = request_body.get("response_format", {})
     if isinstance(response_format, dict) and response_format.get("type") == "json_schema":
         from pydantic import ValidationError
@@ -268,6 +290,25 @@ def _response_token_count(response: Any) -> int | None:
     return int(total) if total else None
 
 
+def _record_response_usage(response: Any, *, model_id: str) -> None:
+    """Capture provider-returned usage fields without retaining request content."""
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return
+    prompt = int(getattr(usage, "prompt_tokens", 0) or 0)
+    completion = int(getattr(usage, "completion_tokens", 0) or 0)
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached = int(getattr(details, "cached_tokens", 0) or 0) if details else 0
+    from core.cost_attribution import record_provider_usage
+
+    record_provider_usage(
+        model_id=model_id,
+        prompt_tokens=prompt,
+        completion_tokens=completion,
+        cached_prompt_tokens=cached,
+    )
+
+
 def run_text_completion(
     prompt: str,
     *,
@@ -280,6 +321,9 @@ def run_text_completion(
     from core.cost_guard import TokenBudgetGuard
     from core.genai_lifecycle import controlled_parameters, transform_fuzzy_input
 
+    if runtime_settings.active:
+        max_tokens = min(max_tokens, int(runtime_settings.value("max_tokens", max_tokens)))
+        temperature = float(runtime_settings.value("temperature", temperature))
     TokenBudgetGuard(
         max_input_tokens=settings.max_llm_input_tokens,
         max_output_tokens=settings.max_llm_output_tokens,

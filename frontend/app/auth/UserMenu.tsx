@@ -3,17 +3,16 @@
 /** Sidebar footer: shows the signed-in user, their role, and a logout control. */
 
 import { useState } from "react";
-import { LogOut, ChevronUp } from "lucide-react";
+import { LogOut, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "./AuthContext";
 
 const ROLE_COLORS: Record<string, string> = {
   admin: "bg-brand-magenta text-white",
   manager: "bg-brand-peach text-ink-800",
-  analyst: "bg-indigo-400 text-white",
-  viewer: "bg-white/20 text-brand-cream",
+  viewer: "bg-brand-purple/10 text-brand-purple",
 };
 
-export default function UserMenu() {
+export default function UserMenu({ variant = "sidebar" }: { variant?: "sidebar" | "top" }) {
   const { user, isAuthed, logout } = useAuth();
   const [open, setOpen] = useState(false);
 
@@ -24,10 +23,12 @@ export default function UserMenu() {
 
   const initial = (user.name || user.email)[0]?.toUpperCase() ?? "?";
 
+  const top = variant === "top";
+
   return (
-    <div className="relative mx-3 mb-3">
+    <div className={top ? "relative" : "relative mx-3 mb-3"}>
       {open && (
-        <div className="absolute bottom-full mb-2 w-full overflow-hidden rounded-xl bg-white shadow-xl">
+        <div className={`absolute ${top ? "right-0 top-full mt-2 w-48" : "bottom-full mb-2 w-full"} z-20 overflow-hidden rounded-xl border border-brand-purple/10 bg-white shadow-xl`}>
           <button
             onClick={() => { logout(); setOpen(false); }}
             className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-ink-800 hover:bg-brand-cream"
@@ -38,7 +39,7 @@ export default function UserMenu() {
       )}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-3 rounded-lg bg-white/10 px-3 py-2 text-left hover:bg-white/15"
+        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-left transition ${top ? "border border-brand-purple/10 bg-white hover:bg-brand-cream/60" : "w-full bg-brand-cream/55 hover:bg-brand-cream"}`}
       >
         {user.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -49,12 +50,12 @@ export default function UserMenu() {
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-brand-cream">{user.name || user.email}</p>
+          <p className="truncate text-sm font-medium text-ink-800">{user.name || user.email}</p>
           <span className={`mt-0.5 inline-block rounded-full px-1.5 py-px text-[10px] font-semibold ${ROLE_COLORS[user.role] ?? ROLE_COLORS.viewer}`}>
             {user.role}
           </span>
         </div>
-        <ChevronUp size={15} className={`text-brand-cream/60 transition ${open ? "" : "rotate-180"}`} />
+        {top ? <ChevronDown size={15} className={`text-ink-700/50 transition ${open ? "rotate-180" : ""}`} /> : <ChevronUp size={15} className={`text-ink-700/50 transition ${open ? "" : "rotate-180"}`} />}
       </button>
     </div>
   );

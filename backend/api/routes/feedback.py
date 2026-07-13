@@ -10,7 +10,7 @@ a human reads the "what's working" signal and decides.
 Endpoints
 ---------
 POST /feedback         Record one accept/reject/edit (manager+); append-only.
-GET  /feedback/stats   Per-driver acceptance aggregates (analyst+).
+GET  /feedback/stats   Per-driver acceptance aggregates (manager+).
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ async def submit_feedback(
 
 @router.get("/stats")
 async def feedback_stats(
-    _: dict[str, Any] = Depends(require_role("analyst")),
+    _: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
     """Per-driver acceptance aggregates — the human-facing 'what's working' view."""
     return ok(await memory.feedback_stats())

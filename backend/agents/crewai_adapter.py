@@ -1,25 +1,31 @@
-"""Optional CrewAI/LangSmith bridge for certified runtime governance."""
+"""Optional CrewAI/LangSmith bridge for certified runtime governance.
+
+CrewAI is an execution adapter for bounded narrative tasks.  The adapter never
+decides authorization and never sends raw HR payloads to LangSmith.
+"""
 
 from __future__ import annotations
 
+import importlib.util
 from collections.abc import Callable
 from typing import Any
 
 from core.a2a_envelope import A2AEnvelope, certified_handoff
 from core.cost_guard import TokenBudgetGuard
 
-try:
-    from langsmith import traceable
-except Exception:  # noqa: BLE001 - LangSmith is optional in local/dev builds
+CREWAI_USE_CASES = {
+    "resume_narrative": "Summarize evidence from an already blinded profile for a human reviewer.",
+    "evidence_digest": "Turn certified skill evidence into a short review note.",
+    "conflict_flag": "Identify conflicting evidence and route it to human review.",
+    "hierarchical_resume_review": (
+        "Talent Review Manager delegates to Resume Evidence Analyst and Fairness Policy Guard."
+    ),
+    "hierarchical_policy_case": (
+        "HR Operations Manager delegates to Case Triage Analyst and Policy Grounding Guard."
+    ),
+}
 
-    def traceable(*_args: Any, **_kwargs: Any):
-        def decorator(func):
-            return func
 
-        return decorator
-
-
-@traceable(name="crewai_certified_task")
 async def run_certified_crewai_task(
     *,
     task_name: str,
@@ -42,6 +48,8 @@ async def run_certified_crewai_task(
     attribution = crewai_cost_attribution(task_name, crew_input, envelope)
     envelope.metadata.update(
         {
+            "integration": "crewai",
+            "task_name": task_name,
             "estimated_cost_usd": attribution.cost_usd,
             "tokens_in_estimate": attribution.tokens_in,
             "tokens_out": attribution.tokens_out,
@@ -63,14 +71,23 @@ def _record_langsmith_metadata(task_name: str, envelope: A2AEnvelope) -> None:
             inputs={
                 "source_agent": envelope.source_agent,
                 "target_agent": envelope.target_agent,
+                "trace_id": envelope.trace_id,
             },
-            outputs={"certification": envelope.certification.model_dump(mode="json")},
+            outputs={
+                "certification": {
+                    "is_valid": envelope.certification.is_valid,
+                    "confidence": envelope.certification.confidence,
+                    "redaction_count": envelope.certification.redaction_count,
+                    "violations": envelope.certification.violations,
+                }
+            },
             metadata={
                 "trace_id": envelope.trace_id,
                 "latency_ms": envelope.latency_ms,
                 "is_valid": envelope.certification.is_valid,
                 "violations": envelope.certification.violations,
                 "model_id": envelope.model_id,
+                "raw_payload_sent": False,
                 **envelope.metadata,
             },
         )
@@ -84,6 +101,11 @@ def _cost_query(task_name: str, crew_input: dict[str, Any]) -> str:
         if isinstance(value, str) and value.strip():
             return value
     return task_name
+
+
+def crewai_available() -> bool:
+    """Return whether the optional CrewAI package is importable."""
+    return importlib.util.find_spec("crewai") is not None
 
 
 def _estimated_input_tokens(crew_input: dict[str, Any]) -> int:

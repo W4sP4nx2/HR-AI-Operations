@@ -122,6 +122,7 @@ def test_amd_service_key_cannot_be_overridden_by_request_key(monkeypatch) -> Non
         ("POST", "/chat/stream"),
         ("POST", "/agents/triage_agent/trigger"),
         ("POST", "/agents/resume_screener_agent/trigger/upload"),
+        ("POST", "/crews/hierarchical/resume_review/run"),
     ],
 )
 def test_byok_route_allowlist_accepts_only_model_capable_requests(method: str, path: str) -> None:
@@ -265,8 +266,8 @@ def test_agent_trigger_enforces_per_agent_min_role(monkeypatch) -> None:
     from core.config import settings
     from core.memory import memory
 
-    analyst = asyncio.run(
-        memory.create_user(email="analyst@corp.com", role="analyst", provider="local")
+    viewer = asyncio.run(
+        memory.create_user(email="viewer@corp.com", role="viewer", provider="local")
     )
     manager = asyncio.run(
         memory.create_user(email="mgr2@corp.com", role="manager", provider="local")
@@ -276,24 +277,24 @@ def test_agent_trigger_enforces_per_agent_min_role(monkeypatch) -> None:
     from api.main import app
 
     client = TestClient(app)
-    a = {"Authorization": f"Bearer {security.create_access_token(analyst)}"}
+    v = {"Authorization": f"Bearer {security.create_access_token(viewer)}"}
     m = {"Authorization": f"Bearer {security.create_access_token(manager)}"}
 
-    # Analyst CAN trigger the analyst-tier resume screener…
+    # A manager can trigger the manager-tier resume screener…
     r1 = client.post(
         "/agents/resume_screener_agent/trigger",
         json={
             "input": "x",
             "payload": {"job_description": "Python", "resume": "Python dev " * 5},
         },
-        headers=a,
+        headers=m,
     )
     assert r1.status_code == 200
-    # …but NOT the manager-tier attrition agent.
+    # A viewer cannot trigger the manager-tier attrition agent.
     r2 = client.post(
         "/agents/attrition_agent/trigger",
         json={"input": "", "payload": {"tenure_months": 10}},
-        headers=a,
+        headers=v,
     )
     assert r2.status_code == 403
     # A manager can.

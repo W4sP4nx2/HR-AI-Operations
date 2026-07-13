@@ -26,6 +26,7 @@ FireworksPrimitive = Literal[
 ]
 
 ServingPath = Literal[
+    "deploy_on_demand",
     "deterministic",
     "serverless_batch",
     "serverless_online",
@@ -39,6 +40,7 @@ class A2ACard(BaseModel):
     """Routing metadata shared between the orchestrator and agent fleet."""
 
     agent_name: str
+    tool_id: str | None = None
     label: str
     owner_team: str
     purpose: str
@@ -52,6 +54,10 @@ class A2ACard(BaseModel):
             "preferences only; they are never used as default model ids."
         )
     )
+    required_model_family: str | None = Field(
+        default=None,
+        description="Fail-closed model-family gate for capability-specific routes.",
+    )
     cost_posture: CostPosture
     risk_posture: str
     tools: list[str]
@@ -61,19 +67,24 @@ class A2ACard(BaseModel):
 
     def tool_name(self) -> str:
         """Return the OpenAI-compatible tool name for this card."""
-        return f"dispatch_{self.agent_name}"
+        return self.tool_id or f"dispatch_{self.agent_name}"
 
     def tool_description(self) -> str:
         """Pack routing-critical metadata into a model-visible tool description."""
         primitives = ", ".join(self.fireworks_primitives)
         workloads = ", ".join(self.accepted_workloads)
         targets = ", ".join(self.collaboration_targets) or "none"
+        required_family = (
+            f" Required model family: {self.required_model_family}."
+            if self.required_model_family
+            else ""
+        )
         return (
             f"{self.label} A2A card. Purpose: {self.purpose} "
             f"Serving path: {self.serving_path}. Fireworks primitives: {primitives}. "
             f"Cost posture: {self.cost_posture}. Risk posture: {self.risk_posture}. "
             f"Use for: {workloads}. Collaborates with: {targets}. "
-            f"AMD angle: {self.amd_use_case}"
+            f"AMD angle: {self.amd_use_case}.{required_family}"
         )
 
 
@@ -253,6 +264,44 @@ AGENT_CARDS: dict[str, A2ACard] = {
         ],
         amd_use_case="tool-calling workflow execution with a human checkpoint",
     ),
+}
+
+
+# Gemma is a capability-specific route for the existing Resume Screener, not a
+# new executable agent. This preserves the real ResumeScore contract, RBAC,
+# guardrails, and audit boundary while exposing a dedicated multimodal tool.
+GEMMA_MULTIMODAL_CARD = A2ACard(
+    agent_name="resume_screener_agent",
+    tool_id="gemma_multimodal",
+    label="Gemma Multimodal Resume Review",
+    owner_team="Recruiting / AI Platform",
+    purpose="Extract and assess image-plus-text resumes for human recruiting review.",
+    accepted_workloads=[
+        "scanned resume analysis",
+        "image plus text resume reasoning",
+        "multimodal candidate evidence extraction",
+    ],
+    output_contract=_spec("resume_screener_agent").output_model.__name__,
+    serving_path="deploy_on_demand",
+    fireworks_primitives=["vision", "reasoning", "json_schema", "tool_calling"],
+    model_family_preferences=["gemma-4-26b-a4b-it", "gemma-4", "gemma"],
+    required_model_family="gemma-4-26b-a4b-it",
+    cost_posture="premium",
+    risk_posture=_spec("resume_screener_agent").risk,
+    tools=_spec("resume_screener_agent").tools,
+    collaboration_targets=["skill_validator", "resume_screener_agent"],
+    human_review_triggers=[
+        "protected-attribute uncertainty",
+        "low extraction confidence",
+        "date consistency flags",
+        "multimodal evidence disagreement",
+    ],
+    amd_use_case="multimodal reasoning with a certified human-review boundary",
+)
+
+ORCHESTRATOR_CARDS: dict[str, A2ACard] = {
+    **AGENT_CARDS,
+    "gemma_multimodal": GEMMA_MULTIMODAL_CARD,
 }
 
 

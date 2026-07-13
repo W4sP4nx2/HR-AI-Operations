@@ -4,9 +4,8 @@ Unit tests prove schema/syntax; these grade **behavior** on the deterministic
 no-key path (CI-safe, reproducible). Two kinds of test live here:
 
   * **Guarantees** — real properties we assert hold.
-  * **KNOWN LIMITATION** — we assert the *current* (imperfect) behavior so that a
-    future improvement breaks the test loudly and the limitation gets re-evaluated
-    on purpose. (Honest, not hidden — mirrors STATUS's limitations section.)
+  * **Boundaries** — we assert deliberate product limits (for example, no text
+    sentiment in attrition features) so they remain explicit and reviewable.
 """
 
 from __future__ import annotations
@@ -56,13 +55,8 @@ def test_triage_routine_policy_question_stays_policy_when_calm() -> None:
     assert triage_agent._keyword_classify("What is the remote work policy?") == "POLICY"
 
 
-def test_KNOWN_LIMITATION_emotional_words_inflate_urgency() -> None:
-    """KNOWN LIMITATION (keyword path): the SAME routine request, dressed in
-    panic words, currently flips POLICY → URGENT. The deterministic classifier
-    can't separate genuine urgency from emotional decoration; it errs toward
-    escalation (safe for HR, but a false-positive URGENT). The LLM path softens
-    this but is also tuned to prefer URGENT when in doubt. Documented so a real
-    semantic fix re-evaluates this trade-off on purpose."""
+def test_emotional_decoration_does_not_override_policy_intent() -> None:
+    """Urgency modifiers alone do not override an explicit policy question."""
     from agents.triage_agent import triage_agent
 
     calm = triage_agent._keyword_classify("What is the remote work policy?")
@@ -70,18 +64,15 @@ def test_KNOWN_LIMITATION_emotional_words_inflate_urgency() -> None:
         "URGENT!! I need the remote work policy ASAP, this is an emergency!!!"
     )
     assert calm == "POLICY"
-    assert panicked == "URGENT"  # current behavior — not the ideal of register-invariance
-    assert calm != panicked
+    assert panicked == "POLICY"
+    assert calm == panicked
 
 
 # --------------------------------------------------------------------------- #
 # 3. Resume Screener — Counter-Factual Competency (negative-context keywords)
 # --------------------------------------------------------------------------- #
-def test_KNOWN_LIMITATION_screener_does_not_discount_negative_context() -> None:
-    """KNOWN LIMITATION: the keyword + embedding blend counts a skill term even
-    when its context is negative ("attempted but abandoned", "read books but
-    never built"). Buzzword laundering is not yet penalised — context/negation
-    reasoning is future work. Asserted so adding it breaks this test."""
+def test_screener_discounts_negative_context() -> None:
+    """The deterministic path removes nearby-negated skills before scoring."""
     from agents.resume_screener_agent import ResumeScreenerAgent
 
     jd = "Senior engineer: production FastAPI, LangGraph multi-agent pipelines, Python, async."
@@ -91,9 +82,8 @@ def test_KNOWN_LIMITATION_screener_does_not_discount_negative_context() -> None:
         "Familiar with Python and async in theory."
     )
     r = ResumeScreenerAgent()._embedding_score(jd, laundered)
-    # Today: the negated terms still count as matched skills.
-    assert "fastapi" in r["matched_skills"]
-    assert "langgraph" in r["matched_skills"]
+    assert "fastapi" not in r["matched_skills"]
+    assert "langgraph" not in r["matched_skills"]
 
 
 # --------------------------------------------------------------------------- #

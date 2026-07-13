@@ -37,7 +37,7 @@ def test_fireworks_auth_profile_passes_with_official_quickstart_shape(
     monkeypatch.setenv("LLM_PROVIDER", "fireworks")
     monkeypatch.setenv("FIREWORKS_API_KEY", "test-key-test-key")
     monkeypatch.setenv("FIREWORKS_BASE_URL", "https://api.fireworks.ai/inference/v1")
-    monkeypatch.setenv("ALLOWED_MODELS", "accounts/fireworks/models/deepseek-v3p1")
+    monkeypatch.setenv("ALLOWED_MODELS", "accounts/fireworks/models/kimi-k2p6")
 
     checks = verifier.fireworks_auth_checks()
 
@@ -58,7 +58,7 @@ def test_fireworks_auth_profile_rejects_non_official_base_url(monkeypatch) -> No
     monkeypatch.setenv("LLM_PROVIDER", "fireworks")
     monkeypatch.setenv("FIREWORKS_API_KEY", "test-key-test-key")
     monkeypatch.setenv("FIREWORKS_BASE_URL", "https://example.invalid/v1")
-    monkeypatch.setenv("ALLOWED_MODELS", "accounts/fireworks/models/deepseek-v3p1")
+    monkeypatch.setenv("ALLOWED_MODELS", "accounts/fireworks/models/kimi-k2p6")
 
     checks = {check.name: check for check in verifier.fireworks_auth_checks()}
 
@@ -131,7 +131,7 @@ def test_both_mode_validates_both_profiles_without_impossible_provider_pair(
     monkeypatch.setenv("AMD_VLLM_BASE_URL", "http://amd-vllm:8000/v1")
     monkeypatch.setenv("AMD_VLLM_MODEL", "google/gemma-3-27b-it")
     monkeypatch.setenv("AMD_VLLM_SERVED_MODEL", "amd-gemma-3-27b-it")
-    monkeypatch.setenv("FIREWORKS_ALLOWED_MODELS", "accounts/fireworks/models/deepseek-v3p1")
+    monkeypatch.setenv("FIREWORKS_ALLOWED_MODELS", "accounts/fireworks/models/kimi-k2p6")
     monkeypatch.setenv("AMD_VLLM_ALLOWED_MODELS", "amd-gemma-3-27b-it")
     monkeypatch.setenv("AUTH_ENFORCE", "true")
     monkeypatch.setenv("AUTH_OPEN_REGISTRATION", "false")

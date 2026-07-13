@@ -3,7 +3,7 @@
 A crew of three role-specialised agents:
     * JD Parser Agent       — extracts required skills from the job description.
     * Resume Scorer Agent   — scores the resume 0-100 against JD requirements.
-    * Recommendation Agent  — writes a hire / no-hire recommendation.
+    * Recommendation Agent  — writes an advisory fit summary for human review.
 
 Semantic similarity scoring uses HuggingFace sentence-transformers. CrewAI is
 used to orchestrate the agents when available; when CrewAI (or an LLM key) is
@@ -24,6 +24,8 @@ from core.memory import memory
 from models.naive_baselines import resume_overlap_baseline
 
 AGENT_NAME = "resume_screener_agent"
+STRONG_FIT = "strong_fit"
+REVIEW_RECOMMENDED = "review_recommended"
 
 _SKILL_AUDIT_HANDOFF_OBJECTIVES: dict[str, Any] = {
     "schema": {
@@ -46,6 +48,16 @@ _SKILL_AUDIT_HANDOFF_OBJECTIVES: dict[str, Any] = {
             }
         },
         "required": ["items"],
+        "additionalProperties": False,
+    },
+    "require_pii_free": True,
+}
+
+_CREWAI_NARRATIVE_OBJECTIVES: dict[str, Any] = {
+    "schema": {
+        "type": "object",
+        "properties": {"narrative": {"type": "string", "maxLength": 800}},
+        "required": ["narrative"],
         "additionalProperties": False,
     },
     "require_pii_free": True,
@@ -177,8 +189,13 @@ def _extract_skill_terms(text: str) -> list[str]:
     return seen
 
 
+def advisory_fit_label(score: int) -> str:
+    """Return an advisory fit label, not a hiring decision."""
+    return STRONG_FIT if score >= 65 else REVIEW_RECOMMENDED
+
+
 class ResumeScreenerAgent:
-    """Screens resumes against a job description and recommends a decision."""
+    """Screens resumes against a job description for human decision support."""
 
     def __init__(self) -> None:
         """Initialise the screener."""
@@ -218,8 +235,8 @@ class ResumeScreenerAgent:
             )
             recommender = Agent(
                 role="Recommendation Writer",
-                goal="Write a hire/no-hire recommendation with clear reasoning.",
-                backstory="A hiring manager who writes concise, fair decisions.",
+                goal="Write an advisory candidate-role fit summary with clear evidence.",
+                backstory="A reviewer who writes concise, fair decision-support notes.",
                 llm=llm,
                 verbose=False,
             )
@@ -234,8 +251,8 @@ class ResumeScreenerAgent:
                 agent=scorer,
             )
             t3 = Task(
-                description="Write a hire or no-hire recommendation with reasoning.",
-                expected_output="A short recommendation paragraph.",
+                description="Write an advisory fit summary with evidence and review notes.",
+                expected_output="A short decision-support paragraph.",
                 agent=recommender,
             )
             return Crew(
@@ -272,7 +289,7 @@ class ResumeScreenerAgent:
         if insufficient:
             return {
                 "score": 0,
-                "recommendation": "no-hire",
+                "recommendation": REVIEW_RECOMMENDED,
                 "reasoning": (
                     "Insufficient input to assess — provide a full resume and job "
                     f"description (got {resume_tokens} resume / {jd_tokens} JD words). "
@@ -292,7 +309,7 @@ class ResumeScreenerAgent:
         score = int(100 * (0.6 * semantic + 0.4 * keyword_ratio) + 0.5)
         coverage = int(keyword_ratio * 100 + 0.5)
 
-        recommendation = "hire" if score >= 65 else "no-hire"
+        recommendation = advisory_fit_label(score)
         # State the blend explicitly so the 0.66 semantic and the 65 gauge aren't
         # mistaken for the same number — the gauge is a weighted blend of both.
         reasoning = (
@@ -345,12 +362,16 @@ class ResumeScreenerAgent:
             from agents.skill_validator import SkillAudit, apply_audit, skill_validator
             from core.a2a_envelope import certified_handoff
 
-            async def _validate_skills(payload: dict[str, Any]) -> dict[str, Any] | None:
+            async def _validate_skills(payload: dict[str, Any]) -> dict[str, Any]:
                 audit_result = await skill_validator.validate(
                     list(payload.get("skills", [])),
                     str(payload.get("resume", "")),
                 )
-                return audit_result.model_dump() if audit_result is not None else None
+                # A gated or unavailable validator is an explicit empty audit,
+                # not a failed inter-agent handoff.  The caller below preserves
+                # the visible ``keyword_fallback`` mode when no evidence items
+                # are available, while the A2A envelope remains schema-valid.
+                return audit_result.model_dump() if audit_result is not None else {"items": []}
 
             envelope = await certified_handoff(
                 source_agent=AGENT_NAME,
@@ -359,7 +380,7 @@ class ResumeScreenerAgent:
                 payload={"skills": result.get("matched_skills", []), "resume": resume},
                 objectives=_SKILL_AUDIT_HANDOFF_OBJECTIVES,
             )
-            if envelope.certification.is_valid:
+            if envelope.certification.is_valid and envelope.payload.get("items"):
                 result = apply_audit(result, SkillAudit.model_validate(envelope.payload))
             else:
                 result["skill_audit_mode"] = "keyword_fallback"
@@ -386,12 +407,28 @@ class ResumeScreenerAgent:
             crew = self._build_crew(job_description, resume)
             if crew is not None:
                 try:
-                    crew_output = await asyncio.to_thread(crew.kickoff)
-                    result["reasoning"] = (
-                        f"{result['reasoning']} CrewAI review: {str(crew_output)[:600]}"
+                    from agents.crewai_adapter import run_certified_crewai_task
+
+                    async def _kickoff(_payload: dict[str, Any]) -> dict[str, str]:
+                        output = await asyncio.to_thread(crew.kickoff)
+                        return {"narrative": str(output)}
+
+                    envelope = await run_certified_crewai_task(
+                        task_name="resume_narrative",
+                        crew_input={"job_description": job_description, "resume": resume},
+                        executor=_kickoff,
+                        objectives=_CREWAI_NARRATIVE_OBJECTIVES,
+                        source_agent=AGENT_NAME,
+                        target_agent="human_reviewer",
                     )
-                except Exception as exc:  # noqa: BLE001
-                    result["reasoning"] += f" (CrewAI unavailable: {exc})"
+                    if envelope.certification.is_valid:
+                        narrative = str(envelope.payload.get("narrative", ""))[:800]
+                        result["reasoning"] = f"{result['reasoning']} CrewAI review: {narrative}"
+                        result["crewai_mode"] = "certified_narrative"
+                    else:
+                        result["crewai_mode"] = "certification_failed"
+                except Exception:  # noqa: BLE001
+                    result["crewai_mode"] = "unavailable"
 
             # Land the screen in the Cases ledger as a SCREENING case so it shows
             # up in the Cases panel (every agent action → Cases + Audit). The

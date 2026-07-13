@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from agents.crewai_adapter import crewai_cost_attribution, run_certified_crewai_task
-from agents.langsmith_cost_tracker import estimate_cost_usd
+from agents.langsmith_cost_tracker import estimate_cost_usd, redact_trace_text
 
 
 def test_cost_estimate_uses_tier_specific_rate():
@@ -13,6 +13,13 @@ def test_cost_estimate_uses_tier_specific_rate():
 
     assert attribution.cost_usd == 0.0003
     assert attribution.cost_per_1k == 0.0002
+
+
+def test_langsmith_trace_metadata_does_not_include_raw_hr_text():
+    trace = redact_trace_text("Candidate jordan@example.com called +1 555 123 4567")
+    assert "jordan@example.com" not in str(trace)
+    assert "555 123" not in str(trace)
+    assert trace["redaction_applied"] is True
 
 
 @pytest.mark.asyncio

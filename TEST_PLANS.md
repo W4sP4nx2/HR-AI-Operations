@@ -145,8 +145,8 @@ automatic employment decision.
 | Strong match | JD requires Python/FastAPI/AWS; resume demonstrates those skills | High score, `hire`, matched skills | `test_resume_output_matches_contract` |
 | Name-blind parity | Same resume with two different names | Identical scores; `blinded=True` | `test_resume_name_blind_identical_scores` |
 | Age/pregnancy guard | Resume includes graduation year/pregnancy leave | Reasoning does not cite age/year; output is recommendation only | `test_resume_never_auto_rejects_and_no_age` |
-| Negation blind spot, fallback | `attempted FastAPI but abandoned`, `never built LangGraph` | Keyless fallback may still match terms, but marks `skill_audit_mode=keyword_fallback` | `test_screener_fallback_marks_mode_and_keeps_blindspot` |
-| Validated negation path | Mocked validator marks matched skills negated | Score drops, `no-hire`, `unverified_skills` populated | `test_screener_validated_path_flips_score` |
+| Negation guard, fallback | `attempted FastAPI but abandoned`, `never built LangGraph` | Keyless fallback removes nearby-negated terms and keeps `skill_audit_mode=keyword_fallback` | `test_screener_fallback_uses_deterministic_negation_guard` |
+| Validated negation path | Mocked validator marks matched skills negated | Score drops, `review_recommended`, `unverified_skills` populated | `test_screener_validated_path_flips_score` |
 | UI honesty | `skill_audit_mode=keyword_fallback` | Recommendation pill says `Review required: fallback mode`, not green advance | Manual/browser |
 
 Manual walkthrough:

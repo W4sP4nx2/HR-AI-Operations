@@ -26,6 +26,7 @@ type Message =
       toolCalls: ToolCall[];
       citations: Citation[];
       mode: string;
+      model?: string;
       streaming?: boolean;
     };
 
@@ -96,8 +97,15 @@ function Citations({ items }: { items: Citation[] }) {
   );
 }
 
-function ModeChip({ mode }: { mode: string }) {
-  if (mode === "full") return null;
+function ModeChip({ mode, model }: { mode: string; model?: string }) {
+  if (mode === "full") {
+    const label = model?.split("/").pop();
+    return label ? (
+      <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+        Fireworks · {label}
+      </span>
+    ) : null;
+  }
   return (
     <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
       basic mode
@@ -226,7 +234,7 @@ export default function ChatPanel({
               mode = ev.mode ?? "degraded";
               setMessages((prev) =>
                 prev.map((m, i) =>
-                  i === assistantIdx ? { ...m, mode, streaming: false } : m
+                  i === assistantIdx ? { ...m, mode, model: ev.model, streaming: false } : m
                 )
               );
             }
@@ -289,7 +297,7 @@ export default function ChatPanel({
               {msg.role === "assistant" && msg.toolCalls.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-1">
                   {msg.toolCalls.map((tc, j) => <ToolBadge key={j} name={tc.name} />)}
-                  <ModeChip mode={msg.mode} />
+                  <ModeChip mode={msg.mode} model={msg.model} />
                 </div>
               )}
               <div
