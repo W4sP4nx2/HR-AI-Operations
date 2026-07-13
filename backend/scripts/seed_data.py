@@ -1,4 +1,4 @@
-"""Seed the HR AI Command Center with sample policies, cases and a chat demo.
+"""Seed Govern.ai with sample policies, cases and a chat demo.
 
 Run from the backend directory (with the venv active)::
 
@@ -6,7 +6,7 @@ Run from the backend directory (with the venv active)::
 
 What it does
 ------------
-1. Generates five realistic policy PDFs in ``sample_data/policies/``.
+1. Generates twelve deterministic policy PDFs in ``sample_data/policies/``.
 2. Ingests them via the policy pipeline (registry + vector store if available).
 3. Files a set of sample HR tickets through the Triage agent (creates cases).
 4. Runs a few chat turns through the assistant and prints the transcript.
@@ -34,6 +34,14 @@ SAMPLE_POLICIES: dict[str, str] = {
         "carried over into the next year. Leave requests must be submitted at "
         "least 2 weeks in advance and approved by the line manager. Unused leave "
         "beyond the carry-over limit is forfeited at year end."
+    ),
+    "policy_pto_2023.pdf": (
+        "Paid Time Off Policy. Effective 2023-01-01 and expired 2023-12-31. "
+        "Employees get 15 days PTO per calendar year."
+    ),
+    "policy_pto_2024.pdf": (
+        "Paid Time Off Policy. Effective 2024-01-01 and active. Employees get "
+        "25 days PTO per calendar year."
     ),
     "parental_leave_policy.pdf": (
         "Parental Leave Policy. Primary caregivers are entitled to 12 weeks of "
@@ -108,14 +116,110 @@ SAMPLE_TICKETS: list[str] = [
     "I'd like to report a harassment concern about a team member, confidential please.",
     "My onboarding training modules are not showing up in the system.",
     "Can I work remotely 4 days a week from next month?",
+    "My manager has not completed my mid-year review and the promotion cycle closes Friday.",
+    "I need to update my dependent after a qualifying life event; which benefits documents are required?",
+    "A former contractor still appears to have access to an employee folder. Please route this as a compliance concern.",
+    "The expense portal rejected a business meal with an itemised receipt. What is the appeal process?",
+    "I am returning from parental leave and need the policy for phased hours and manager approval.",
+    "A new hire cannot access the security training assignment after their account was created.",
+    "Can I request an ergonomic assessment for my home workspace and is equipment covered?",
+    "My team is being asked to work through a scheduled rest day without written approval.",
+    "Where can I report a suspected breach involving employee personal data?",
+    "I have been placed on a performance plan and need to understand the review timeline.",
+    "My health plan enrollment window closes tomorrow and the benefits portal is unavailable.",
+    "Please explain the conflict-of-interest disclosure process for a supplier relationship.",
+    "I need to take bereavement leave next week and want to confirm the notice requirements.",
+    "The remote-work request form is missing the department-head approval option.",
 ]
 
 SAMPLE_CHAT_PROMPTS: list[str] = [
+    "How many PTO days do I have?",
     "How many vacation days do I get each year?",
     "Our HRIS is down and payroll fails in an hour, urgent!",
     "What is the parental leave entitlement for a primary caregiver?",
     "List all open urgent cases",
+    "What documentation is needed to add a dependent outside open enrollment?",
+    "How many days do I have to submit a reimbursable travel expense?",
+    "Who can approve a fully remote arrangement?",
+    "What happens after a performance rating of two?",
+    "How do I report a suspected employee data breach?",
+    "Can a secondary caregiver take parental leave in separate blocks?",
+    "What are the core collaboration hours for remote employees?",
+    "Where should I report a harassment concern if my manager is involved?",
+    "Can I request a home-office ergonomic assessment?",
+    "What is the process for a promotion review that was missed?",
+    "How quickly must a workplace injury be reported?",
+    "Are personal expenses or fines reimbursable during business travel?",
+    "How do I request a copy of my employee data?",
+    "What does a performance improvement plan include?",
 ]
+
+
+def expand_demo_policy(filename: str, summary: str) -> str:
+    """Build a substantial, sectioned synthetic policy fixture for local demos.
+
+    The original seed copy was tiny and made every PDF appear as one retrieval
+    chunk. These sections keep the fixture synthetic while exercising 500-token
+    windows with 50-token overlap in the actual product preview.
+    """
+    title = filename.removesuffix(".pdf").replace("_", " ").title()
+    return f"""{title}
+
+{summary}
+
+Scope and eligibility. This synthetic HR policy applies to employees covered by
+the relevant programme and should be read with the employee handbook, local
+law, and any written employment agreement. Contractors and contingent workers
+follow the terms in their engagement letter unless HR records an exception.
+Employees should ask People Operations when a role, location, employment type,
+or transfer creates uncertainty about eligibility. The policy owner publishes
+the current version and retires older copies.
+
+Request workflow. Employees start a request in the HR portal or through their
+People Partner and provide dates, business reason, supporting documents, and the
+manager needed for review. A manager checks team coverage and confirms the
+request in the system. HR validates eligibility when the request affects pay,
+benefits, leave balances, access rights, or a regulated record. A portal
+confirmation is the source of truth; a chat message alone is not an approval.
+
+Manager responsibilities. Managers apply the same documented criteria to
+comparable requests, respond within the service window, and avoid asking for
+information that is not necessary for the decision. When a request cannot be
+approved, the manager records a concise reason and points the employee to the
+appeal or escalation route. Managers must not retaliate against an employee for
+raising a concern or asking HR to review a case.
+
+Exceptions and escalation. Urgent safety, payroll, access, privacy, or legal
+issues bypass the normal queue and go to the appropriate human team. A policy
+exception requires a written business reason, an accountable approver, and an
+expiry or review date. People Operations may request additional evidence, but
+the employee should receive a clear explanation of what is needed and why.
+Conflicting versions are escalated to the policy owner rather than resolved by
+guesswork or an outdated document.
+
+Records and privacy. HR stores only the minimum information needed to process
+the request, restricts access by role, and retains the record according to the
+data protection schedule. Sensitive identifiers should not be copied into open
+chat channels. Employees may ask how a record is used, request correction of
+an inaccurate record, or report suspected unauthorised access to the data
+protection officer. Audit events record the action and outcome, not unnecessary
+personal details.
+
+Review and appeals. If an employee believes the policy was applied incorrectly,
+they may ask their People Partner for a review and include the confirmation,
+relevant dates, and a short explanation. The reviewer checks the effective
+version, eligibility, approvals, and any local requirements. A review does not
+guarantee a different outcome, but it must produce a documented decision and a
+next step. Policy owners review this fixture at least annually and whenever a
+law, benefit plan, system, or operating process changes.
+
+Operational checklist. Before closing a request, confirm that the employee's
+question was understood, the active policy version was used, required approval
+was recorded, the employee received a concise answer, and any follow-up owner
+has been named. Cases involving potential harm, discrimination, privacy loss,
+or payroll impact remain visible to a human reviewer even when an AI agent
+provides a grounded draft response. This synthetic text is for local product
+evaluation and is not a substitute for company policy or legal advice."""
 
 
 # --------------------------------------------------------------------------- #
@@ -184,7 +288,7 @@ def write_policy_pdfs(directory: str) -> list[str]:
     for name, text in SAMPLE_POLICIES.items():
         path = os.path.join(directory, name)
         with open(path, "wb") as f:
-            f.write(make_pdf(text))
+            f.write(make_pdf(expand_demo_policy(name, text)))
         paths.append(path)
     return paths
 
@@ -192,7 +296,7 @@ def write_policy_pdfs(directory: str) -> list[str]:
 async def ingest_policies(paths: list[str]) -> None:
     """Ingest each policy PDF (registry + vector store if available)."""
     from core.memory import memory
-    from pipelines.ingestion import chunk_text
+    from pipelines.ingestion import chunk_document
     from pipelines.intake import extract_text_from_pdf_bytes
     from services import rag
 
@@ -201,23 +305,19 @@ async def ingest_policies(paths: list[str]) -> None:
         with open(path, "rb") as f:
             data = f.read()
         text = extract_text_from_pdf_bytes(data)
-        chunks = chunk_text(text)
         doc_id = os.path.basename(path).replace(".pdf", "")
-        written = await rag.ingest_chunks(
-            [
-                {"text": c, "doc_id": doc_id, "metadata": {"source": path, "chunk_index": i}}
-                for i, c in enumerate(chunks)
-            ]
-        )
+        plan, chunks = chunk_document(text, doc_id=doc_id, source=path)
+        written = await rag.ingest_chunks(chunks)
         await memory.upsert_policy(
             doc_id=doc_id,
             filename=os.path.basename(path),
             chunks=len(chunks),
             char_count=len(text),
             status="ingested" if written else "vector_store_unavailable",
+            source_text=text,
         )
         flag = f"→ {written} vectors" if written else "→ registry only (no vector backend)"
-        print(f"  ✓ {os.path.basename(path):28} {len(chunks)} chunks  {flag}")
+        print(f"  ✓ {os.path.basename(path):28} {len(chunks)} chunks " f"[{plan.strategy}]  {flag}")
 
 
 async def file_tickets() -> None:
@@ -279,7 +379,7 @@ async def main() -> None:
     here = os.path.dirname(__file__)
     policies_dir = os.path.join(here, "..", "sample_data", "policies")
 
-    print("Seeding HR AI Command Center with sample data…")
+    print("Seeding Govern.ai with sample data…")
     paths = write_policy_pdfs(policies_dir)
     print(f"  Wrote {len(paths)} policy PDFs to sample_data/policies/")
 

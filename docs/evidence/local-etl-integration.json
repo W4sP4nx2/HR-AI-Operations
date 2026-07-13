@@ -1,0 +1,39 @@
+{
+  "captured_at": "2026-07-11T05:17:03.792633+00:00",
+  "certification": "live_etl_integrations",
+  "gate_count": 2,
+  "gates": [
+    {
+      "evidence": {
+        "backend": "pgvector",
+        "chunks_loaded": 40,
+        "passes_pto_trap": true,
+        "pgvector_extension_version": "0.8.2",
+        "pto_2023_expires_on": "2023-12-31",
+        "pto_2023_status": "expired",
+        "pto_2024_effective_date": "2024-01-01",
+        "pto_2024_status": "active",
+        "stored_synthetic_policy_chunks": 40,
+        "winning_doc_id": "policy_pto_2024"
+      },
+      "name": "postgres_pgvector_poisoned_policy",
+      "ok": true
+    },
+    {
+      "evidence": {
+        "bucket": "hrcc-synthetic-resumes",
+        "endpoint_origin": "http://127.0.0.1:9000",
+        "expected_objects": 1000,
+        "first_object_uri": "s3://hrcc-synthetic-resumes/candidate-0000.pdf",
+        "listed_objects": 1000,
+        "missing_count": 0,
+        "total_bytes": 1083447,
+        "unexpected_count": 0
+      },
+      "name": "minio_s3_resume_objects",
+      "ok": true
+    }
+  ],
+  "ok": true,
+  "passed_count": 2
+}

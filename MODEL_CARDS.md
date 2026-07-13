@@ -7,6 +7,10 @@ contracts in [`backend/agents/contracts.py`](./backend/agents/contracts.py).
 
 > **Universal oversight rule:** no agent makes a fully automated adverse decision.
 > Sensitive actions pause for a human; advisory outputs are labelled as such.
+>
+> The three deterministic comparison/fallback models, their golden metrics, and
+> their discard criteria are documented in
+> [`BASELINE_MODELS.md`](./BASELINE_MODELS.md).
 
 ---
 
@@ -25,8 +29,9 @@ contracts in [`backend/agents/contracts.py`](./backend/agents/contracts.py).
 - **Purpose:** answer policy questions from ingested documents, with citations.
 - **Input → Output:** `TicketInput` → `PolicyAnswer {answer, source_documents,
   confidence_score, needs_review}`.
-- **Logic / data:** retrieval over *your* policy PDFs (pgvector top-k cosine, MiniLM/hashing embeddings);
-  Claude synthesis when enabled. Answers grounded in retrieved text only.
+- **Logic / data:** retrieval over *your* policy PDFs (pgvector top-k cosine,
+  hosted/local embeddings); provider synthesis when enabled. Answers remain
+  grounded in retrieved text.
 - **Fairness / safety:** prompt-injection refused + logged; PII in queries redacted
   before audit; **`confidence < 0.7` → `needs_review`** (routed to a human).
 - **Limitations:** quality depends on ingested docs; no docs → "no relevant policy"
@@ -61,8 +66,11 @@ contracts in [`backend/agents/contracts.py`](./backend/agents/contracts.py).
 - **Purpose:** flag retention risk to start a conversation — **advisory only**.
 - **Input → Output:** `AttritionInput` (6 job features) → `AttritionResult
   {attrition_risk_score, top_risk_factors, explanation, needs_review, advisory_only}`.
-- **Logic / data:** `RandomForestClassifier` (240 trees, depth 8). Ships trained on
+- **Logic / data:** `RandomForestClassifier` (240 trees, depth 8, one CPU worker).
+  Ships trained on
   **synthetic data** for the demo; replace with your governed dataset before real use.
+  If scikit-learn is unavailable, a transparent rule score preserves the advisory
+  product contract and is labelled/documented as a baseline rather than a trained model.
 - **Features (no protected classes):** tenure, performance, absence days, months
   since promotion, salary band, manager rating. **No race/gender/age input.**
   Internally, the model derives `disengagement_index = months_since_promotion /

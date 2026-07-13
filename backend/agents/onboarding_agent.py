@@ -131,7 +131,11 @@ class OnboardingAgent:
             # If validation/earlier steps produced errors, pause for review.
             if state.get("errors"):
                 await memory.log_audit(
-                    AGENT_NAME, "onboarding", new_hire, {"errors": state["errors"]}, "error"
+                    AGENT_NAME,
+                    "onboarding",
+                    new_hire,
+                    {"errors": state["errors"]},
+                    "error",
                 )
                 task = await memory.create_agent_task(
                     AGENT_NAME,
@@ -157,7 +161,11 @@ class OnboardingAgent:
                 state=dict(state),
             )
             await memory.log_audit(
-                AGENT_NAME, "onboarding", new_hire, {"checkpoint": "send_welcome_email"}, "paused"
+                AGENT_NAME,
+                "onboarding",
+                new_hire,
+                {"checkpoint": "send_welcome_email"},
+                "paused",
             )
             await memory.upsert_agent(
                 AGENT_NAME,
@@ -200,7 +208,11 @@ class OnboardingAgent:
         state = self._send_welcome_email(state)  # type: ignore[arg-type]
         state = self._notify_manager(state)  # type: ignore[arg-type]
         await memory.log_audit(
-            AGENT_NAME, "onboarding", state.get("new_hire", {}), {"completed": True}, "success"
+            AGENT_NAME,
+            "onboarding",
+            state.get("new_hire", {}),
+            {"completed": True},
+            "success",
         )
         await memory.upsert_agent(AGENT_NAME, status="idle", last_action="onboarding completed")
         await self._emit({"type": "onboarding_completed", "agent": AGENT_NAME})

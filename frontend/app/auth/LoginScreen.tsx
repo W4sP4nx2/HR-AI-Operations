@@ -4,8 +4,8 @@
  * LoginScreen — email/password sign-in + register, plus Google sign-in when the
  * backend reports it is configured. Brand-themed, minimalist.
  *
- * "Continue as guest" is offered because the backend runs in advisory mode by
- * default (no enforcement), so the app is usable without an account for demos.
+ * "Continue as guest" is offered because the backend can run in advisory mode
+ * with no enforcement, so the app is usable without an account.
  */
 
 import { useEffect, useState } from "react";
@@ -44,12 +44,12 @@ export default function LoginScreen({ onGuest }: { onGuest: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-brand-purple p-4">
       <div className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-2xl">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex items-center gap-2 text-lg font-semibold text-brand-purple">
-            <Activity size={22} className="text-brand-magenta" />
-            Command Center
-          </div>
-          <p className="text-xs text-ink-700/60">HR AI Operations</p>
-        </div>
+	          <div className="flex items-center gap-2 text-lg font-semibold text-brand-purple">
+	            <Activity size={22} className="text-brand-magenta" />
+	            Govern.ai
+	          </div>
+	          <p className="text-xs text-ink-700/60">Governed HR operations</p>
+	        </div>
 
         <div className="mb-4 flex rounded-xl bg-brand-cream p-1 text-sm">
           {(["login", "register"] as const).map((m) => (
@@ -119,9 +119,8 @@ export default function LoginScreen({ onGuest }: { onGuest: () => void }) {
         </div>
 
         <p className="mt-5 text-center text-[11px] text-ink-700/40">
-          Demo mode needs no password — <strong className="font-semibold">Continue as guest</strong>,
-          then use <strong className="font-semibold">View&nbsp;as</strong> to switch between
-          Employee, HR and Manager.
+          Open access needs no password — <strong className="font-semibold">Continue as guest</strong>,
+          then use <strong className="font-semibold">View&nbsp;as</strong> to switch roles.
         </p>
       </div>
     </div>

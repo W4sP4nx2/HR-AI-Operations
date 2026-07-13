@@ -27,7 +27,7 @@ def test_case_status_update_and_audit(tmp_path) -> None:
 
         async def scenario():
             case = await fresh.create_case(category="BENEFITS", summary="x", status="open")
-            user = {"email": "hr@acme.com", "id": "USR-1", "role": "analyst"}
+            user = {"email": "hr@acme.com", "id": "USR-1", "role": "manager"}
             env = await update_case_status(
                 case["id"], StatusUpdate(status="resolved", note="handled"), user
             )
@@ -58,7 +58,11 @@ def test_policy_soft_delete_and_restore(tmp_path) -> None:
 
     async def scenario():
         await mem.upsert_policy(
-            "leave", "leave.pdf", 2, 100, source_text="Annual leave is 20 days per year."
+            "leave",
+            "leave.pdf",
+            2,
+            100,
+            source_text="Annual leave is 20 days per year.",
         )
         assert len(await mem.list_policies()) == 1
 

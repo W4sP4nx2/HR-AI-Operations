@@ -49,6 +49,19 @@ def test_adversarial_resume_hidden_text_blinded() -> None:
     assert "1990" not in out
 
 
+def test_single_line_resume_keeps_non_sensitive_content_after_name() -> None:
+    """A pasted one-line resume should not become empty just because it starts with Name."""
+    from core.guardrails import blind_demographics
+
+    out = blind_demographics(
+        "Name: Jordan Lee. Backend engineer with Python, FastAPI, Docker, and PostgreSQL."
+    )
+    assert "Jordan" not in out
+    assert "Lee" not in out
+    assert "Backend engineer" in out
+    assert "FastAPI" in out
+
+
 # --------------------------------------------------------------------------- #
 # Data protection
 # --------------------------------------------------------------------------- #

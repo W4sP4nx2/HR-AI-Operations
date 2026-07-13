@@ -1,0 +1,758 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "mcp-excalidraw-server",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 60,
+      "y": 30,
+      "width": 880,
+      "height": 38,
+      "strokeColor": "#2a0f32",
+      "text": "User flow",
+      "fontSize": 28,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "subtitle-72",
+      "type": "text",
+      "x": 60,
+      "y": 72,
+      "width": 1000,
+      "height": 24,
+      "strokeColor": "#495057",
+      "text": "Role changes the surface. Open access is a demo posture, not the production authorization model.",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "open",
+      "type": "rectangle",
+      "x": 70,
+      "y": 160,
+      "width": 210,
+      "height": 72,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Open application"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "mode",
+      "type": "ellipse",
+      "x": 360,
+      "y": 160,
+      "width": 250,
+      "height": 72,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "AUTH_ENFORCE?"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": null,
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "launchpad",
+      "type": "rectangle",
+      "x": 690,
+      "y": 105,
+      "width": 250,
+      "height": 72,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Open-access launchpad"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "signin",
+      "type": "rectangle",
+      "x": 690,
+      "y": 225,
+      "width": 250,
+      "height": 72,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Sign in + token validation"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "role",
+      "type": "ellipse",
+      "x": 1020,
+      "y": 160,
+      "width": 250,
+      "height": 72,
+      "backgroundColor": "#fce8f2",
+      "strokeColor": "#a93372",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Resolve role"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": null,
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "role-zone",
+      "type": "rectangle",
+      "x": 60,
+      "y": 340,
+      "width": 1310,
+      "height": 340,
+      "backgroundColor": "#f1f3f5",
+      "strokeColor": "#495057",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "role-zone-label",
+      "type": "text",
+      "x": 78,
+      "y": 354,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#495057",
+      "text": "Role-scoped workspaces",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "viewer",
+      "type": "rectangle",
+      "x": 95,
+      "y": 420,
+      "width": 260,
+      "height": 92,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Viewer\nAsk policy questions\nSee citations"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "analyst",
+      "type": "rectangle",
+      "x": 410,
+      "y": 420,
+      "width": 260,
+      "height": 92,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Analyst\nTriage cases\nScreen resumes"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "manager",
+      "type": "rectangle",
+      "x": 725,
+      "y": 420,
+      "width": 260,
+      "height": 92,
+      "backgroundColor": "#fce8f2",
+      "strokeColor": "#a93372",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Manager\nReview attrition\nApprove workflows"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "admin",
+      "type": "rectangle",
+      "x": 1040,
+      "y": 420,
+      "width": 260,
+      "height": 92,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Admin\nManage policies\nInspect audit"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "review-flag",
+      "type": "ellipse",
+      "x": 410,
+      "y": 575,
+      "width": 260,
+      "height": 64,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Low confidence?"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": null,
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "human-review",
+      "type": "rectangle",
+      "x": 725,
+      "y": 575,
+      "width": 260,
+      "height": 64,
+      "backgroundColor": "#ffe4d8",
+      "strokeColor": "#a54f2b",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Human reviews evidence"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "audit",
+      "type": "rectangle",
+      "x": 1040,
+      "y": 575,
+      "width": 260,
+      "height": 64,
+      "backgroundColor": "#d9f0ee",
+      "strokeColor": "#1d6b65",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Decision recorded"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "open-mode",
+      "type": "arrow",
+      "x": 288,
+      "y": 196,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          64,
+          0
+        ]
+      ],
+      "start": {
+        "id": "open"
+      },
+      "end": {
+        "id": "mode"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "mode-launch",
+      "type": "arrow",
+      "x": 615.860064841705,
+      "y": 187.46745686168535,
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          66.5791107956079,
+          -23.01994393303019
+        ]
+      ],
+      "start": {
+        "id": "mode"
+      },
+      "end": {
+        "id": "launchpad"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "mode-signin",
+      "type": "arrow",
+      "x": 615.0563885954443,
+      "y": 205.9654866366522,
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          67.53075693989376,
+          27.405047814356948
+        ]
+      ],
+      "start": {
+        "id": "mode"
+      },
+      "end": {
+        "id": "signin"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "launch-role",
+      "type": "arrow",
+      "x": 947.5608243626871,
+      "y": 164.44751292865513,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          66.5791107956079,
+          23.01994393303022
+        ]
+      ],
+      "start": {
+        "id": "launchpad"
+      },
+      "end": {
+        "id": "role"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "signin-role",
+      "type": "arrow",
+      "x": 947.4128544646619,
+      "y": 233.37053445100915,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          67.53075693989376,
+          -27.405047814356948
+        ]
+      ],
+      "start": {
+        "id": "signin"
+      },
+      "end": {
+        "id": "role"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "role-viewer",
+      "type": "arrow",
+      "x": 1017.4635395527654,
+      "y": 208.65071621415277,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -654.8685057618268,
+          216.6840516334266
+        ]
+      ],
+      "start": {
+        "id": "role"
+      },
+      "end": {
+        "id": "viewer"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "role-analyst",
+      "type": "arrow",
+      "x": 1023.8117113223487,
+      "y": 214.47157537285784,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -373.69785379057043,
+          201.7282339913142
+        ]
+      ],
+      "start": {
+        "id": "role"
+      },
+      "end": {
+        "id": "analyst"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "role-manager",
+      "type": "arrow",
+      "x": 1048.7234535624227,
+      "y": 226.93870459387847,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -139.5262465213567,
+          186.6536578173214
+        ]
+      ],
+      "start": {
+        "id": "role"
+      },
+      "end": {
+        "id": "manager"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "role-admin",
+      "type": "arrow",
+      "x": 1156.9161562119652,
+      "y": 239.83708489200365,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          8.433204636902246,
+          172.17249448200693
+        ]
+      ],
+      "start": {
+        "id": "role"
+      },
+      "end": {
+        "id": "admin"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "analyst-flag",
+      "type": "arrow",
+      "x": 540,
+      "y": 520,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          47
+        ]
+      ],
+      "start": {
+        "id": "analyst"
+      },
+      "end": {
+        "id": "review-flag"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "manager-review",
+      "type": "arrow",
+      "x": 855,
+      "y": 520,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          47
+        ]
+      ],
+      "start": {
+        "id": "manager"
+      },
+      "end": {
+        "id": "human-review"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "flag-review",
+      "type": "arrow",
+      "x": 678,
+      "y": 607,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          39,
+          0
+        ]
+      ],
+      "start": {
+        "id": "review-flag"
+      },
+      "end": {
+        "id": "human-review"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "review-audit",
+      "type": "arrow",
+      "x": 993,
+      "y": 607,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          39,
+          0
+        ]
+      ],
+      "start": {
+        "id": "human-review"
+      },
+      "end": {
+        "id": "audit"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    },
+    {
+      "id": "least-privilege",
+      "type": "rectangle",
+      "x": 95,
+      "y": 575,
+      "width": 260,
+      "height": 62,
+      "backgroundColor": "#fde2e2",
+      "strokeColor": "#9b2c2c",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "label": {
+        "text": "Production rule:\nserver-side RBAC still gates actions."
+      },
+      "fontSize": 15,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T00:37:12.799Z",
+      "updatedAt": "2026-07-09T00:37:12.799Z",
+      "version": 1
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null
+  }
+}

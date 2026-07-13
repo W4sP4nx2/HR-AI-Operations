@@ -40,7 +40,7 @@ def test_jwt_roundtrip_and_tamper() -> None:
 
 
 def test_role_hierarchy() -> None:
-    """has_role enforces the viewer<analyst<manager<admin ordering."""
+    """has_role enforces the viewer<manager<admin ordering."""
     from core.security import has_role
 
     admin = {"role": "admin"}
@@ -48,6 +48,15 @@ def test_role_hierarchy() -> None:
     assert has_role(admin, "manager") is True
     assert has_role(viewer, "manager") is False
     assert has_role(viewer, "viewer") is True
+
+
+def test_removed_analyst_role_cannot_be_minted() -> None:
+    """Open-access RBAC exposes only employee, manager, and admin personas."""
+    from api.routes.auth import RoleSwitchRequest, open_access_switch
+
+    response = asyncio.run(open_access_switch(RoleSwitchRequest(role="analyst")))
+    assert response["success"] is False
+    assert "invalid role" in response["error"]
 
 
 # --------------------------------------------------------------------------- #

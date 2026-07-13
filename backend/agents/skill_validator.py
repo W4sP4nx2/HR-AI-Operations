@@ -22,17 +22,11 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
-_MAX_CHARS = 4000
-_TIMEOUT_S = 25.0
-
-_SYSTEM_PROMPT = (
-    "You verify whether a résumé actually demonstrates each listed skill, reading "
-    "the CONTEXT and GRAMMAR — not just keyword presence. For each skill return a "
-    "status: 'demonstrated' (real hands-on/production use), 'aspirational' (only "
-    "studied / read about / wants to learn / used in theory), 'negated' (explicitly "
-    "abandoned, failed, never used, or stated as lacking), or 'absent' (not "
-    "mentioned). Be strict: 'attempted but abandoned' is negated; 'read books on X "
-    "but never built' is aspirational."
+from agents.prompts import SKILL_VALIDATOR
+from core.genai_lifecycle import (
+    controlled_parameters,
+    policy_for,
+    transform_fuzzy_input,
 )
 
 
@@ -60,9 +54,9 @@ class SkillValidator:
         """
         if not skills:
             return SkillAudit(items=[])
-        from core.llm_factory import get_request_scoped_anthropic_model
+        from core.llm_factory import get_request_scoped_model
 
-        model = get_request_scoped_anthropic_model()
+        model = get_request_scoped_model(role="skill_validator")
         if model is None:  # no live key / gated off → keyword fallback
             return None
         try:
@@ -73,12 +67,19 @@ class SkillValidator:
         agent: Agent[None, SkillAudit] = Agent(
             model,
             output_type=SkillAudit,
-            system_prompt=_SYSTEM_PROMPT,
-            retries=1,  # one schema self-heal — token-cost guard
+            system_prompt=SKILL_VALIDATOR.text,
+            retries=policy_for("skill_validator").retries,
         )
-        prompt = f"Skills to verify: {', '.join(skills)}\n\nRésumé:\n{resume[:_MAX_CHARS]}"
+        prepared = transform_fuzzy_input(resume, role="skill_validator")
+        prompt = f"Skills to verify: {', '.join(skills)}\n\nResume:\n{prepared.text}"
         try:
-            result = await asyncio.wait_for(agent.run(prompt), timeout=_TIMEOUT_S)
+            result = await asyncio.wait_for(
+                agent.run(
+                    prompt,
+                    model_settings=controlled_parameters("skill_validator"),
+                ),
+                timeout=policy_for("skill_validator").timeout_seconds,
+            )
             return result.output
         except Exception:  # noqa: BLE001 — any failure → keyword fallback
             return None
@@ -109,7 +110,9 @@ def apply_audit(result: dict[str, Any], audit: SkillAudit) -> dict[str, Any]:
     result["matched_skills"] = demonstrated
     result["unverified_skills"] = dropped
     result["score"] = new_score
-    result["recommendation"] = "hire" if new_score >= 65 else "no-hire"
+    from agents.resume_screener_agent import advisory_fit_label
+
+    result["recommendation"] = advisory_fit_label(new_score)
     result["skill_audit_mode"] = "validated"
     if dropped:
         result["needs_review"] = True

@@ -113,6 +113,13 @@ class PolicyQAAgent:
         Returns:
             Dict with ``answer``, ``source_documents`` and ``confidence_score``.
         """
+        from core.config import settings
+        from core.cost_guard import TokenBudgetGuard
+
+        TokenBudgetGuard(
+            max_input_tokens=settings.max_llm_input_tokens,
+            max_output_tokens=settings.max_llm_output_tokens,
+        ).validate_text(query)
         await memory.upsert_agent(AGENT_NAME, status="running", last_action="policy query")
 
         # Prompt-injection defense: refuse + audit before retrieval/synthesis.
@@ -126,7 +133,11 @@ class PolicyQAAgent:
                 "needs_review": True,
             }
             await memory.log_audit(
-                AGENT_NAME, "prompt_injection_blocked", {"query": query}, blocked, "blocked"
+                AGENT_NAME,
+                "prompt_injection_blocked",
+                {"query": query},
+                blocked,
+                "blocked",
             )
             await memory.upsert_agent(
                 AGENT_NAME, status="idle", last_action="blocked injection attempt"
@@ -150,7 +161,11 @@ class PolicyQAAgent:
             return result
         except Exception as exc:  # noqa: BLE001
             await memory.log_audit(
-                AGENT_NAME, "policy_query", {"query": query}, {"error": str(exc)}, "error"
+                AGENT_NAME,
+                "policy_query",
+                {"query": query},
+                {"error": str(exc)},
+                "error",
             )
             await memory.upsert_agent(AGENT_NAME, status="error", last_action=str(exc))
             raise

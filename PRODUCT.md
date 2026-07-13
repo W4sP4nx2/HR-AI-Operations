@@ -1,18 +1,18 @@
-# Product Direction — What This Is, and Who It's For
+# Govern.ai product direction
 
-The reasoning behind the app's shape: why **Fleet + Policies** is the thesis, the
-competitive wedge, and the **two-audience** model (employee self-service vs. HR
-operator console).
+This document defines who the product serves and where its boundaries sit.
+Current implementation status belongs in [README.md](./README.md); trust
+principles belong in [MISSION.md](./MISSION.md).
 
 ---
 
-## 1. The thesis: Fleet acts, Policies ground, Governance makes it safe
+## 1. Shared product thesis
 
 The product is an **operating layer for HR work**, not a chatbot and not a wiki.
 
 - **Fleet = action.** The agents *do* HR work — triage, answer, screen, onboard,
   predict. Without agents it's a CRUD app.
-- **Policies = grounding.** An ungrounded LLM in HR is a liability. Policies turn
+- **Policy evidence = grounding.** An ungrounded LLM in HR is a liability. Policies turn
   "an AI" into "*your company's* HR assistant" — answers cite *your* documents.
 - **Governance = trust.** Audit, human-in-the-loop approvals, RBAC, and bias
   guardrails make the first two deployable in a regulated domain.
@@ -65,10 +65,10 @@ The full dashboard, unlocked progressively:
 | **manager** | + Policies, Approvals, Audit | Approve/reject, manage policies, review audit |
 | **admin** | everything | Manage users & roles, config |
 
-### How it behaves
-- **Demo mode (`AUTH_ENFORCE=false`, default):** *all* surfaces are shown so a
-  reviewer can explore the whole system from one login. The top bar shows a
-  "demo · open access" chip so this is honest, not hidden.
+### How access behaves
+- **Open-access evaluation (`AUTH_ENFORCE=false`, local default and public
+  sandbox):** no login is required. A persona launchpad exposes seeded
+  evaluation surfaces and labels roles as advisory.
 - **Enforced mode (`AUTH_ENFORCE=true`):** surfaces are **gated by role**. A signed-in
   `viewer` gets the "HR Assistant — Employee self-service" chat-only view; HR roles
   get the operator console. RBAC also gates the *actions* (approve/ingest/manage),
@@ -80,11 +80,11 @@ reserved for the people who operate it.
 
 ---
 
-## 4. Why one dashboard in the demo
+## 4. Why one console in open-access evaluation
 
-Convenience and narrative: a reviewer logs in once and sees everything, then flips
-`AUTH_ENFORCE=true` to watch the same app become a role-scoped product. The split is
-**configuration, not a rebuild** — the surfaces and the RBAC are already there.
+A reviewer enters without credentials, chooses a seeded persona, and can inspect
+the complete workflow. Setting `AUTH_ENFORCE=true` turns the same application
+into a role-scoped product. The split is configuration, not a separate build.
 
 ---
 
@@ -97,3 +97,24 @@ Convenience and narrative: a reviewer logs in once and sees everything, then fli
 
 See [MISSION.md](./MISSION.md) for principles and [COMPLIANCE.md](./COMPLIANCE.md)
 for how the access model maps to privacy obligations.
+
+## 6. Flagship workflow and integration boundary
+
+**Auditable Resume Review** is the flagship proof of the Govern.ai operating
+layer. The workflow is:
+
+```text
+resume intake → identity blinding → structured profile → policy guard
+→ transparent advisory rubric → explanation → human approval → audit
+```
+
+The extractor and policy guard are independently addressable A2A-shaped HTTP
+roles (`/a2a/agents/.../rpc`) and exchange certified, PII-safe artifacts. The
+current demo proves two endpoints in one service; it does not claim remote
+federation or two separately deployed services. See
+[A2A_TECHNICAL_PLAN.md](./A2A_TECHNICAL_PLAN.md).
+
+CrewAI is an optional bounded narrative adapter around already blinded data.
+LangSmith is an optional redacted trace/evaluation sink. Neither framework is
+the authorization source, audit system of record, or hiring decision-maker. See
+[INTEGRATIONS.md](./INTEGRATIONS.md) for the concrete use cases and gates.

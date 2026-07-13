@@ -17,15 +17,18 @@ precedence (see :mod:`services.rag`); this store is the SQLite-era safety net.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import math
+import time
 from typing import Any
 
-from sqlalchemy import bindparam, text
+from sqlalchemy import bindparam, inspect, text
 
 import core.memory as core_memory
 from core.config import settings
 from core.embeddings import embedder
+from core.observability import record_embedding, record_retrieval, record_vector_write
 
 
 def _mem():
@@ -43,6 +46,19 @@ def _cosine(a: list[float], b: list[float]) -> float:
     if na == 0.0 or nb == 0.0:
         return 0.0
     return max(0.0, min(1.0, dot / (na * nb)))
+
+
+def _decode_metadata(value: Any) -> dict[str, Any]:
+    """Decode persisted chunk metadata without breaking legacy rows."""
+    if isinstance(value, dict):
+        return value
+    if not value:
+        return {}
+    try:
+        decoded = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return decoded if isinstance(decoded, dict) else {}
 
 
 class LocalVectorStore:
@@ -71,9 +87,16 @@ class LocalVectorStore:
                 text(
                     "CREATE TABLE IF NOT EXISTS policy_vectors ("
                     "id TEXT PRIMARY KEY, policy_id TEXT, chunk_index INTEGER, "
-                    "chunk_text TEXT, embedding TEXT)"
+                    "chunk_text TEXT, embedding TEXT, metadata TEXT)"
                 )
             )
+            columns = await conn.run_sync(
+                lambda sync_conn: {
+                    column["name"] for column in inspect(sync_conn).get_columns("policy_vectors")
+                }
+            )
+            if "metadata" not in columns:
+                await conn.execute(text("ALTER TABLE policy_vectors ADD COLUMN metadata TEXT"))
             await conn.execute(
                 text(
                     "CREATE INDEX IF NOT EXISTS idx_policy_vectors_policy "
@@ -88,8 +111,15 @@ class LocalVectorStore:
         if not chunks:
             return 0
         await self.ensure_schema()
+        embed_started = time.perf_counter()
+        vectors = embedder.embed_batch([chunk["text"] for chunk in chunks])
+        record_embedding(
+            embedder.provider,
+            len(chunks),
+            time.perf_counter() - embed_started,
+        )
         rows = []
-        for c in chunks:
+        for c, vector in zip(chunks, vectors, strict=True):
             idx = int(c.get("metadata", {}).get("chunk_index", 0))
             pid = c.get("doc_id", "unknown")
             rows.append(
@@ -98,52 +128,76 @@ class LocalVectorStore:
                     "pid": pid,
                     "idx": idx,
                     "txt": c["text"],
-                    "emb": json.dumps(embedder.embed(c["text"])),
+                    "emb": json.dumps(vector),
+                    "meta": json.dumps(c.get("metadata", {}), sort_keys=True),
                 }
             )
         # Portable upsert: delete-then-insert by id (avoids dialect-specific
         # ON CONFLICT syntax differences between SQLite and Postgres).
-        ids = [r["id"] for r in rows]
+        write_started = time.perf_counter()
         async with _mem().engine.begin() as conn:
-            await conn.execute(
-                text("DELETE FROM policy_vectors WHERE id IN :ids").bindparams(
-                    bindparam("ids", expanding=True)
-                ),
-                {"ids": ids},
-            )
-            await conn.execute(
-                text(
-                    "INSERT INTO policy_vectors (id, policy_id, chunk_index, chunk_text, embedding) "
-                    "VALUES (:id, :pid, :idx, :txt, :emb)"
-                ),
-                rows,
-            )
+            for start in range(0, len(rows), max(1, settings.vector_write_batch_size)):
+                batch = rows[start : start + max(1, settings.vector_write_batch_size)]
+                ids = [row["id"] for row in batch]
+                await conn.execute(
+                    text("DELETE FROM policy_vectors WHERE id IN :ids").bindparams(
+                        bindparam("ids", expanding=True)
+                    ),
+                    {"ids": ids},
+                )
+                await conn.execute(
+                    text(
+                        "INSERT INTO policy_vectors "
+                        "(id, policy_id, chunk_index, chunk_text, embedding, metadata) "
+                        "VALUES (:id, :pid, :idx, :txt, :emb, :meta)"
+                    ),
+                    batch,
+                )
+        record_vector_write("local", len(rows), time.perf_counter() - write_started)
         return len(rows)
 
     async def search(self, query: str, top_k: int | None = None) -> list[dict[str, Any]]:
         """Return the top-k most similar chunks (cosine) for a query."""
         await self.ensure_schema()
         k = top_k or settings.retrieval_top_k
-        q = embedder.embed(query)
+        # Model loading and CPU embedding are synchronous. Keep them off the
+        # event loop so unrelated requests keep moving during a cold start.
+        q = await asyncio.to_thread(embedder.embed, query)
         async with _mem().engine.connect() as conn:
             rows = (
                 (
                     await conn.execute(
-                        text("SELECT chunk_text, policy_id, embedding FROM policy_vectors")
+                        text(
+                            "SELECT chunk_text, policy_id, embedding, metadata "
+                            "FROM policy_vectors"
+                        )
                     )
                 )
                 .mappings()
                 .all()
             )
+        started = time.perf_counter()
+        vectors = [json.loads(row["embedding"]) for row in rows]
+        from services.gpu_vector_scoring import eligibility, score_candidates
+
+        gpu = eligibility(len(vectors))
+        if gpu.eligible:
+            scores = score_candidates(q, vectors)
+            retrieval_backend = "local_gpu"
+        else:
+            scores = await asyncio.to_thread(lambda: [_cosine(q, vector) for vector in vectors])
+            retrieval_backend = "local"
         scored = [
             {
-                "text": r["chunk_text"],
-                "doc_id": r["policy_id"],
-                "score": _cosine(q, json.loads(r["embedding"])),
+                "text": row["chunk_text"],
+                "doc_id": row["policy_id"],
+                "score": score,
+                "metadata": _decode_metadata(row["metadata"]),
             }
-            for r in rows
+            for row, score in zip(rows, scores, strict=True)
         ]
         scored.sort(key=lambda x: x["score"], reverse=True)
+        record_retrieval(retrieval_backend, time.perf_counter() - started)
         return scored[:k]
 
     async def delete_policy(self, policy_id: str) -> int:
@@ -151,7 +205,8 @@ class LocalVectorStore:
         await self.ensure_schema()
         async with _mem().engine.begin() as conn:
             res = await conn.execute(
-                text("DELETE FROM policy_vectors WHERE policy_id = :p"), {"p": policy_id}
+                text("DELETE FROM policy_vectors WHERE policy_id = :p"),
+                {"p": policy_id},
             )
         return res.rowcount or 0
 

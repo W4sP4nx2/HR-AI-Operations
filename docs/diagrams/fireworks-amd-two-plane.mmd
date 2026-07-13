@@ -1,0 +1,50 @@
+flowchart TB
+  UI["Govern.ai product: BYOK + server key gate"] --> ORCH["A2A orchestrator: registry + policy gates<br/>cost-aware routing"]
+
+  subgraph EXEC["Execution backends"]
+    direction LR
+    subgraph FW["Fireworks execution plane"]
+      direction TB
+      SL["Serverless: streaming · JSON schema · prompt cache"]
+      BT["Batch: 50% serverless token price"]
+      GM["Gemma 4 26B A4B IT: Deploy-on-Demand only"]
+    end
+
+    subgraph AMD["Self-hosted judge route"]
+      direction TB
+      VLLM["OpenAI-compatible vLLM: Gemma multimodal + reasoning"]
+      MI["AMD Instinct MI300X target: prove hardware before live claim"]
+      VLLM --> MI
+    end
+  end
+
+  ORCH -->|"interactive / structured"| SL
+  ORCH -->|"offline bulk"| BT
+  ORCH -->|"multimodal reasoning"| GM
+  ORCH -->|"self-hosted judged route"| VLLM
+
+  SL --> CERT
+  BT --> CERT
+  GM --> CERT
+  VLLM --> CERT
+
+  subgraph APP["Governance and observability"]
+    direction LR
+    CERT["Output certifier: PII · schema · confidence"]
+    LS["LangSmith: PII-safe manager/worker traces"]
+    COST["Cost provenance: provider tokens ≠ billing export"]
+    CERT --> LS
+    CERT --> COST
+  end
+
+  COST -.->|"cost signals"| ORCH
+  CERT -.->|"confidence scores"| ORCH
+
+  classDef product fill:#fff4e6,stroke:#7c3aed,color:#24143d
+  classDef fireworks fill:#ffe8cc,stroke:#f97316,color:#431407
+  classDef governance fill:#ede9fe,stroke:#7c3aed,color:#24143d
+  classDef amd fill:#e0f2fe,stroke:#0284c7,color:#082f49
+  class UI,ORCH product
+  class SL,BT,GM fireworks
+  class CERT,LS,COST governance
+  class VLLM,MI amd

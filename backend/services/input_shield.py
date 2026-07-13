@@ -83,6 +83,12 @@ def prepare(
     clean_text = sanitize_text(input_text)
     payload = payload or {}
 
+    if agent_name in {"policy_qa_agent", "triage_agent", "resume_screener_agent"}:
+        from core.safety import redact_obj, redact_pii
+
+        clean_text = redact_pii(clean_text)
+        payload = redact_obj(payload)
+
     if agent_name == "attrition_agent":
         # Attrition is a maths module: it needs structured signals, not prose.
         # Reject early (with guidance) when no numeric feature is present, so a

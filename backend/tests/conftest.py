@@ -18,4 +18,8 @@ _TEST_DB_DIR = tempfile.mkdtemp(prefix="hr_test_db_")
 os.environ["DATABASE_URL"] = f"sqlite:///{os.path.join(_TEST_DB_DIR, 'test_hr_ops.db')}"
 # Keep tests deterministic and key-free regardless of the developer's shell.
 os.environ.setdefault("MOCK_LLM", "true")
+os.environ.setdefault("LLM_PROVIDER", "anthropic")
 os.environ.pop("ANTHROPIC_API_KEY", None)
+os.environ.pop("FIREWORKS_API_KEY", None)
+os.environ.pop("FIREWORKS_BASE_URL", None)
+os.environ.pop("ALLOWED_MODELS", None)

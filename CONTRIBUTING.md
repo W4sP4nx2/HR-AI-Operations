@@ -20,17 +20,19 @@ cp .env.local.example .env.local
 npm run dev                        # http://localhost:3000
 ```
 
-Everything runs with **zero secrets** in deterministic fallback mode. Add
-`ANTHROPIC_API_KEY` (+ Qdrant) for LLM-grounded answers.
+Everything runs with **zero secrets** in deterministic fallback mode. For live
+inference, use only environment-injected provider settings and allowlisted
+models described in [README.md](./README.md).
 
 ## Before you open a PR
 
 ```bash
 # Backend (must be green — CI enforces these)
 cd backend && source .venv/bin/activate
-ruff check .          # lint
+ruff check . ../scripts
 black --check .       # format
-pytest tests/ -q      # tests
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+  python -m pytest -p pytest_asyncio.plugin tests/ -q
 
 # Frontend
 cd ../frontend && npm run build && npm run lint
@@ -41,7 +43,7 @@ cd ../frontend && npm run build && npm run lint
 - Add tests for new behaviour. Prefer the **fallback/deterministic path** so tests
   run without secrets (see `tests/` for patterns).
 - Keep the **graceful-degradation** contract: a new capability must not crash when
-  its optional dependency (Qdrant, an API key, scraper libs) is missing — return
+  its optional dependency (a vector adapter, provider config, scraper libs) is missing — return
   `unavailable`, don't raise.
 
 ## Project conventions
@@ -50,7 +52,7 @@ cd ../frontend && npm run build && npm run lint
   goes through `Memory`; new routes under `api/routes/`.
 - **Agents/tools**: live in `agents/`; heavy deps are imported lazily.
 - **Auth/RBAC**: protect sensitive routes with `Depends(require_role("..."))`.
-- **Frontend**: Next.js 14 + Tailwind; brand palette
+- **Frontend**: Next.js 16 + React 19 + Tailwind; brand palette
   `#5D1C6A / #CA5995 / #FFB090 / #FFF1D3`; minimalist, intuitive.
 
 ## Good first issues

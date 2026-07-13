@@ -66,10 +66,16 @@ class TriageReroute(BaseModel):
 
 
 @router.get("")
-async def list_cases(category: str | None = None, status: str | None = None) -> dict[str, Any]:
-    """List HR cases with optional category/status filters."""
-    cases = await memory.list_cases(category=category, status=status)
-    return ok(cases)
+async def list_cases(
+    category: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    cursor: str | None = None,
+) -> dict[str, Any]:
+    """List HR cases with bounded cursor pagination."""
+    return ok(
+        await memory.list_cases_page(category=category, status=status, limit=limit, cursor=cursor)
+    )
 
 
 @router.post("")
@@ -87,9 +93,9 @@ _VALID_STATUSES = {"open", "resolved", "escalated"}
 async def update_case_status(
     case_id: str,
     body: StatusUpdate,
-    user: dict[str, Any] = Depends(require_role("analyst")),
+    user: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
-    """Manually resolve / reopen a case (analyst+). Audited and broadcast.
+    """Manually resolve / reopen a case (manager+). Audited and broadcast.
 
     Closes the loop the agents can't: an ``open`` or ``escalated`` case can be
     marked ``resolved`` by a human, or a resolved case reopened.
@@ -121,7 +127,7 @@ async def update_case_status(
 async def reroute_case(
     case_id: str,
     body: TriageReroute,
-    user: dict[str, Any] = Depends(require_role("analyst")),
+    user: dict[str, Any] = Depends(require_role("manager")),
 ) -> dict[str, Any]:
     """Reject the AI's triage routing and hand the case to a human queue.
 

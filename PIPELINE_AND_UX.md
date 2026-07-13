@@ -21,7 +21,7 @@ open-source agent/chat UIs.
 ### P1 — RAG quality
 - **Semantic answer cache** — key Policy-Q&A answers by the query embedding
   (cosine ≥ 0.97 ⇒ hit). Cuts the most expensive path to a Redis lookup.
-- **Cross-encoder re-ranking** after Qdrant top-k for sharper retrieval.
+- **Cross-encoder re-ranking** after pgvector top-k for sharper retrieval.
 - **Citations with char offsets** so the UI highlights the exact source span.
 - **Chunking upgrade** — token-aware (tiktoken) + structure-aware splitting
   (headings/sections) instead of fixed word windows.
@@ -29,8 +29,8 @@ open-source agent/chat UIs.
   the delta; version citations to the doc revision.
 
 ### P2 — agent depth & evaluation
-- **Prompt caching** (Anthropic) on the system prompt + policy context — biggest
-  cost lever once an API key is set.
+- **Provider prompt caching**, when supported, on stable system and policy
+  context after measurement shows repeated prefixes.
 - **Eval harness** — golden datasets for triage accuracy and RAG groundedness;
   run offline in CI (LangSmith or `promptfoo`) to gate regressions.
 - **Tool-call streaming** in chat — surface each tool call as it happens (the UI

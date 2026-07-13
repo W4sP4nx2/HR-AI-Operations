@@ -16,6 +16,9 @@ extra Python dependency beyond a Postgres server with the ``vector`` extension.
 
 from __future__ import annotations
 
+import json
+import logging
+import time
 from typing import Any
 
 from sqlalchemy import text
@@ -23,6 +26,9 @@ from sqlalchemy import text
 import core.memory as core_memory
 from core.config import settings
 from core.embeddings import embedder
+from core.observability import record_embedding, record_retrieval, record_vector_write
+
+log = logging.getLogger("uvicorn.error")
 
 
 def _mem():
@@ -33,6 +39,25 @@ def _mem():
 def _vec_to_literal(vec: list[float]) -> str:
     """Format an embedding as a pgvector literal: ``[0.1,0.2,...]``."""
     return "[" + ",".join(f"{x:.6f}" for x in vec) + "]"
+
+
+def _batches(items: list[dict[str, Any]], size: int):
+    """Yield bounded row batches without copying the full collection again."""
+    for start in range(0, len(items), max(1, size)):
+        yield items[start : start + max(1, size)]
+
+
+def _decode_metadata(value: Any) -> dict[str, Any]:
+    """Decode persisted metadata from text while tolerating legacy null rows."""
+    if isinstance(value, dict):
+        return value
+    if not value:
+        return {}
+    try:
+        decoded = json.loads(value)
+    except (TypeError, ValueError):
+        return {}
+    return decoded if isinstance(decoded, dict) else {}
 
 
 class PgVectorStore:
@@ -78,11 +103,8 @@ class PgVectorStore:
                     )
                 ).scalar()
                 if existing_dim is not None and existing_dim != dim:
-                    import logging
-
                     from core.config import settings
 
-                    log = logging.getLogger("uvicorn.error")
                     if not settings.allow_destructive_reindex:
                         # Refuse to wipe live data implicitly. Degrade (return
                         # False → callers treat pgvector as unavailable and RAG
@@ -109,8 +131,11 @@ class PgVectorStore:
                     text(
                         "CREATE TABLE IF NOT EXISTS policy_chunks ("
                         "id TEXT PRIMARY KEY, policy_id TEXT, chunk_index INT, "
-                        f"chunk_text TEXT, embedding vector({dim}))"
+                        f"chunk_text TEXT, embedding vector({dim}), metadata TEXT)"
                     )
+                )
+                await conn.execute(
+                    text("ALTER TABLE policy_chunks ADD COLUMN IF NOT EXISTS metadata TEXT")
                 )
                 # HNSW (not ivfflat): correct at any corpus size. ivfflat needs
                 # training data and returns nothing on a near-empty table; HNSW
@@ -130,15 +155,23 @@ class PgVectorStore:
             self._dim = dim
             self._ready = True
             return True
-        except Exception:  # noqa: BLE001 - degrade gracefully if pgvector absent
+        except Exception as exc:  # noqa: BLE001 - degrade gracefully if pgvector absent
+            log.warning("pgvector schema initialization failed: %s", exc)
             return False
 
     async def upsert_chunks(self, chunks: list[dict[str, Any]]) -> int:
         """Embed and upsert chunk dicts ({text, doc_id, metadata{chunk_index}})."""
         if not await self.ensure_schema() or not chunks:
             return 0
+        embed_started = time.perf_counter()
+        vectors = embedder.embed_batch([chunk["text"] for chunk in chunks])
+        record_embedding(
+            embedder.provider,
+            len(chunks),
+            time.perf_counter() - embed_started,
+        )
         rows = []
-        for c in chunks:
+        for c, vector in zip(chunks, vectors, strict=True):
             idx = int(c.get("metadata", {}).get("chunk_index", 0))
             pid = c.get("doc_id", "unknown")
             rows.append(
@@ -147,17 +180,23 @@ class PgVectorStore:
                     "pid": pid,
                     "idx": idx,
                     "txt": c["text"],
-                    "emb": _vec_to_literal(embedder.embed(c["text"])),
+                    "emb": _vec_to_literal(vector),
+                    "meta": json.dumps(c.get("metadata", {}), sort_keys=True),
                 }
             )
         stmt = text(
-            "INSERT INTO policy_chunks (id, policy_id, chunk_index, chunk_text, embedding) "
-            "VALUES (:id, :pid, :idx, :txt, CAST(:emb AS vector)) "
+            "INSERT INTO policy_chunks "
+            "(id, policy_id, chunk_index, chunk_text, embedding, metadata) "
+            "VALUES (:id, :pid, :idx, :txt, CAST(:emb AS vector), :meta) "
             "ON CONFLICT (id) DO UPDATE SET "
-            "chunk_text = EXCLUDED.chunk_text, embedding = EXCLUDED.embedding"
+            "chunk_text = EXCLUDED.chunk_text, embedding = EXCLUDED.embedding, "
+            "metadata = EXCLUDED.metadata"
         )
+        write_started = time.perf_counter()
         async with _mem().engine.begin() as conn:
-            await conn.execute(stmt, rows)
+            for batch in _batches(rows, settings.vector_write_batch_size):
+                await conn.execute(stmt, batch)
+        record_vector_write("pgvector", len(rows), time.perf_counter() - write_started)
         return len(rows)
 
     async def search(self, query: str, top_k: int | None = None) -> list[dict[str, Any]]:
@@ -167,14 +206,21 @@ class PgVectorStore:
         k = top_k or settings.retrieval_top_k
         q = _vec_to_literal(embedder.embed(query))
         stmt = text(
-            "SELECT chunk_text, policy_id, "
+            "SELECT chunk_text, policy_id, metadata, "
             "1 - (embedding <=> CAST(:q AS vector)) AS score "
             "FROM policy_chunks ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"
         )
+        started = time.perf_counter()
         async with _mem().engine.connect() as conn:
             rows = (await conn.execute(stmt, {"q": q, "k": k})).mappings().all()
+        record_retrieval("pgvector", time.perf_counter() - started)
         return [
-            {"text": r["chunk_text"], "doc_id": r["policy_id"], "score": float(r["score"])}
+            {
+                "text": r["chunk_text"],
+                "doc_id": r["policy_id"],
+                "score": float(r["score"]),
+                "metadata": _decode_metadata(r["metadata"]),
+            }
             for r in rows
         ]
 

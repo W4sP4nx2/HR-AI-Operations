@@ -1,0 +1,185 @@
+{"kind":"deck","id":"pr/v8jhrn","name":"Deck"}
+{"kind":"layout","layoutId":"/ppt/slideMasters/slideMaster1.xml","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout1.xml","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/y90nupkv","slide":1,"title":"HR OPERATIONS · GOVERNANCE BY DESIGN","textShapes":7}
+{"kind":"shape","id":"sh/547294r6","slide":1,"bbox":[0,0,760,720]}
+{"kind":"shape","id":"sh/k3yl0zql","slide":1,"bbox":[0,0,1280,720]}
+{"kind":"textbox","id":"sh/7qp4be9c","slide":1,"name":"pill-HR OPERATIONS · GOVERNANCE BY DESIGN","text":"HR OPERATIONS · GOVERNANCE BY DESIGN","textPreview":"HR OPERATIONS · GOVERNANCE BY DESIGN","textChars":36,"textLines":1,"bbox":[72,74,284,28]}
+{"kind":"textbox","id":"sh/65g3298r","slide":1,"text":"Govern.ai","textPreview":"Govern.ai","textChars":9,"textLines":1,"bbox":[72,150,600,84]}
+{"kind":"textbox","id":"sh/ts7md4r2","slide":1,"text":"The operating layer for\ntrustworthy HR work","textPreview":"The operating layer for | trustworthy HR work","textChars":43,"textLines":2,"bbox":[72,252,620,132]}
+{"kind":"textbox","id":"sh/sryl4zqx","slide":1,"text":"Specialized agents act. Policy evidence grounds.\nHuman checkpoints keep sensitive decisions in control.","textPreview":"Specialized agents act. Policy evidence grounds. | Human checkpoints keep sensitive decisions in control.","textChars":103,"textLines":2,"bbox":[74,418,520,66]}
+{"kind":"textbox","id":"sh/fu94fe98","slide":1,"text":"Powered by Fireworks AI and AMD","textPreview":"Powered by Fireworks AI and AMD","textChars":31,"textLines":1,"bbox":[74,585,540,28]}
+{"kind":"shape","id":"sh/utg3698n","slide":1,"bbox":[72,675,1136,0]}
+{"kind":"textbox","id":"sh/wn6dc7eh","slide":1,"text":"Govern.ai · HR Command Center","textPreview":"Govern.ai · HR Command Center","textChars":29,"textLines":1,"bbox":[72,686,480,16]}
+{"kind":"textbox","id":"sh/hofulsf2","slide":1,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[1160,684,48,18]}
+{"kind":"image","id":"im/5cze9svq","slide":1,"name":"","bbox":[0,0,1280,720]}
+{"kind":"notes","id":"nt/y90nupkv","slide":1,"text":""}
+{"kind":"slide","id":"sl/hwbqtkby","slide":2,"title":"THE TENSION","textShapes":18}
+{"kind":"textbox","id":"sh/mxgjm5s7","slide":2,"text":"THE TENSION","textPreview":"THE TENSION","textChars":11,"textLines":1,"bbox":[72,48,420,22]}
+{"kind":"textbox","id":"sh/9072xkry","slide":2,"text":"HR automation fails when action outruns evidence","textPreview":"HR automation fails when action outruns evidence","textChars":48,"textLines":1,"bbox":[72,82,920,86]}
+{"kind":"textbox","id":"sh/ozy1ofad","slide":2,"text":"A chatbot can answer. A real operating layer must coordinate work, show why it acted, and know when to stop.","textPreview":"A chatbot can answer. A real operating layer must coordinate work, show why it acted, and know when to stop.","textChars":108,"textLines":1,"bbox":[72,178,910,48]}
+{"kind":"shape","id":"sh/b29kza94","slide":2,"name":"problem-quote","bbox":[72,272,492,314]}
+{"kind":"textbox","id":"sh/a10jqpsj","slide":2,"text":"“Why did this happen?”","textPreview":"“Why did this happen?”","textChars":22,"textLines":1,"bbox":[108,312,380,52]}
+{"kind":"textbox","id":"sh/x4r21kru","slide":2,"text":"In HR, the answer must be more than\n‘the model said so.’","textPreview":"In HR, the answer must be more than | ‘the model said so.’","textChars":56,"textLines":2,"bbox":[108,382,390,70]}
+{"kind":"shape","id":"sh/w3i1sfa9","slide":2,"bbox":[108,492,384,0]}
+{"kind":"textbox","id":"sh/r65knqtk","slide":2,"text":"The product thesis","textPreview":"The product thesis","textChars":18,"textLines":1,"bbox":[108,520,180,22]}
+{"kind":"textbox","id":"sh/q5wjelsz","slide":2,"text":"Fleet + evidence + governance","textPreview":"Fleet + evidence + governance","textChars":29,"textLines":1,"bbox":[108,548,360,28]}
+{"kind":"shape","id":"sh/ove9o7yd","slide":2,"bbox":[626,278,44,44]}
+{"kind":"textbox","id":"sh/9wnqhczy","slide":2,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[626,288,44,18]}
+{"kind":"textbox","id":"sh/mtwrmxg7","slide":2,"text":"Action without context","textPreview":"Action without context","textChars":22,"textLines":1,"bbox":[694,276,420,28]}
+{"kind":"textbox","id":"sh/nu58f2hs","slide":2,"text":"A model can trigger a workflow without showing the policy or case evidence behind it.","textPreview":"A model can trigger a workflow without showing the policy or case evidence behind it.","textChars":85,"textLines":1,"bbox":[694,310,470,46]}
+{"kind":"shape","id":"sh/wjy9sry9","slide":2,"bbox":[626,384,44,44]}
+{"kind":"textbox","id":"sh/xk7qlczu","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[626,394,44,18]}
+{"kind":"textbox","id":"sh/ahwrqhgj","slide":2,"text":"Automation without a stop","textPreview":"Automation without a stop","textChars":25,"textLines":1,"bbox":[694,382,420,28]}
+{"kind":"textbox","id":"sh/bip8jmho","slide":2,"text":"Sensitive actions need a human checkpoint—not a hidden confidence threshold.","textPreview":"Sensitive actions need a human checkpoint—not a hidden confidence threshold.","textChars":76,"textLines":1,"bbox":[694,416,470,46]}
+{"kind":"shape","id":"sh/cnupgny5","slide":2,"bbox":[626,490,44,44]}
+{"kind":"textbox","id":"sh/do3q9szq","slide":2,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[626,500,44,18]}
+{"kind":"textbox","id":"sh/t8byxkn2","slide":2,"text":"Inference without a record","textPreview":"Inference without a record","textChars":26,"textLines":1,"bbox":[694,488,420,28]}
+{"kind":"textbox","id":"sh/s72xofmh","slide":2,"text":"If the decision is not captured with who, when, and why, it cannot be audited.","textPreview":"If the decision is not captured with who, when, and why, it cannot be audited.","textChars":78,"textLines":1,"bbox":[694,522,470,46]}
+{"kind":"shape","id":"sh/76twva5c","slide":2,"bbox":[72,675,1136,0]}
+{"kind":"textbox","id":"sh/65kfmpor","slide":2,"text":"Source: PITCH.md · MISSION.md","textPreview":"Source: PITCH.md · MISSION.md","textChars":29,"textLines":1,"bbox":[72,686,480,16]}
+{"kind":"textbox","id":"sh/hcvy14ne","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[1160,684,48,18]}
+{"kind":"notes","id":"nt/hwbqtkby","slide":2,"text":""}
+{"kind":"slide","id":"sl/ofy9wn61","slide":3,"title":"THE PRODUCT","textShapes":15}
+{"kind":"textbox","id":"sh/by1svqlc","slide":3,"text":"THE PRODUCT","textPreview":"THE PRODUCT","textChars":11,"textLines":1,"bbox":[72,48,420,22]}
+{"kind":"textbox","id":"sh/cza94vmx","slide":3,"text":"Three legs turn ‘an AI’ into an HR operating layer","textPreview":"Three legs turn ‘an AI’ into an HR operating layer","textChars":50,"textLines":1,"bbox":[72,82,920,86]}
+{"kind":"textbox","id":"sh/d0jax03i","slide":3,"text":"Remove any one of them and the system collapses into a toy, a search box, or a black box.","textPreview":"Remove any one of them and the system collapses into a toy, a search box, or a black box.","textChars":89,"textLines":1,"bbox":[72,178,910,48]}
+{"kind":"shape","id":"sh/298ryl4v","slide":3,"bbox":[342,385,112,0]}
+{"kind":"shape","id":"sh/3ah8rqlg","slide":3,"bbox":[666,385,112,0]}
+{"kind":"shape","id":"sh/obq90bml","slide":3,"name":"pillar-FLEET","bbox":[138,292,270,264]}
+{"kind":"shape","id":"sh/pcjqtg36","slide":3,"bbox":[234,320,78,78]}
+{"kind":"textbox","id":"sh/m5cra54z","slide":3,"text":"FLEET","textPreview":"FLEET","textChars":5,"textLines":1,"bbox":[160,420,226,20]}
+{"kind":"textbox","id":"sh/n6ls3alk","slide":3,"text":"Action","textPreview":"Action","textChars":6,"textLines":1,"bbox":[160,446,226,32]}
+{"kind":"textbox","id":"sh/n2l4fq98","slide":3,"text":"Five specialized agents do the work: triage, policy Q&A, resume review, onboarding, and attrition advisory.","textPreview":"Five specialized agents do the work: triage, policy Q&A, resume review, onboarding, and attrition advisory.","textChars":107,"textLines":1,"bbox":[162,490,222,54]}
+{"kind":"shape","id":"sh/m1c3mlsn","slide":3,"name":"pillar-POLICY EVIDENCE","bbox":[462,292,270,264]}
+{"kind":"shape","id":"sh/943mhgre","slide":3,"bbox":[558,320,78,78]}
+{"kind":"textbox","id":"sh/83ulovat","slide":3,"text":"POLICY EVIDENCE","textPreview":"POLICY EVIDENCE","textChars":15,"textLines":1,"bbox":[484,420,226,20]}
+{"kind":"textbox","id":"sh/v6l4jq94","slide":3,"text":"Grounding","textPreview":"Grounding","textChars":9,"textLines":1,"bbox":[484,446,226,32]}
+{"kind":"textbox","id":"sh/a5c3ql8z","slide":3,"text":"Versioned policy chunks and citations keep answers tied to the organization’s own documents.","textPreview":"Versioned policy chunks and citations keep answers tied to the organization’s own documents.","textChars":92,"textLines":1,"bbox":[486,490,222,54]}
+{"kind":"shape","id":"sh/x8nml0ra","slide":3,"name":"pillar-GOVERNANCE","bbox":[786,292,270,264]}
+{"kind":"shape","id":"sh/w7ulsvqp","slide":3,"bbox":[882,320,78,78]}
+{"kind":"textbox","id":"sh/ja54na9g","slide":3,"text":"GOVERNANCE","textPreview":"GOVERNANCE","textChars":10,"textLines":1,"bbox":[808,420,226,20]}
+{"kind":"textbox","id":"sh/i9w3u58v","slide":3,"text":"Trust","textPreview":"Trust","textChars":5,"textLines":1,"bbox":[808,446,226,32]}
+{"kind":"textbox","id":"sh/e10f2twf","slide":3,"text":"Approvals, RBAC, PII controls, bias guardrails, and immutable audit make the system deployable.","textPreview":"Approvals, RBAC, PII controls, bias guardrails, and immutable audit make the system deployable.","textChars":95,"textLines":1,"bbox":[810,490,222,54]}
+{"kind":"textbox","id":"sh/f29gbyx0","slide":3,"text":"Govern.ai = action that can explain itself and stop safely","textPreview":"Govern.ai = action that can explain itself and stop safely","textChars":58,"textLines":1,"bbox":[220,610,840,34]}
+{"kind":"shape","id":"sh/03ix43e5","slide":3,"bbox":[72,675,1136,0]}
+{"kind":"textbox","id":"sh/14ryd8fq","slide":3,"text":"Source: PRODUCT.md · README.md","textPreview":"Source: PRODUCT.md · README.md","textChars":30,"textLines":1,"bbox":[72,686,480,16]}
+{"kind":"textbox","id":"sh/6d0fytg3","slide":3,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[1160,684,48,18]}
+{"kind":"notes","id":"nt/ofy9wn61","slide":3,"text":""}
+{"kind":"slide","id":"sl/jyx0ra1s","slide":4,"title":"THE FLEET","textShapes":17}
+{"kind":"textbox","id":"sh/e9sj2tsv","slide":4,"text":"THE FLEET","textPreview":"THE FLEET","textChars":9,"textLines":1,"bbox":[72,48,420,22]}
+{"kind":"textbox","id":"sh/1cj2d8b6","slide":4,"text":"One console coordinates five workloads—with a human boundary","textPreview":"One console coordinates five workloads—with a human boundary","textChars":60,"textLines":1,"bbox":[72,82,920,86]}
+{"kind":"textbox","id":"sh/0ba143al","slide":4,"text":"The system is designed for HR operators, not as a general-purpose employee dashboard.","textPreview":"The system is designed for HR operators, not as a general-purpose employee dashboard.","textChars":85,"textLines":1,"bbox":[72,178,910,48]}
+{"kind":"shape","id":"sh/ql8jytsj","slide":4,"name":"dashboard-frame","bbox":[742,272,466,310]}
+{"kind":"shape","id":"sh/doj29oba","slide":4,"bbox":[78,275,20,20]}
+{"kind":"textbox","id":"sh/sna103ap","slide":4,"text":"Ticket triage","textPreview":"Ticket triage","textChars":13,"textLines":1,"bbox":[120,270,230,24]}
+{"kind":"textbox","id":"sh/3ihk3et8","slide":4,"text":"Routes routine and urgent work; urgent cases escalate.","textPreview":"Routes routine and urgent work; urgent cases escalate.","textChars":54,"textLines":1,"bbox":[120,297,538,28]}
+{"kind":"shape","id":"sh/ih8ju9sn","slide":4,"bbox":[78,341,20,20]}
+{"kind":"textbox","id":"sh/kbm987y5","slide":4,"text":"Policy Q&A","textPreview":"Policy Q&A","textChars":10,"textLines":1,"bbox":[120,336,230,24]}
+{"kind":"textbox","id":"sh/5cva1cfq","slide":4,"text":"Answers from versioned evidence; weak evidence triggers review.","textPreview":"Answers from versioned evidence; weak evidence triggers review.","textChars":63,"textLines":1,"bbox":[120,363,538,28]}
+{"kind":"shape","id":"sh/i94r6xgz","slide":4,"bbox":[78,407,20,20]}
+{"kind":"textbox","id":"sh/jadsz2xk","slide":4,"text":"Resume screening","textPreview":"Resume screening","textChars":16,"textLines":1,"bbox":[120,402,230,24]}
+{"kind":"textbox","id":"sh/w72947yt","slide":4,"text":"Transparent advisory rubric; never auto-rejects.","textPreview":"Transparent advisory rubric; never auto-rejects.","textChars":48,"textLines":1,"bbox":[120,429,538,28]}
+{"kind":"shape","id":"sh/x8vaxsfe","slide":4,"bbox":[78,473,20,20]}
+{"kind":"textbox","id":"sh/a5kr2xg3","slide":4,"text":"Onboarding","textPreview":"Onboarding","textChars":10,"textLines":1,"bbox":[120,468,230,24]}
+{"kind":"textbox","id":"sh/v6tsv2xo","slide":4,"text":"Runs a checklist and pauses sensitive steps for approval.","textPreview":"Runs a checklist and pauses sensitive steps for approval.","textChars":57,"textLines":1,"bbox":[120,495,538,28]}
+{"kind":"shape","id":"sh/g36tgryd","slide":4,"bbox":[78,539,20,20]}
+{"kind":"textbox","id":"sh/h4fa9wfy","slide":4,"text":"Attrition advisory","textPreview":"Attrition advisory","textChars":18,"textLines":1,"bbox":[120,534,230,24]}
+{"kind":"textbox","id":"sh/p0batw72","slide":4,"text":"Surfaces risk factors; never a punitive verdict.","textPreview":"Surfaces risk factors; never a punitive verdict.","textChars":48,"textLines":1,"bbox":[120,561,538,28]}
+{"kind":"textbox","id":"sh/oz29krqh","slide":4,"name":"pill-HR OPERATORS","text":"HR OPERATORS","textPreview":"HR OPERATORS","textChars":12,"textLines":1,"bbox":[742,603,128,28]}
+{"kind":"textbox","id":"sh/3ytsrmpw","slide":4,"text":"Employees get a focused, chat-first surface; the command center is reserved for the people who operate it.","textPreview":"Employees get a focused, chat-first surface; the command center is reserved for the people who operate it.","textChars":106,"textLines":1,"bbox":[892,603,316,38]}
+{"kind":"shape","id":"sh/2xkrih8b","slide":4,"bbox":[72,675,1136,0]}
+{"kind":"textbox","id":"sh/1wbapc7q","slide":4,"text":"Source: PRODUCT.md · docs/webapp-test-chat-result.png","textPreview":"Source: PRODUCT.md · docs/webapp-test-chat-result.png","textChars":53,"textLines":1,"bbox":[72,686,480,16]}
+{"kind":"textbox","id":"sh/gv29g7q5","slide":4,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[1160,684,48,18]}
+{"kind":"image","id":"im/w7u9kj25","slide":4,"name":"","geometry":"roundRect","bbox":[742,272,466,310]}
+{"kind":"notes","id":"nt/jyx0ra1s","slide":4,"text":""}
+{"kind":"slide","id":"sl/i107q5of","slide":5,"title":"FLAGSHIP WORKFLOW","textShapes":18}
+{"kind":"textbox","id":"sh/qd0bahob","slide":5,"text":"FLAGSHIP WORKFLOW","textPreview":"FLAGSHIP WORKFLOW","textChars":17,"textLines":1,"bbox":[72,48,420,22]}
+{"kind":"textbox","id":"sh/dgbulwnm","slide":5,"text":"The proof is an auditable resume review","textPreview":"The proof is an auditable resume review","textChars":39,"textLines":1,"bbox":[72,82,920,86]}
+{"kind":"textbox","id":"sh/cf2tcr61","slide":5,"text":"Decision support is useful only when the handoff is transparent, PII-safe, and human-approved.","textPreview":"Decision support is useful only when the handoff is transparent, PII-safe, and human-approved.","textChars":94,"textLines":1,"bbox":[72,178,910,48]}
+{"kind":"textbox","id":"sh/yhkbe1o7","slide":5,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[78,268,40,28]}
+{"kind":"textbox","id":"sh/l4bupwny","slide":5,"text":"Intake","textPreview":"Intake","textChars":6,"textLines":1,"bbox":[138,268,200,28]}
+{"kind":"textbox","id":"sh/032tgr6d","slide":5,"text":"Resume arrives as PDF, image, or text.","textPreview":"Resume arrives as PDF, image, or text.","textChars":38,"textLines":1,"bbox":[138,298,410,34]}
+{"kind":"textbox","id":"sh/n6dcr65o","slide":5,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[78,350,40,28]}
+{"kind":"textbox","id":"sh/m5kbi1oj","slide":5,"text":"Blind + structure","textPreview":"Blind + structure","textChars":17,"textLines":1,"bbox":[138,350,200,28]}
+{"kind":"textbox","id":"sh/w32dkbuh","slide":5,"text":"Identity is blinded; skills and experience become a typed profile.","textPreview":"Identity is blinded; skills and experience become a typed profile.","textChars":66,"textLines":1,"bbox":[138,380,410,34]}
+{"kind":"textbox","id":"sh/x4vedgvm","slide":5,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[78,432,40,28]}
+{"kind":"textbox","id":"sh/ahkvi1cb","slide":5,"text":"Guard + explain","textPreview":"Guard + explain","textChars":15,"textLines":1,"bbox":[138,432,200,28]}
+{"kind":"textbox","id":"sh/v2twb6dw","slide":5,"text":"Policy guard checks the rubric and generates reasons—not a verdict.","textPreview":"Policy guard checks the rubric and generates reasons—not a verdict.","textChars":67,"textLines":1,"bbox":[138,462,410,34]}
+{"kind":"textbox","id":"sh/k7mxovud","slide":5,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[78,514,40,28]}
+{"kind":"textbox","id":"sh/58vehgvy","slide":5,"text":"Approve + audit","textPreview":"Approve + audit","textChars":15,"textLines":1,"bbox":[138,514,200,28]}
+{"kind":"textbox","id":"sh/i54fmlc7","slide":5,"text":"A human checkpoint closes the loop and records the decision.","textPreview":"A human checkpoint closes the loop and records the decision.","textChars":60,"textLines":1,"bbox":[138,544,410,34]}
+{"kind":"textbox","id":"sh/j6dwfqds","slide":5,"text":"A2A-shaped handoffs carry certified, PII-safe artifacts—not raw text.","textPreview":"A2A-shaped handoffs carry certified, PII-safe artifacts—not raw text.","textChars":69,"textLines":1,"bbox":[78,606,510,30]}
+{"kind":"shape","id":"sh/sb6xsvu9","slide":5,"bbox":[72,675,1136,0]}
+{"kind":"textbox","id":"sh/tcfel0vu","slide":5,"text":"Source: PRODUCT.md · A2A_TECHNICAL_PLAN.md","textPreview":"Source: PRODUCT.md · A2A_TECHNICAL_PLAN.md","textChars":42,"textLines":1,"bbox":[72,686,480,16]}
+{"kind":"textbox","id":"sh/hgrmpwj2","slide":5,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[1160,684,48,18]}
+{"kind":"image","id":"im/zu9wb6pc","slide":5,"name":"","bbox":[610,286.58,598,296.85]}
+{"kind":"notes","id":"nt/i107q5of","slide":5,"text":""}
+{"kind":"slide","id":"sl/x8f69ofe","slide":6,"title":"RUNTIME ARCHITECTURE","textShapes":11}
+{"kind":"textbox","id":"sh/lkrqp4ra","slide":6,"text":"RUNTIME ARCHITECTURE","textPreview":"RUNTIME ARCHITECTURE","textChars":20,"textLines":1,"bbox":[72,48,420,22]}
+{"kind":"textbox","id":"sh/yhg7epsj","slide":6,"text":"Provider routing is explicit, cost-bounded, and reversible","textPreview":"Provider routing is explicit, cost-bounded, and reversible","textChars":58,"textLines":1,"bbox":[72,82,920,86]}
+{"kind":"textbox","id":"sh/zi98nu94","slide":6,"text":"The durable control plane keeps workflows useful even when model inference is unavailable.","textPreview":"The durable control plane keeps workflows useful even when model inference is unavailable.","textChars":90,"textLines":1,"bbox":[72,178,910,48]}
+{"kind":"shape","id":"sh/98rqt4r6","slide":6,"bbox":[72,270,424,84]}
+{"kind":"textbox","id":"sh/ml07i9sv","slide":6,"text":"Deterministic first","textPreview":"Deterministic first","textChars":19,"textLines":1,"bbox":[96,285,364,24]}
+{"kind":"textbox","id":"sh/7m98ru9g","slide":6,"text":"Obvious triage, local scoring, and templated explanations use zero model spend.","textPreview":"Obvious triage, local scoring, and templated explanations use zero model spend.","textChars":79,"textLines":1,"bbox":[96,313,364,30]}
+{"kind":"shape","id":"sh/oryp8fah","slide":6,"bbox":[72,378,424,84]}
+{"kind":"textbox","id":"sh/pc76hkr2","slide":6,"text":"Fireworks AI online","textPreview":"Fireworks AI online","textChars":19,"textLines":1,"bbox":[96,393,364,24]}
+{"kind":"textbox","id":"sh/h4bupgn6","slide":6,"text":"Interactive ambiguity, grounded synthesis, and streaming are opt-in and allowlisted.","textPreview":"Interactive ambiguity, grounded synthesis, and streaming are opt-in and allowlisted.","textChars":84,"textLines":1,"bbox":[96,421,364,30]}
+{"kind":"shape","id":"sh/w32twb6l","slide":6,"bbox":[72,486,424,84]}
+{"kind":"textbox","id":"sh/v2tcn650","slide":6,"text":"AMD / vLLM optional","textPreview":"AMD / vLLM optional","textChars":19,"textLines":1,"bbox":[96,501,364,24]}
+{"kind":"textbox","id":"sh/u1kbu1ov","slide":6,"text":"A self-hosted route exists; live hardware claims stay gated by named runtime evidence.","textPreview":"A self-hosted route exists; live hardware claims stay gated by named runtime evidence.","textChars":86,"textLines":1,"bbox":[96,529,364,30]}
+{"kind":"shape","id":"sh/5svutgni","slide":6,"bbox":[72,675,1136,0]}
+{"kind":"textbox","id":"sh/47mt0b6x","slide":6,"text":"Source: README.md · CLAIMS.md · technical-architecture.png","textPreview":"Source: README.md · CLAIMS.md · technical-architecture.png","textChars":58,"textLines":1,"bbox":[72,686,480,16]}
+{"kind":"textbox","id":"sh/j6dcr65c","slide":6,"text":"06","textPreview":"06","textChars":2,"textLines":1,"bbox":[1160,684,48,18]}
+{"kind":"image","id":"im/lw3uh4be","slide":6,"name":"","bbox":[560,283.05,648,298.9]}
+{"kind":"notes","id":"nt/x8f69ofe","slide":6,"text":""}
+{"kind":"slide","id":"sl/gnmp4jqx","slide":7,"title":"TRUST CONTROLS","textShapes":13}
+{"kind":"textbox","id":"sh/batcbq94","slide":7,"text":"TRUST CONTROLS","textPreview":"TRUST CONTROLS","textChars":14,"textLines":1,"bbox":[72,48,420,22]}
+{"kind":"textbox","id":"sh/cb2tkvap","slide":7,"text":"Governance is product behavior—not a footer","textPreview":"Governance is product behavior—not a footer","textChars":43,"textLines":1,"bbox":[72,82,920,86]}
+{"kind":"textbox","id":"sh/dcbud0ra","slide":7,"text":"The system makes the safe path visible: role boundaries, human approvals, redaction, and evidence all live in the workflow.","textPreview":"The system makes the safe path visible: role boundaries, human approvals, redaction, and evidence all live in the workflow.","textChars":123,"textLines":1,"bbox":[72,178,910,48]}
+{"kind":"shape","id":"sh/zedcfa9g","slide":7,"bbox":[756,284,16,16]}
+{"kind":"textbox","id":"sh/kzmdova1","slide":7,"text":"Human checkpoints","textPreview":"Human checkpoints","textChars":17,"textLines":1,"bbox":[792,282,340,24]}
+{"kind":"textbox","id":"sh/l0vuh0rm","slide":7,"text":"Sensitive actions pause for explicit approval.","textPreview":"Sensitive actions pause for explicit approval.","textChars":46,"textLines":1,"bbox":[792,311,360,28]}
+{"kind":"shape","id":"sh/eh0ba1sr","slide":7,"bbox":[756,362,16,16]}
+{"kind":"textbox","id":"sh/fi9c369c","slide":7,"text":"Least privilege","textPreview":"Least privilege","textChars":15,"textLines":1,"bbox":[792,360,340,24]}
+{"kind":"textbox","id":"sh/baxkjqlk","slide":7,"text":"Viewer → analyst → manager → admin scopes the surface and the action.","textPreview":"Viewer → analyst → manager → admin scopes the surface and the action.","textChars":69,"textLines":1,"bbox":[792,389,360,28]}
+{"kind":"shape","id":"sh/a9ojq5kz","slide":7,"bbox":[756,440,16,16]}
+{"kind":"textbox","id":"sh/xcz2l03q","slide":7,"text":"PII boundaries","textPreview":"PII boundaries","textChars":14,"textLines":1,"bbox":[792,438,340,24]}
+{"kind":"textbox","id":"sh/cbq1sv25","slide":7,"text":"Audit and provider payloads use redacted representations.","textPreview":"Audit and provider payloads use redacted representations.","textChars":57,"textLines":1,"bbox":[792,467,360,28]}
+{"kind":"shape","id":"sh/n6x0fqlo","slide":7,"bbox":[756,518,16,16]}
+{"kind":"textbox","id":"sh/25ojml43","slide":7,"text":"Append-only evidence","textPreview":"Append-only evidence","textChars":20,"textLines":1,"bbox":[792,516,340,24]}
+{"kind":"textbox","id":"sh/p8fih03e","slide":7,"text":"Every agent action and human decision is exportable for review.","textPreview":"Every agent action and human decision is exportable for review.","textChars":63,"textLines":1,"bbox":[792,545,360,28]}
+{"kind":"shape","id":"sh/o761ov2t","slide":7,"bbox":[72,675,1136,0]}
+{"kind":"textbox","id":"sh/f2d0b6lc","slide":7,"text":"Source: MISSION.md · SECURITY.md · platform-risk-controls.png","textPreview":"Source: MISSION.md · SECURITY.md · platform-risk-controls.png","textChars":61,"textLines":1,"bbox":[72,686,480,16]}
+{"kind":"textbox","id":"sh/eh4jil4r","slide":7,"text":"07","textPreview":"07","textChars":2,"textLines":1,"bbox":[1160,684,48,18]}
+{"kind":"image","id":"im/hcbmpone","slide":7,"name":"","bbox":[80.74,270,602.53,330]}
+{"kind":"notes","id":"nt/gnmp4jqx","slide":7,"text":""}
+{"kind":"slide","id":"sl/fu1gfa1s","slide":8,"title":"THE HONEST CLOSE","textShapes":16}
+{"kind":"textbox","id":"sh/elkf2pg7","slide":8,"text":"THE HONEST CLOSE","textPreview":"THE HONEST CLOSE","textChars":16,"textLines":1,"bbox":[72,48,420,22]}
+{"kind":"textbox","id":"sh/18byd4zy","slide":8,"text":"A deployable reference today; measured depth next","textPreview":"A deployable reference today; measured depth next","textChars":49,"textLines":1,"bbox":[72,82,920,86]}
+{"kind":"textbox","id":"sh/g72x4zyd","slide":8,"text":"Govern.ai is designed to make trustworthy AI in HR inspectable now—and to earn stronger claims with evidence, not optimism.","textPreview":"Govern.ai is designed to make trustworthy AI in HR inspectable now—and to earn stronger claims with evidence, not optimism.","textChars":123,"textLines":1,"bbox":[72,178,910,48]}
+{"kind":"shape","id":"sh/ri9g7uhw","slide":8,"bbox":[72,286,514,260]}
+{"kind":"textbox","id":"sh/6h0fypgb","slide":8,"text":"Proven in the repository","textPreview":"Proven in the repository","textChars":24,"textLines":1,"bbox":[106,322,410,30]}
+{"kind":"shape","id":"sh/tkby9kzm","slide":8,"bbox":[108,374,12,12]}
+{"kind":"textbox","id":"sh/sjix0zy1","slide":8,"text":"Zero-secret deterministic evaluation","textPreview":"Zero-secret deterministic evaluation","textChars":36,"textLines":1,"bbox":[136,368,388,24]}
+{"kind":"shape","id":"sh/je9g3ahk","slide":8,"bbox":[108,410,12,12]}
+{"kind":"textbox","id":"sh/id0fu50z","slide":8,"text":"Policy RAG with pgvector + citations","textPreview":"Policy RAG with pgvector + citations","textChars":36,"textLines":1,"bbox":[136,404,388,24]}
+{"kind":"shape","id":"sh/o7ydoret","slide":8,"bbox":[108,446,12,12]}
+{"kind":"textbox","id":"sh/98rehwve","slide":8,"text":"Human approval gates + immutable audit","textPreview":"Human approval gates + immutable audit","textChars":38,"textLines":1,"bbox":[136,440,388,24]}
+{"kind":"shape","id":"sh/m5gvmhwn","slide":8,"bbox":[108,482,12,12]}
+{"kind":"textbox","id":"sh/n6pwfmd8","slide":8,"text":"Provider-neutral routing + batch lifecycle","textPreview":"Provider-neutral routing + batch lifecycle","textChars":42,"textLines":1,"bbox":[136,476,388,24]}
+{"kind":"shape","id":"sh/0jydkreh","slide":8,"bbox":[628,286,580,260]}
+{"kind":"textbox","id":"sh/1k7edwv2","slide":8,"text":"Gates still required","textPreview":"Gates still required","textChars":20,"textLines":1,"bbox":[662,322,478,30]}
+{"kind":"shape","id":"sh/ehgvihwr","slide":8,"bbox":[664,374,12,12]}
+{"kind":"textbox","id":"sh/zipwbmdc","slide":8,"text":"Credentialed Fireworks AI smoke","textPreview":"Credentialed Fireworks AI smoke","textChars":31,"textLines":1,"bbox":[692,368,466,24]}
+{"kind":"shape","id":"sh/kfixwbe1","slide":8,"bbox":[664,410,12,12]}
+{"kind":"textbox","id":"sh/lgbepgvm","slide":8,"text":"Named AMD/ROCm/vLLM runtime evidence","textPreview":"Named AMD/ROCm/vLLM runtime evidence","textChars":36,"textLines":1,"bbox":[692,404,466,24]}
+{"kind":"shape","id":"sh/tw7e9gnq","slide":8,"bbox":[664,446,12,12]}
+{"kind":"textbox","id":"sh/svydgb65","slide":8,"text":"Hardware benchmark + numerical error evidence","textPreview":"Hardware benchmark + numerical error evidence","textChars":45,"textLines":1,"bbox":[692,440,466,24]}
+{"kind":"shape","id":"sh/7u5w765k","slide":8,"bbox":[664,482,12,12]}
+{"kind":"textbox","id":"sh/6twve1oz","slide":8,"text":"Tenant isolation + enterprise identity","textPreview":"Tenant isolation + enterprise identity","textChars":38,"textLines":1,"bbox":[692,476,466,24]}
+{"kind":"textbox","id":"sh/5sne5wne","slide":8,"text":"Build HR automation people can question, review, and trust.","textPreview":"Build HR automation people can question, review, and trust.","textChars":59,"textLines":1,"bbox":[150,602,980,36]}
+{"kind":"shape","id":"sh/kredcr6t","slide":8,"bbox":[72,675,1136,0]}
+{"kind":"textbox","id":"sh/jq5w365o","slide":8,"text":"Source: README.md · CLAIMS.md · HACKATHON_JUDGE_BRIEF.md","textPreview":"Source: README.md · CLAIMS.md · HACKATHON_JUDGE_BRIEF.md","textChars":56,"textLines":1,"bbox":[72,686,480,16]}
+{"kind":"textbox","id":"sh/i5wva1o3","slide":8,"text":"08","textPreview":"08","textChars":2,"textLines":1,"bbox":[1160,684,48,18]}
+{"kind":"notes","id":"nt/fu1gfa1s","slide":8,"text":""}

@@ -6,6 +6,11 @@
 > routine, escalates the sensitive to a human, and proves every decision —
 > open-source and runnable on a laptop.**
 
+The shared product rule is: **Fleet acts, policy evidence grounds, and
+governance controls.** Model inference is an optional capability layer around a
+durable workflow core, not the system of record and never the final authority
+for an adverse employment action.
+
 AI is arriving in HR whether teams are ready or not. Most of it is a black box:
 no audit trail, no human gate, no way for an employee or a regulator to ask
 "why did this happen?" That's unacceptable for decisions about people — pay,
@@ -40,19 +45,18 @@ recruiters (resume screening), HRBPs (attrition signals), compliance/finance
 
 ## Direction (where this is going)
 
-**Now — trustworthy core (shipped):** 5 agents + a tool-using chat assistant,
-multi-modal intake, inbound webhooks, policy ingestion + RAG, human approvals
-with reject-capture, immutable audit, auth + RBAC + Google sign-in, chat history
-with data controls, Postgres-ready async data layer, Docker-hardened, CI, and a
-zero-secret demo path.
+**Now — trustworthy core:** five agents plus a tool-using assistant,
+multi-modal intake, policy ingestion and pgvector RAG, human approvals,
+immutable audit evidence, auth/RBAC, Fireworks online and Batch contracts,
+Docker Compose, and an open-access zero-secret evaluation path.
 
-**Next — depth & integrations:** LLM-grounded answers with prompt caching, tool
-use and citations; LangSmith eval/observability; the connector framework
-(Workday/ServiceNow/Slack); a policy-library version manager; bulk operations.
+**Next — measured depth:** run named-hardware AMD/ROCm benchmarks, exercise live
+provider smoke tests, strengthen retrieval and agent evaluations, and add
+connectors only where a governed workflow needs them.
 
-**Later — platform:** multi-tenancy, a compliance dashboard, scale-out
-(Redis + task queue + Kubernetes per [SCALING.md](./SCALING.md)), and a
-connector marketplace.
+**Later — production platform:** tenant isolation, enterprise identity,
+distributed queues and rate limits, multi-pod realtime fan-out, and managed
+Kubernetes only when measured load requires it.
 
 ## How features map to the mission
 

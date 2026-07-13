@@ -1,4 +1,4 @@
-# Backend image for the HR AI Command Center FastAPI service.
+# Backend image for the Govern.ai FastAPI service.
 FROM python:3.11-slim
 
 # Avoid interactive prompts and keep Python output unbuffered.

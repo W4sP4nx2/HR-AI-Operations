@@ -4,8 +4,8 @@ import { AuthProvider } from "./auth/AuthContext";
 import { ToastProvider } from "./components/Toast";
 
 export const metadata: Metadata = {
-  title: "HR AI Command Center",
-  description: "Multi-agent control plane for HR operations.",
+  title: "Govern.ai",
+  description: "Governed HR operations layer with auditable agent workflows.",
 };
 
 /**

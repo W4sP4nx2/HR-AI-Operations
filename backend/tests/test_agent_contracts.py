@@ -26,10 +26,50 @@ def test_registry_is_complete() -> None:
     assert api_names == spec_names, (api_names, spec_names)
 
     for spec in AGENT_SPECS.values():
-        assert spec.purpose and spec.min_role in {"viewer", "analyst", "manager", "admin"}
+        assert spec.purpose and spec.min_role in {
+            "viewer",
+            "manager",
+            "admin",
+        }
         assert spec.tools, f"{spec.name} declares no tools"
         assert spec.guardrails, f"{spec.name} declares no guardrails"
         assert spec.risk in {"advisory", "decision-support", "gated-write", "escalate"}
+        assert spec.input_model.model_json_schema()["type"] == "object"
+        assert spec.output_model.model_json_schema()["additionalProperties"] is False
+
+
+def test_a2a_cards_match_declared_contracts() -> None:
+    from agents.a2a_cards import AGENT_CARDS, REQUEST_ALIASES, get_card
+    from agents.contracts import AGENT_SPECS
+
+    assert set(AGENT_CARDS) == set(AGENT_SPECS)
+    for name, card in AGENT_CARDS.items():
+        spec = AGENT_SPECS[name]
+        assert card.output_contract == spec.output_model.__name__
+        assert card.tools == spec.tools
+        assert card.risk_posture == spec.risk
+        assert card.human_review_triggers
+        assert "json_schema" in card.fireworks_primitives
+
+    for alias, target in REQUEST_ALIASES.items():
+        assert get_card(alias).agent_name == target
+
+
+def test_output_contracts_reject_undeclared_fields() -> None:
+    from pydantic import ValidationError
+
+    from agents.contracts import PolicyAnswer
+
+    with pytest.raises(ValidationError, match="extra_forbidden"):
+        PolicyAnswer.model_validate(
+            {
+                "answer": "Use the PTO policy.",
+                "source_documents": [],
+                "confidence_score": 0.9,
+                "needs_review": False,
+                "rogue_field": "not contracted",
+            }
+        )
 
 
 def test_triage_output_matches_contract() -> None:
@@ -71,7 +111,7 @@ def test_resume_output_matches_contract() -> None:
     )
     validated = validate_output("resume_screener_agent", result)
     assert 0 <= validated.score <= 100
-    assert validated.recommendation in ("hire", "no-hire")
+    assert validated.recommendation in ("strong_fit", "review_recommended")
 
 
 def test_attrition_output_matches_contract() -> None:
@@ -101,7 +141,12 @@ def test_onboarding_output_matches_contract() -> None:
 
     result = asyncio.run(
         onboarding_agent.start(
-            {"name": "Ada", "email": "ada@acme.com", "department": "eng", "manager": "m@acme.com"}
+            {
+                "name": "Ada",
+                "email": "ada@acme.com",
+                "department": "eng",
+                "manager": "m@acme.com",
+            }
         )
     )
     validated = validate_output("onboarding_agent", result)

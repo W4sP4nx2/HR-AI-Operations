@@ -1,5 +1,11 @@
 # Triage → Type-Safe Pydantic AI Classification — Migration Report
 
+> **Historical migration record.** This captures the Anthropic-specific path at
+> the time of the migration. Current provider construction and model selection
+> are defined by `backend/core/llm_factory.py` and documented in
+> [README.md](./README.md). Do not use the snippets below as current setup
+> instructions.
+
 **Branch:** `refactor/pydantic-ai-triage` (off `main` @ `8a13d7a`)
 **Status:** complete & green — **162 passed, 3 skipped**. Not yet merged to `main`.
 **Commits:** `5a66e32` (probe) → `988d5c3` (migration) → `d22c976` (rename to `core/llm_factory.py`)

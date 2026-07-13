@@ -13,7 +13,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Send, Loader2, Bot, User, Wrench, FileText } from "lucide-react";
-import { API_BASE, authHeaders, type ChatMessage } from "../../lib/api";
+import { API_BASE, inferenceHeaders, type ChatMessage } from "../../lib/api";
 
 type ToolCall = { name: string };
 type Citation = { n: number; doc_id: string; title: string; score: number; text: string };
@@ -26,6 +26,7 @@ type Message =
       toolCalls: ToolCall[];
       citations: Citation[];
       mode: string;
+      model?: string;
       streaming?: boolean;
     };
 
@@ -96,8 +97,15 @@ function Citations({ items }: { items: Citation[] }) {
   );
 }
 
-function ModeChip({ mode }: { mode: string }) {
-  if (mode === "full") return null;
+function ModeChip({ mode, model }: { mode: string; model?: string }) {
+  if (mode === "full") {
+    const label = model?.split("/").pop();
+    return label ? (
+      <span className="ml-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700">
+        Fireworks · {label}
+      </span>
+    ) : null;
+  }
   return (
     <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
       basic mode
@@ -178,7 +186,7 @@ export default function ChatPanel({
       // the SSE response off a fetch ReadableStream instead.
       const res = await fetch(`${API_BASE}/chat/stream`, {
         method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json" }),
+        headers: inferenceHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ message: text, history }),
       });
 
@@ -226,7 +234,7 @@ export default function ChatPanel({
               mode = ev.mode ?? "degraded";
               setMessages((prev) =>
                 prev.map((m, i) =>
-                  i === assistantIdx ? { ...m, mode, streaming: false } : m
+                  i === assistantIdx ? { ...m, mode, model: ev.model, streaming: false } : m
                 )
               );
             }
@@ -281,7 +289,7 @@ export default function ChatPanel({
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             {msg.role === "assistant" && (
-              <div className="mt-1 shrink-0 rounded-full bg-brand-magenta p-1.5">
+              <div className="mt-1 self-start shrink-0 rounded-full bg-brand-magenta p-1.5">
                 <Bot size={14} className="text-white" />
               </div>
             )}
@@ -289,7 +297,7 @@ export default function ChatPanel({
               {msg.role === "assistant" && msg.toolCalls.length > 0 && (
                 <div className="mb-2 flex flex-wrap gap-1">
                   {msg.toolCalls.map((tc, j) => <ToolBadge key={j} name={tc.name} />)}
-                  <ModeChip mode={msg.mode} />
+                  <ModeChip mode={msg.mode} model={msg.model} />
                 </div>
               )}
               <div

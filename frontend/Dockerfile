@@ -1,11 +1,11 @@
-# Frontend image for the HR AI Command Center Next.js app.
+# Frontend image for the Govern.ai Next.js app.
 FROM node:20-alpine
 
 WORKDIR /app
 
 # Install dependencies first for better layer caching.
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Copy the rest of the application.
 COPY . .

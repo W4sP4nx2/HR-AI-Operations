@@ -1,95 +1,240 @@
-# Open-Source Launch Guide
+# Pre-Push and Release Checklist
 
-A checklist to publish this on GitHub and announce it on LinkedIn.
+This is the authoritative checklist before pushing to `main`, publishing an
+image, or recording a showcase. Run it from the repository root unless a step
+says otherwise.
 
----
+## 0. Keep the release scope small
 
-## 1. Pre-flight (do before pushing public)
+Before asking another assistant or reviewer to help, use [CONTEXT.md](./CONTEXT.md)
+plus the one module or failing test involved. Do not paste the whole repository
+into a model. The release narrative is:
 
-- [ ] **Secrets**: confirm `.gitignore` excludes `.env`, `.env.local`, `*.db`,
-      `backend/data/`. No real keys committed. `git log -p | grep -i key` to be sure.
-- [ ] **`.env.example`** is current (it is — includes auth/Google vars).
-- [ ] **LICENSE** present (MIT) and **CONTRIBUTING.md** present. ✅
-- [ ] **README** top section: one-line pitch, a screenshot/GIF, quick start.
-- [ ] **Backend green**: `ruff check . && black --check . && pytest -q` (33 tests).
-- [ ] **Frontend green**: `npm run build && npm run lint`.
-- [ ] **Seed works**: `python -m scripts.seed_data` populates a clean demo.
-- [ ] Add a **SECURITY.md** with a private disclosure email.
-- [ ] Add repo **topics**: `ai-agents`, `rag`, `fastapi`, `nextjs`, `hr-tech`,
-      `pydantic-ai`, `langgraph`, `human-in-the-loop`, `rbac`.
-- [ ] Add a short **demo GIF** (record the Chat → Cases → Approvals flow).
+> Audit-first HR agent workflows, deterministic fallback, Fireworks acceleration,
+> and optional AMD evidence gates.
 
-## 2. Push to GitHub
+The demo-critical path is Policy Q&A -> Case Triage -> Resume Screening ->
+Onboarding Approval -> Audit Evidence. Cut, mock, or defer work outside that path
+if it blocks the release.
+
+## 0.1 Qwen sandbox loop
+
+Use `main` as the last-known-good branch and `dev` as the hackathon integration
+branch. Qwen should work on one file or one module at a time.
+
+### Checkpoint
 
 ```bash
-cd hr-command-center
-git init && git add -A
-git commit -m "HR AI Command Center: trustworthy, audited AI layer for HR"
-git branch -M main
-git remote add origin git@github.com:<you>/hr-command-center.git
-git push -u origin main
+git switch main
+git status --short
+git pull --ff-only origin main
+git branch dev 2>/dev/null || true
+git switch dev
 ```
-Then in the repo settings: add the description, topics, and enable Issues +
-Discussions. Pin the README sections: **Quick start**, **Architecture**,
-**Walkthrough** ([WALKTHROUGH.md](./WALKTHROUGH.md)).
 
-## 3. Repo presentation (the README hook)
+If the worktree already contains uncommitted project work, review and commit a
+checkpoint before experimenting. Do not run `git checkout .` or `git restore .`
+against a mixed worktree unless every changed file is disposable.
 
-Lead with the value, not the tech:
+```bash
+git status --short
+git diff --stat
+# Commit only reviewed release work:
+git add -p
+git commit -m "checkpoint: demo-ready HR AI command center"
+```
 
-> **An AI command center for HR — safe, audited, open-source.** A team of agents
-> triage tickets, answer policy questions from your docs, screen resumes,
-> orchestrate onboarding, and flag attrition risk. Every action is audited, every
-> sensitive step is human-approved, and it runs on your laptop with **zero secrets**.
+### Qwen prompt contract
 
-Badges: build status, licence (MIT), Python/Node versions. Then the demo GIF,
-then **Quick start**, then a link to [WALKTHROUGH.md](./WALKTHROUGH.md) and
-[MISSION.md](./MISSION.md).
+Use this prompt shape:
 
-## 4. LinkedIn post (draft)
+```text
+I am working on the dev branch.
+Here is the current content of <file_name>.
+Update only this file to implement <feature>.
+Preserve deterministic fallback, audit logging, PII redaction, typed outputs,
+and provider allowlist routing.
+Do not refactor other files unless necessary.
+Return the patch and the test I should run.
+```
 
-> 🚀 I open-sourced **HR AI Command Center** — a trustworthy AI layer for HR &
-> people-ops.
->
-> Most AI in HR is a black box: no audit trail, no human gate, no way to ask "why
-> did this happen?" For decisions about people — pay, hiring, leave, attrition —
-> that's not good enough. So I built the opposite.
->
-> What it does, end to end:
-> • 🧠 A chat assistant (Pydantic AI) that answers policy questions from *your*
->   documents, triages tickets, and looks up cases — with tool-call transparency
-> • 🗂️ Triage that auto-resolves routine questions and **escalates urgent ones to
->   a human**
-> • 📄 Resume screening, onboarding orchestration, and attrition early-warning
-> • ✅ **Human-in-the-loop** approvals — and every approval *or rejection* is
->   captured with who/when/why
-> • 🔒 Auth + role-based access (viewer → admin) + Google sign-in
-> • 🧾 An immutable audit log you can export for compliance
->
-> The part I'm proudest of: it runs **with zero secrets** in a deterministic
-> fallback mode, then upgrades to LLM-grounded answers when you add an API key —
-> same UI, same workflows. SQLite for dev, Postgres for prod, Docker-ready.
->
-> Stack: FastAPI · Pydantic AI · LangGraph · CrewAI · Qdrant · Next.js 14 ·
-> async SQLAlchemy · JWT/OAuth.
->
-> It's MIT-licensed and built to be contributed to. ⭐ the repo, file an issue,
-> or fork it for your own org.
->
-> 👉 github.com/<you>/hr-command-center
->
-> #AI #OpenSource #HRTech #LLM #RAG #Python #SoftwareEngineering #AIagents
+### Accept or reject a Qwen patch
 
-**Tips:** attach the demo GIF (LinkedIn favours native video/images), post
-Tue–Thu morning, reply to early comments fast, and cross-post in relevant
-communities (r/MachineLearning "I made this", Hacker News "Show HN",
-Pydantic/FastAPI Discords).
+After pasting Qwen's code:
 
-## 5. After launch
+```bash
+git diff --stat
+python3 scripts/check_docs.py              # docs-only changes
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+  python3 -m pytest -p pytest_asyncio.plugin backend/tests -q
+```
 
-- [ ] Add a **roadmap** (link MISSION.md §Direction) and label
-      `good first issue` / `help wanted` per CONTRIBUTING.md.
-- [ ] Set up the GitHub Actions badge in the README (CI already exists).
-- [ ] Watch the JD-alignment story in [PITCH.md](./PITCH.md) — this repo is also a
-      full-stack AI-engineering portfolio piece.
-- [ ] Triage incoming issues within 48h to keep momentum.
+If it works:
+
+```bash
+git add -p
+git commit -m "feat: <small feature>"
+```
+
+If it breaks, discard only the files Qwen touched:
+
+```bash
+git restore -- path/to/file.py path/to/test_file.py
+```
+
+When in doubt, save the failed patch instead of deleting it:
+
+```bash
+git diff > /tmp/qwen-failed.patch
+```
+
+### Merge back to main
+
+Only merge after the full checklist in this file and
+[COMPETITIVE_QUALITY_GATE.md](./COMPETITIVE_QUALITY_GATE.md) pass for the claims
+being published.
+
+```bash
+git switch main
+git pull --ff-only origin main
+git merge --ff-only dev
+git push origin main
+```
+
+## 1. Review the intended change
+
+```bash
+git status --short
+git diff --check
+git diff --stat
+git diff
+```
+
+- Confirm every changed and untracked file belongs in the release.
+- Do not discard unrelated work from another contributor.
+- Remove generated caches, local databases and secrets.
+- Update status or test counts only from this run.
+
+## 2. Documentation
+
+```bash
+python3 scripts/check_docs.py
+```
+
+- `README.md` describes current behavior.
+- [MISSION.md](./MISSION.md) and [PRODUCT.md](./PRODUCT.md) agree with it.
+- Dated evidence files do not present old observations as current status.
+- Diagrams and screenshots referenced by the README exist.
+- No author biography, placeholder identity or personal promotion remains.
+
+## 3. Static and provider guardrails
+
+```bash
+python3 scripts/collect_hackathon_evidence.py --profile static
+python3 scripts/audit_hackathon_readiness.py hackathon-evidence/<timestamp>
+python3 scripts/verify_platform_manifests.py
+python3 scripts/verify_amd_gemma_overlay.py
+cd backend
+ruff check .
+python -m pytest -p pytest_asyncio.plugin \
+  tests/test_provider_guardrails_static.py \
+  tests/test_image_platform_verifier.py \
+  tests/test_platform_manifests.py -q
+cd ..
+```
+
+Confirm that provider hosts and model IDs remain environment-injected and that
+no direct client bypass was introduced.
+
+## 4. Complete backend verification
+
+Use an environment containing the base requirements, PyTorch and
+`pytest-asyncio`; the optional kernel tests need PyTorch even on CPU.
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
+  python3 -m pytest -p pytest_asyncio.plugin backend/tests -q
+```
+
+Record passed, skipped and warning counts. Re-run the kernel correctness files
+on the AMD instance before trusting any GPU benchmark:
+
+```bash
+python3 -m pytest -p pytest_asyncio.plugin \
+  backend/tests/test_fused_cosine_score.py \
+  backend/tests/test_curriculum.py -v
+```
+
+## 5. Frontend verification
+
+```bash
+cd frontend
+npm run lint
+npm run build
+cd ..
+```
+
+For user-facing changes, also exercise the affected workflow in the browser at
+desktop and mobile widths.
+
+## 6. Packaging and deployment
+
+```bash
+docker compose config --quiet
+```
+
+For the AMD overlay, inject non-production validation values and validate the
+production merge with `--profile amd`. Do not add defaults for provider hosts,
+keys or allowed models.
+
+Before publishing an image, inspect its manifest and confirm a
+`linux/amd64` entry. Apple Silicon builds must use an explicit
+`--platform linux/amd64` or a multi-platform builder.
+
+```bash
+python3 scripts/verify_image_platform.py \
+  "$REGISTRY/hr-command-center-backend:$TAG"
+python3 scripts/verify_image_platform.py \
+  "$REGISTRY/hr-command-center-frontend:$TAG"
+```
+
+## 7. Secrets and external smoke tests
+
+```bash
+gitleaks dir . --no-banner --config .gitleaks.toml --redact --exit-code 1
+```
+
+- Never print or commit provider keys.
+- Run `python -m scripts.fireworks_smoke` only in a credentialed environment.
+- For Fireworks auth, use `FIREWORKS_BASE_URL=https://api.fireworks.ai/inference/v1`
+  and keep concrete model IDs in `ALLOWED_MODELS`.
+- For the AMD-hosted Gemma track, deploy
+  `deploy/k8s/overlays/amd-gemma` or `docker-compose.amd.yml` and capture the
+  vLLM `/health` plus `/v1/models` output from named AMD hardware.
+- Verify the declared public frontend, backend health and one end-to-end
+  workflow for the exact release commit.
+- Capture AMD evidence only on named AMD hardware.
+
+## 8. Final push decision
+
+Push only when:
+
+- all required checks pass;
+- skips and warnings are understood;
+- the documentation describes the same product the code implements;
+- unsupported scale, GPU or provider claims are absent;
+- the final diff has been reviewed.
+
+Do not push if the only evidence is local intent. The following claims need
+current artifacts:
+
+| Claim | Required before publishing |
+|---|---|
+| Live Fireworks support | Credentialed smoke test or guarded skip clearly documented |
+| Scanned resume VLM | Explicit `ENABLE_RESUME_VLM=true` run with approved image egress |
+| Fireworks Batch value | Prepared JSONL plus one live job ID or marked credential-gated |
+| AMD acceleration | Named GPU, ROCm/Triton versions, p50/p95, error/recall, memory |
+| Large-scale readiness | Load-test result, provider quota, database saturation notes |
+| Compliance readiness | Audit export, RBAC mode, retention proof, bias methodology |
+
+This checklist prepares a push; it does not perform one.

@@ -128,7 +128,10 @@ async def test_reroute_records_override_and_reassigns(reroute_client) -> None:
     """Re-routing hands the case to a human queue and writes a triage_override row."""
     c, mem = reroute_client
     case = await mem.create_case(
-        category="POLICY", summary="misrouted", assigned_agent="policy_qa_agent", status="resolved"
+        category="POLICY",
+        summary="misrouted",
+        assigned_agent="policy_qa_agent",
+        status="resolved",
     )
     r = await c.patch(
         f"/cases/{case['id']}/reroute",
@@ -148,6 +151,27 @@ async def test_reroute_records_override_and_reassigns(reroute_client) -> None:
     # Metrics expose the override telemetry.
     metrics = (await c.get("/metrics")).json()["data"]
     assert metrics["triage_overrides"] == 1
+
+
+@pytest.mark.asyncio
+async def test_cases_endpoint_uses_cursor_pagination(reroute_client) -> None:
+    """Large case lists are returned as bounded cursor pages."""
+    c, mem = reroute_client
+    latest = None
+    for i in range(205):
+        latest = await mem.create_case(category="POLICY", summary=f"case {i}", status="open")
+
+    first = await c.get("/cases?limit=50")
+    assert first.status_code == 200
+    first_page = first.json()["data"]
+    assert len(first_page["items"]) == 50
+    assert first_page["next_cursor"]
+    assert first_page["items"][0]["id"] == latest["id"]
+
+    second = await c.get(f"/cases?limit=50&cursor={first_page['next_cursor']}")
+    second_page = second.json()["data"]
+    assert len(second_page["items"]) == 50
+    assert first_page["items"][-1]["id"] != second_page["items"][0]["id"]
 
 
 @pytest.mark.asyncio

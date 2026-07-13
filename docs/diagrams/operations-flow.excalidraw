@@ -1,0 +1,1054 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "mcp-excalidraw-server",
+  "elements": [
+    {
+      "id": "title",
+      "type": "text",
+      "x": 60,
+      "y": 30,
+      "width": 880,
+      "height": 38,
+      "strokeColor": "#2a0f32",
+      "text": "Operations flow",
+      "fontSize": 28,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T12:04:14.922Z",
+      "updatedAt": "2026-07-09T12:04:14.922Z",
+      "version": 1
+    },
+    {
+      "id": "subtitle-72",
+      "type": "text",
+      "x": 60,
+      "y": 72,
+      "width": 1000,
+      "height": 24,
+      "strokeColor": "#495057",
+      "text": "Build once for linux/amd64, prove runtime behavior, and degrade without hiding failure.",
+      "fontSize": 16,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T12:04:14.922Z",
+      "updatedAt": "2026-07-09T12:04:14.922Z",
+      "version": 1
+    },
+    {
+      "id": "delivery-zone",
+      "type": "rectangle",
+      "x": 45,
+      "y": 120,
+      "width": 330,
+      "height": 560,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.923Z",
+      "updatedAt": "2026-07-09T12:04:14.923Z",
+      "version": 1
+    },
+    {
+      "id": "delivery-zone-label",
+      "type": "text",
+      "x": 63,
+      "y": 134,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#2d5f94",
+      "text": "Delivery",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T12:04:14.924Z",
+      "updatedAt": "2026-07-09T12:04:14.924Z",
+      "version": 1
+    },
+    {
+      "id": "runtime-zone",
+      "type": "rectangle",
+      "x": 415,
+      "y": 120,
+      "width": 380,
+      "height": 560,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.924Z",
+      "updatedAt": "2026-07-09T12:04:14.924Z",
+      "version": 1
+    },
+    {
+      "id": "runtime-zone-label",
+      "type": "text",
+      "x": 433,
+      "y": 134,
+      "width": 280,
+      "height": 26,
+      "strokeColor": "#5d1c6a",
+      "text": "Runtime",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T12:04:14.924Z",
+      "updatedAt": "2026-07-09T12:04:14.924Z",
+      "version": 1
+    },
+    {
+      "id": "observe-zone",
+      "type": "rectangle",
+      "x": 835,
+      "y": 120,
+      "width": 300,
+      "height": 560,
+      "backgroundColor": "#d9f0ee",
+      "strokeColor": "#1d6b65",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.924Z",
+      "updatedAt": "2026-07-09T12:04:14.924Z",
+      "version": 1
+    },
+    {
+      "id": "observe-zone-label",
+      "type": "text",
+      "x": 853,
+      "y": 134,
+      "width": 264,
+      "height": 26,
+      "strokeColor": "#1d6b65",
+      "text": "Observe and respond",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T12:04:14.925Z",
+      "updatedAt": "2026-07-09T12:04:14.925Z",
+      "version": 1
+    },
+    {
+      "id": "improve-zone",
+      "type": "rectangle",
+      "x": 1175,
+      "y": 120,
+      "width": 280,
+      "height": 560,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "dashed",
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.925Z",
+      "updatedAt": "2026-07-09T12:04:14.925Z",
+      "version": 1
+    },
+    {
+      "id": "improve-zone-label",
+      "type": "text",
+      "x": 1193,
+      "y": 134,
+      "width": 244,
+      "height": 26,
+      "strokeColor": "#8a4b08",
+      "text": "Improve",
+      "fontSize": 20,
+      "fontFamily": 2,
+      "createdAt": "2026-07-09T12:04:14.925Z",
+      "updatedAt": "2026-07-09T12:04:14.925Z",
+      "version": 1
+    },
+    {
+      "id": "commit",
+      "type": "rectangle",
+      "x": 85,
+      "y": 180,
+      "width": 250,
+      "height": 64,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Code + tests"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.925Z",
+      "updatedAt": "2026-07-09T12:04:14.925Z",
+      "version": 1
+    },
+    {
+      "id": "ci",
+      "type": "rectangle",
+      "x": 85,
+      "y": 290,
+      "width": 250,
+      "height": 72,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "CI\nlint · test · static scans"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.926Z",
+      "updatedAt": "2026-07-09T12:04:14.926Z",
+      "version": 1
+    },
+    {
+      "id": "image",
+      "type": "rectangle",
+      "x": 85,
+      "y": 415,
+      "width": 250,
+      "height": 72,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "linux/amd64 app images\npinned AMD ROCm/vLLM"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.926Z",
+      "updatedAt": "2026-07-09T12:04:14.926Z",
+      "version": 1
+    },
+    {
+      "id": "gitops",
+      "type": "rectangle",
+      "x": 85,
+      "y": 540,
+      "width": 250,
+      "height": 72,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Compose default\nmanaged K8s optional"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.926Z",
+      "updatedAt": "2026-07-09T12:04:14.926Z",
+      "version": 1
+    },
+    {
+      "id": "config",
+      "type": "rectangle",
+      "x": 455,
+      "y": 180,
+      "width": 300,
+      "height": 72,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Injected secrets, hosts, models"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.926Z",
+      "updatedAt": "2026-07-09T12:04:14.926Z",
+      "version": 1
+    },
+    {
+      "id": "api",
+      "type": "rectangle",
+      "x": 455,
+      "y": 300,
+      "width": 300,
+      "height": 72,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "FastAPI + workers"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.927Z",
+      "updatedAt": "2026-07-09T12:04:14.927Z",
+      "version": 1
+    },
+    {
+      "id": "gpu",
+      "type": "rectangle",
+      "x": 455,
+      "y": 420,
+      "width": 300,
+      "height": 82,
+      "backgroundColor": "#ffe4d8",
+      "strokeColor": "#a54f2b",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "AMD ROCm/vLLM\nor Fireworks async Batch"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.927Z",
+      "updatedAt": "2026-07-09T12:04:14.927Z",
+      "version": 1
+    },
+    {
+      "id": "fallback",
+      "type": "rectangle",
+      "x": 455,
+      "y": 555,
+      "width": 300,
+      "height": 72,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "CPU + deterministic fallback"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.928Z",
+      "updatedAt": "2026-07-09T12:04:14.928Z",
+      "version": 1
+    },
+    {
+      "id": "health",
+      "type": "rectangle",
+      "x": 875,
+      "y": 180,
+      "width": 220,
+      "height": 72,
+      "backgroundColor": "#d9f0ee",
+      "strokeColor": "#1d6b65",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Health + readiness"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.928Z",
+      "updatedAt": "2026-07-09T12:04:14.928Z",
+      "version": 1
+    },
+    {
+      "id": "metrics",
+      "type": "rectangle",
+      "x": 875,
+      "y": 300,
+      "width": 220,
+      "height": 72,
+      "backgroundColor": "#ffffff",
+      "strokeColor": "#2a0f32",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Latency · queue · errors · cost"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.928Z",
+      "updatedAt": "2026-07-09T12:04:14.928Z",
+      "version": 1
+    },
+    {
+      "id": "gpu-status",
+      "type": "rectangle",
+      "x": 875,
+      "y": 420,
+      "width": 220,
+      "height": 82,
+      "backgroundColor": "#ffe8b3",
+      "strokeColor": "#8a4b08",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "ROCm / GPU evidence\nmemory + utilization"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.928Z",
+      "updatedAt": "2026-07-09T12:04:14.928Z",
+      "version": 1
+    },
+    {
+      "id": "incident",
+      "type": "rectangle",
+      "x": 875,
+      "y": 555,
+      "width": 220,
+      "height": 72,
+      "backgroundColor": "#fde2e2",
+      "strokeColor": "#9b2c2c",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Runbook + rollback"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.928Z",
+      "updatedAt": "2026-07-09T12:04:14.928Z",
+      "version": 1
+    },
+    {
+      "id": "evals",
+      "type": "rectangle",
+      "x": 1210,
+      "y": 180,
+      "width": 210,
+      "height": 72,
+      "backgroundColor": "#dceafa",
+      "strokeColor": "#2d5f94",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Golden evals"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.930Z",
+      "updatedAt": "2026-07-09T12:04:14.930Z",
+      "version": 1
+    },
+    {
+      "id": "benchmark",
+      "type": "rectangle",
+      "x": 1210,
+      "y": 300,
+      "width": 210,
+      "height": 72,
+      "backgroundColor": "#eee3f2",
+      "strokeColor": "#5d1c6a",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Measured benchmark\nor labeled simulation"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.930Z",
+      "updatedAt": "2026-07-09T12:04:14.930Z",
+      "version": 1
+    },
+    {
+      "id": "feedback",
+      "type": "rectangle",
+      "x": 1210,
+      "y": 420,
+      "width": 210,
+      "height": 72,
+      "backgroundColor": "#fce8f2",
+      "strokeColor": "#a93372",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Human feedback"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.930Z",
+      "updatedAt": "2026-07-09T12:04:14.930Z",
+      "version": 1
+    },
+    {
+      "id": "release",
+      "type": "rectangle",
+      "x": 1210,
+      "y": 555,
+      "width": 210,
+      "height": 72,
+      "backgroundColor": "#dff3e5",
+      "strokeColor": "#2f6f44",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "label": {
+        "text": "Controlled release\nstarts next cycle"
+      },
+      "fontSize": 17,
+      "fontFamily": 2,
+      "roundness": {
+        "type": 3
+      },
+      "fillStyle": "solid",
+      "createdAt": "2026-07-09T12:04:14.930Z",
+      "updatedAt": "2026-07-09T12:04:14.930Z",
+      "version": 1
+    },
+    {
+      "id": "d1",
+      "type": "arrow",
+      "x": 210,
+      "y": 252,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          30
+        ]
+      ],
+      "start": {
+        "id": "commit"
+      },
+      "end": {
+        "id": "ci"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.930Z",
+      "updatedAt": "2026-07-09T12:04:14.930Z",
+      "version": 1
+    },
+    {
+      "id": "d2",
+      "type": "arrow",
+      "x": 210,
+      "y": 370,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          37
+        ]
+      ],
+      "start": {
+        "id": "ci"
+      },
+      "end": {
+        "id": "image"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "d3",
+      "type": "arrow",
+      "x": 210,
+      "y": 495,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          37
+        ]
+      ],
+      "start": {
+        "id": "image"
+      },
+      "end": {
+        "id": "gitops"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "d4",
+      "type": "arrow",
+      "x": 276.08692860459246,
+      "y": 535.8459167972096,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          262.8261427908151,
+          -159.69183359441922
+        ]
+      ],
+      "start": {
+        "id": "gitops"
+      },
+      "end": {
+        "id": "api"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "r1",
+      "type": "arrow",
+      "x": 605,
+      "y": 260,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          32
+        ]
+      ],
+      "start": {
+        "id": "config"
+      },
+      "end": {
+        "id": "api"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "r2",
+      "type": "arrow",
+      "x": 605,
+      "y": 380,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          32
+        ]
+      ],
+      "start": {
+        "id": "api"
+      },
+      "end": {
+        "id": "gpu"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "r3",
+      "type": "arrow",
+      "x": 605,
+      "y": 380,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          167
+        ]
+      ],
+      "start": {
+        "id": "api"
+      },
+      "end": {
+        "id": "fallback"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "o1",
+      "type": "arrow",
+      "x": 726.6286613210731,
+      "y": 297.59094905650323,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          140.74267735785384,
+          -44.44505600774329
+        ]
+      ],
+      "start": {
+        "id": "api"
+      },
+      "end": {
+        "id": "health"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "o2",
+      "type": "arrow",
+      "x": 763,
+      "y": 336,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          104,
+          0
+        ]
+      ],
+      "start": {
+        "id": "api"
+      },
+      "end": {
+        "id": "metrics"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "o3",
+      "type": "arrow",
+      "x": 763,
+      "y": 461,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          104,
+          0
+        ]
+      ],
+      "start": {
+        "id": "gpu"
+      },
+      "end": {
+        "id": "gpu-status"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "o4",
+      "type": "arrow",
+      "x": 985,
+      "y": 510,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          37
+        ]
+      ],
+      "start": {
+        "id": "gpu-status"
+      },
+      "end": {
+        "id": "incident"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "i1",
+      "type": "arrow",
+      "x": 1091.5183473879074,
+      "y": 297.2660554953064,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          116.9633052241852,
+          -42.53211099061275
+        ]
+      ],
+      "start": {
+        "id": "metrics"
+      },
+      "end": {
+        "id": "evals"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "i2",
+      "type": "arrow",
+      "x": 1100.7212755623189,
+      "y": 417.16618349912164,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          111.75744887536234,
+          -42.33236699824329
+        ]
+      ],
+      "start": {
+        "id": "gpu-status"
+      },
+      "end": {
+        "id": "benchmark"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "i3",
+      "type": "arrow",
+      "x": 1080.4043756496453,
+      "y": 551.970937234236,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          139.19124870070937,
+          -56.94187446847195
+        ]
+      ],
+      "start": {
+        "id": "incident"
+      },
+      "end": {
+        "id": "feedback"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "i4",
+      "type": "arrow",
+      "x": 1315,
+      "y": 260,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          287
+        ]
+      ],
+      "start": {
+        "id": "evals"
+      },
+      "end": {
+        "id": "release"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "i5",
+      "type": "arrow",
+      "x": 1315,
+      "y": 380,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          167
+        ]
+      ],
+      "start": {
+        "id": "benchmark"
+      },
+      "end": {
+        "id": "release"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    },
+    {
+      "id": "i6",
+      "type": "arrow",
+      "x": 1315,
+      "y": 500,
+      "strokeColor": "#6c757d",
+      "strokeWidth": 2,
+      "strokeStyle": "solid",
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          47
+        ]
+      ],
+      "start": {
+        "id": "feedback"
+      },
+      "end": {
+        "id": "release"
+      },
+      "endArrowhead": "arrow",
+      "createdAt": "2026-07-09T12:04:14.931Z",
+      "updatedAt": "2026-07-09T12:04:14.931Z",
+      "version": 1
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null
+  }
+}

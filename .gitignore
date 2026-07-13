@@ -17,6 +17,15 @@ backend/data/
 # Generated sample data (recreate with `python -m scripts.seed_data`)
 backend/sample_data/
 
+# Hackathon evidence bundles and copied real secret files.
+# Keep curated, redacted evidence in docs/ only after review.
+hackathon-evidence/
+capability-evidence.json
+evidence-*.json
+evidence-*.txt
+benchmark-amd*.json
+hrcc-secrets.real.env
+
 # Node / Next
 node_modules/
 .next/
@@ -33,3 +42,7 @@ out/
 .DS_Store
 .idea/
 .vscode/
+
+# Local AI-workspace reports
+.aura/
+.codex/

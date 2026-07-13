@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * RoleSwitcher — demo-mode "view as" control in the sidebar.
+ * RoleSwitcher — open-access "view as" control in the sidebar.
  *
- * Instead of juggling three separate logins, a reviewer flips between personas
+ * Instead of juggling separate logins, a reviewer flips between workspace roles
  * (Employee / HR / Manager / Admin) and the dashboard surface changes to match.
- * Each switch mints a real JWT for a pre-seeded demo persona via
- * `/auth/demo/switch`, so role-gated API calls work too — not just UI visibility.
+ * Each switch mints a scoped JWT for a pre-seeded role, so role-gated API calls
+ * work too — not just UI visibility.
  *
- * Only rendered in advisory/demo mode (AUTH_ENFORCE off). When enforcement is on
+ * Only rendered in open-access mode (AUTH_ENFORCE off). When enforcement is on
  * the switcher is hidden because the backend disables the endpoint.
  */
 
@@ -19,8 +19,7 @@ import type { Role } from "../../lib/api";
 
 const PERSONAS: { role: Role; label: string; blurb: string }[] = [
   { role: "viewer", label: "Employee", blurb: "Self-service chat only" },
-  { role: "analyst", label: "HR Analyst", blurb: "+ Fleet, Cases, Analytics" },
-  { role: "manager", label: "HR Manager", blurb: "+ Policies, Approvals, Audit" },
+  { role: "manager", label: "HR Manager", blurb: "Full HR operations console" },
   { role: "admin", label: "Admin", blurb: "Full access" },
 ];
 
@@ -69,14 +68,14 @@ export default function RoleSwitcher() {
       )}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-left text-sm text-brand-cream/90 hover:bg-white/15"
+        className="flex w-full items-center gap-2 rounded-lg border border-brand-purple/10 bg-brand-cream/45 px-3 py-2 text-left text-sm text-ink-800 hover:bg-brand-cream"
       >
         <Eye size={15} className="shrink-0 text-brand-peach" />
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] uppercase tracking-wide text-brand-cream/50">View as</span>
+          <span className="block text-[10px] uppercase tracking-wide text-ink-700/45">View as</span>
           <span className="block truncate font-medium">{currentLabel}</span>
         </span>
-        <ChevronDown size={14} className={`shrink-0 text-brand-cream/60 transition ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={14} className={`shrink-0 text-ink-700/50 transition ${open ? "rotate-180" : ""}`} />
       </button>
     </div>
   );

@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛠️ HR AI Command Center
+# HR AI Command Center
 
 **A safe, audited, open-source AI control plane for HR & people-operations.**
 
@@ -9,7 +9,7 @@ A fleet of specialised agents triages tickets, answers policy questions from
 risk — every action **audited**, every sensitive step **human-approved**, and it
 runs on your laptop with **zero secrets**.
 
-`FastAPI` · `Pydantic AI` · `LangGraph` · `CrewAI` · `Postgres + pgvector` · `Next.js 14`
+`FastAPI` · `Pydantic AI` · `LangGraph` · `CrewAI` · `Postgres + pgvector` · `Next.js 16`
 
 </div>
 
@@ -26,12 +26,11 @@ not a wiki. Three pillars:
 - **Governance (trust):** human-in-the-loop approvals, role-based access, PII
   redaction, and an immutable audit trail make it deployable in a regulated domain.
 
-> **AI engine — explicit & honest.** Intelligence is powered by **Anthropic Claude
-> (Opus-capable)** via the Anthropic API. There is **no Gemini / no bundled CLM
-> CLI**. The API key is read **only from the environment** (`ANTHROPIC_API_KEY`) —
-> **never hardcoded** and never shipped in the frontend bundle. With **no key set**,
-> the whole system runs in a deterministic fallback mode (keyword triage, hashing-
-> embedding scoring, templated explanations) so you can evaluate it for **$0**.
+> **Runtime boundary.** Deterministic workflows work without a model. Live
+> inference uses allowlisted models through an environment-injected Fireworks or
+> AMD/vLLM endpoint. Provider hosts and model IDs have no production defaults,
+> and the public BYOK sandbox keeps temporary keys request-scoped rather than
+> persisting them.
 
 ---
 
@@ -64,7 +63,7 @@ not a wiki. Three pillars:
 # 1) Backend (zero secrets needed)
 cd backend && python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m scripts.seed_data            # 10 sample policies, cases, a chat demo
+python -m scripts.seed_data            # 12 sample policies, cases, a chat demo
 uvicorn api.main:app --reload --port 8000
 
 # 2) Frontend
@@ -74,7 +73,8 @@ cd ../frontend && npm install && npm run dev    # http://localhost:3000
 **Optional upgrades** (all env-driven, none required):
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...    # LLM-grounded answers (Claude/Opus)
+export LLM_PROVIDER=fireworks
+export FIREWORKS_API_KEY=... FIREWORKS_BASE_URL=... ALLOWED_MODELS=...
 export DATABASE_URL=postgresql://hr:pass@localhost:5432/hrdb   # real pgvector RAG
 export AUTH_ENFORCE=true               # enforce RBAC + the employee/HR surface split
 ```
@@ -136,12 +136,13 @@ matters, and **written to the audit log**.
 |--------|-----|----------|
 | **Employee self-service** | `viewer` (enforced mode) | **Chat only** — "HR Assistant" |
 | **HR operator console** | `analyst` → `manager` → `admin` | Fleet · Cases · Policies · Analytics · Approvals · Audit (unlocked by role) |
-| **Login / SSO** | everyone | Email+password · **Google OAuth** · "continue as guest" (demo) |
+| **Open-access launchpad** | evaluator | No credentials; seeded advisory personas |
+| **Login / SSO** | enforced deployments | Email/password · optional Google OAuth |
 | **API docs (Swagger)** | developers | `http://localhost:8000/docs` |
 | **Datastore** | ops | Postgres + pgvector on `:5432` (or SQLite for dev) |
 
-In demo mode (`AUTH_ENFORCE=false`) all surfaces are shown from one login; enforced
-mode applies the role split.
+In open-access evaluation (`AUTH_ENFORCE=false`) all seeded surfaces are
+available without login; enforced mode applies the role split.
 
 ---
 
@@ -174,8 +175,8 @@ hr-command-center/
 │   ├── models/        attrition_model (scikit-learn)
 │   ├── scripts/       seed_data · seed_admin · embed_policies
 │   └── tests/         unit · integration · compliance/ (bias) · load/ (locust)
-├── frontend/          Next.js 14 · Tailwind · TypeScript (app/, lib/, auth/, components/)
-├── docker-compose.yml · docker-compose.prod.yml · render.yaml
+├── frontend/          Next.js 16 · Tailwind · TypeScript (app/, lib/, auth/, components/)
+├── docker-compose.yml · docker-compose.prod.yml · docker-compose.amd.yml
 └── docs: README · OVERVIEW · WALKTHROUGH · AGENT_PLAYBOOK · COMPLIANCE · MODEL_CARDS · SECURITY · SCALING · …
 ```
 
@@ -186,11 +187,13 @@ hr-command-center/
 **Backend** — FastAPI · async SQLAlchemy (SQLite ↔ Postgres) · **pgvector** ·
 Pydantic AI · LangGraph · CrewAI · scikit-learn · sentence-transformers · pypdf ·
 httpx · BeautifulSoup · PyJWT · bcrypt · Authlib.
-**Frontend** — Next.js 14 · React 18 · TypeScript · Tailwind CSS · Recharts ·
+**Frontend** — Next.js 16 · React 19 · TypeScript · Tailwind CSS · Recharts ·
 lucide-react.
-**AI** — Anthropic Claude (Opus-capable) via env key; deterministic fallbacks.
+**AI** — Fireworks AI primary; optional Anthropic and AMD/vLLM adapters;
+deterministic fallbacks.
 **Infra** — Docker (multi-stage, non-root) · GitHub Actions CI (lint · test ·
-compliance gate · build · gitleaks) · Render blueprint.
+compliance gate · build · gitleaks) · Docker Compose demo + optional AMD overlay;
+Kubernetes is future state.
 
 ---
 
@@ -199,25 +202,12 @@ compliance gate · build · gitleaks) · Render blueprint.
 MIT-licensed and self-hostable (SQLite → Postgres, no lock-in). Contributions
 welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md). One-command reproducible demo
 (`python -m scripts.seed_data`), CI gates on every PR, and labelled good-first-issues.
-**79 tests** green; bias disparity-ratio < 1.1 enforced in CI.
+The complete backend suite, frontend build, documentation links, provider
+guardrails and bias/security checks run in CI.
 
 ---
 
-## 👤 About the author
-
-> _Replace with your details before publishing._
-
-**\<Your Name\>** — \<role / focus, e.g. "AI/ML engineer building trustworthy AI
-for people operations"\>.
-🔗 GitHub: `github.com/<you>` · LinkedIn: `linkedin.com/in/<you>` ·
-✉️ `<you@example.com>`
-
-Built as an open-source reference implementation and full-stack AI-engineering
-portfolio piece.
-
----
-
-## ⚠️ Disclaimer
+## Disclaimer
 
 This software is provided **"as is"** for **decision-support and reference**
 purposes. It is **not legal, HR, or compliance advice**, and it does **not** make
@@ -240,8 +230,8 @@ is provided without warranty.
 **Trademark:** "HR AI Command Center" and any associated names, logos, and brand
 palette are **not** licensed under MIT and remain the property of their owner.
 You may run, fork, and reference the project, but please **do not present a fork as
-the official project** or imply endorsement without permission. "Anthropic",
-"Claude", "Next.js", "FastAPI", "PostgreSQL", and other names are trademarks of
-their respective owners and are used here for identification only.
+the official project** or imply endorsement without permission. "Fireworks AI",
+"Anthropic", "Claude", "Next.js", "FastAPI", "PostgreSQL", and other names are
+trademarks of their respective owners and are used here for identification only.
 
 > _Replace "\<owner\>" / brand specifics with your details before publishing._

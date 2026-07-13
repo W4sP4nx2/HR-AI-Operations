@@ -35,10 +35,12 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    and_,
     event,
     func,
     insert,
     inspect,
+    or_,
     select,
     update,
 )
@@ -189,6 +191,31 @@ chat_messages_t = Table(
     Column("mode", String(16)),  # full|degraded|error
     Column("created_at", String(40), nullable=False),
     Index("idx_chat_messages_session", "session_id", "created_at"),
+)
+
+batch_jobs_t = Table(
+    "batch_jobs",
+    metadata,
+    Column("job_id", String(128), primary_key=True),
+    Column("status", String(32), nullable=False),
+    Column("provider_state", String(64), nullable=False),
+    Column("processed_requests", Integer),
+    Column("total_requests", Integer),
+    Column("failed_requests", Integer),
+    Column("output_dataset_id", String(128)),
+    Column("updated_at", String(40), nullable=False),
+    Index("idx_batch_jobs_status", "status", "updated_at"),
+)
+
+# Singleton operator configuration. Non-secret settings are stored as JSON;
+# provider credentials are stored separately as encrypted ciphertext.
+runtime_settings_t = Table(
+    "runtime_settings",
+    metadata,
+    Column("scope", String(64), primary_key=True),
+    Column("payload", Text, nullable=False),
+    Column("encrypted_api_keys", Text, nullable=False, default="{}"),
+    Column("updated_at", String(40), nullable=False),
 )
 
 
@@ -473,7 +500,9 @@ class Memory:
                 {
                     "id": r["id"],
                     "agent_name": r["agent_name"],
-                    "decision": "approved" if r["action_type"] == "human_approved" else "rejected",
+                    "decision": (
+                        "approved" if r["action_type"] == "human_approved" else "rejected"
+                    ),
                     "step": inp.get("step"),
                     "reason": inp.get("reason") or "",
                     "decided_by_id": inp.get("decided_by_id"),
@@ -568,6 +597,53 @@ class Memory:
         async with self._engine.connect() as conn:
             rows = (await conn.execute(stmt)).mappings().all()
         return [dict(r) for r in rows]
+
+    async def list_cases_page(
+        self,
+        category: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """Cursor-page HR cases for large datasets without offset scans."""
+        await self._ensure_schema()
+        page_size = max(1, min(limit, 200))
+        stmt = select(cases_t)
+        if category:
+            stmt = stmt.where(cases_t.c.category == category)
+        if status:
+            stmt = stmt.where(cases_t.c.status == status)
+        if cursor:
+            # The operator queue is newest-first. Keep the cursor opaque to the
+            # frontend while using a stable timestamp + id tie-breaker so a
+            # freshly-created case is visible on the first page.
+            cursor_created_at, separator, cursor_id = cursor.partition("|")
+            if separator:
+                stmt = stmt.where(
+                    or_(
+                        cases_t.c.created_at < cursor_created_at,
+                        and_(
+                            cases_t.c.created_at == cursor_created_at,
+                            cases_t.c.id < cursor_id,
+                        ),
+                    )
+                )
+            else:
+                # Accept legacy id-only cursors from older clients.
+                stmt = stmt.where(cases_t.c.id < cursor)
+        stmt = stmt.order_by(cases_t.c.created_at.desc(), cases_t.c.id.desc()).limit(page_size + 1)
+        async with self._engine.connect() as conn:
+            rows = [dict(row) for row in (await conn.execute(stmt)).mappings().all()]
+        next_cursor = (
+            f"{rows[page_size - 1]['created_at']}|{rows[page_size - 1]['id']}"
+            if len(rows) > page_size
+            else None
+        )
+        return {
+            "items": rows[:page_size],
+            "next_cursor": next_cursor,
+            "limit": page_size,
+        }
 
     # ------------------------------------------------------------------ #
     # Agent runtime state
@@ -746,7 +822,12 @@ class Memory:
         for r in rows:
             d = agg.setdefault(
                 r["risk_driver"],
-                {"risk_driver": r["risk_driver"], "accepted": 0, "rejected": 0, "edited": 0},
+                {
+                    "risk_driver": r["risk_driver"],
+                    "accepted": 0,
+                    "rejected": 0,
+                    "edited": 0,
+                },
             )
             if r["action_taken"] in ("accepted", "rejected", "edited"):
                 d[r["action_taken"]] = int(r["n"])
@@ -759,6 +840,107 @@ class Memory:
             out.append(d)
         out.sort(key=lambda d: d["total"], reverse=True)
         return out
+
+    # ------------------------------------------------------------------ #
+    # Fireworks Batch job ledger (metadata only; no resume/provider output)
+    # ------------------------------------------------------------------ #
+    async def upsert_batch_job(
+        self,
+        *,
+        job_id: str,
+        status: str,
+        provider_state: str,
+        processed_requests: int | None = None,
+        total_requests: int | None = None,
+        failed_requests: int | None = None,
+        output_dataset_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Persist normalized Batch progress without candidate content."""
+        await self._ensure_schema()
+        record = {
+            "job_id": job_id,
+            "status": status,
+            "provider_state": provider_state,
+            "processed_requests": processed_requests,
+            "total_requests": total_requests,
+            "failed_requests": failed_requests,
+            "output_dataset_id": output_dataset_id,
+            "updated_at": _utcnow(),
+        }
+        async with self._engine.begin() as conn:
+            exists = (
+                await conn.execute(
+                    select(batch_jobs_t.c.job_id).where(batch_jobs_t.c.job_id == job_id)
+                )
+            ).first()
+            if exists:
+                await conn.execute(
+                    update(batch_jobs_t)
+                    .where(batch_jobs_t.c.job_id == job_id)
+                    .values(**{key: value for key, value in record.items() if key != "job_id"})
+                )
+            else:
+                await conn.execute(insert(batch_jobs_t).values(**record))
+        return record
+
+    async def get_batch_job(self, job_id: str) -> dict[str, Any] | None:
+        """Return one locally reconciled Batch job."""
+        await self._ensure_schema()
+        async with self._engine.connect() as conn:
+            row = (
+                (await conn.execute(select(batch_jobs_t).where(batch_jobs_t.c.job_id == job_id)))
+                .mappings()
+                .first()
+            )
+        return dict(row) if row else None
+
+    # ------------------------------------------------------------------ #
+    # Runtime AI settings
+    # ------------------------------------------------------------------ #
+    async def get_runtime_settings(self, scope: str = "global") -> dict[str, Any] | None:
+        """Return persisted AI settings for a scope, including ciphertext only."""
+        await self._ensure_schema()
+        async with self._engine.connect() as conn:
+            row = (
+                (
+                    await conn.execute(
+                        select(runtime_settings_t).where(runtime_settings_t.c.scope == scope)
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        return dict(row) if row else None
+
+    async def save_runtime_settings(
+        self,
+        payload: dict[str, Any],
+        encrypted_api_keys: str,
+        scope: str = "global",
+    ) -> dict[str, Any]:
+        """Upsert the encrypted operator settings record and return its row."""
+        await self._ensure_schema()
+        record = {
+            "scope": scope,
+            "payload": json.dumps(payload, sort_keys=True, default=str),
+            "encrypted_api_keys": encrypted_api_keys,
+            "updated_at": _utcnow(),
+        }
+        async with self._engine.begin() as conn:
+            existing = (
+                await conn.execute(
+                    select(runtime_settings_t.c.scope).where(runtime_settings_t.c.scope == scope)
+                )
+            ).first()
+            if existing:
+                await conn.execute(
+                    update(runtime_settings_t)
+                    .where(runtime_settings_t.c.scope == scope)
+                    .values(**{key: value for key, value in record.items() if key != "scope"})
+                )
+            else:
+                await conn.execute(insert(runtime_settings_t).values(**record))
+        return record
 
     # ------------------------------------------------------------------ #
     # Policy registry (tracks documents ingested into the vector store)

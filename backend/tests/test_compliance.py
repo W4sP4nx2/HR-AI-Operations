@@ -9,6 +9,7 @@ advisory-only with no protected features.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 
@@ -82,16 +83,42 @@ def test_resume_name_blind_identical_scores() -> None:
 
 
 def test_resume_never_auto_rejects_and_no_age() -> None:
-    """The screener recommends but never auto-rejects, and never cites age/year."""
+    """The screener returns an advisory fit label, and never cites age/year."""
     import re
 
     from agents.resume_screener_agent import resume_screener_agent
 
     res = asyncio.run(resume_screener_agent.run("Python role", _resume("Pat Doe")))
-    assert res["recommendation"] in ("hire", "no-hire")  # advisory, not "rejected"
+    assert res["recommendation"] in ("strong_fit", "review_recommended")
     assert "1985" not in res["reasoning"]
     # word-boundary "age" (so "coverage" doesn't trip it)
     assert re.search(r"\bage\b", res["reasoning"].lower()) is None
+
+
+def test_resume_ssn_never_reaches_case_or_audit_storage() -> None:
+    from api.routes.agents import dispatch_agent
+    from core.memory import memory
+
+    ssn = "987-65-4321"
+    asyncio.run(
+        dispatch_agent(
+            "resume_screener_agent",
+            "",
+            {
+                "job_description": "Python FastAPI services engineer",
+                "resume": (
+                    f"SSN: {ssn}\n"
+                    "Engineer with Python and FastAPI production services experience. "
+                    "Built APIs, tests, deployment pipelines, and database integrations."
+                ),
+            },
+        )
+    )
+    rows = asyncio.run(memory.list_audit(limit=50))
+    cases = asyncio.run(memory.list_cases())
+    persisted = json.dumps({"audit": rows, "cases": cases}, default=str)
+
+    assert ssn not in persisted
 
 
 # --------------------------------------------------------------------------- #
@@ -105,6 +132,8 @@ def test_triage_harassment_is_urgent_to_human() -> None:
 
     res = asyncio.run(triage_agent.run("I'm being sexually harassed by my manager"))
     assert res["category"] == "URGENT"
+    assert res["priority"] == "critical"
+    assert 0.0 <= res["confidence"] <= 1.0
     assert res["case"]["status"] == "escalated"
     assert res["case"]["assigned_agent"] == "human"
 
@@ -120,7 +149,15 @@ def test_attrition_no_protected_features_and_advisory() -> None:
     from agents.contracts import AttritionInput
 
     fields = set(AttritionInput.model_fields)
-    for protected in ("race", "gender", "sex", "age", "ethnicity", "religion", "disability"):
+    for protected in (
+        "race",
+        "gender",
+        "sex",
+        "age",
+        "ethnicity",
+        "religion",
+        "disability",
+    ):
         assert protected not in fields
 
     res = asyncio.run(

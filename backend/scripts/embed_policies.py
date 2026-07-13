@@ -39,7 +39,11 @@ async def embed_dir(directory: str) -> None:
         chunks = chunk_text(text)
         doc_id = name.replace(".pdf", "")
         chunk_dicts = [
-            {"text": c, "doc_id": doc_id, "metadata": {"source": name, "chunk_index": i}}
+            {
+                "text": c,
+                "doc_id": doc_id,
+                "metadata": {"source": name, "chunk_index": i},
+            }
             for i, c in enumerate(chunks)
         ]
         written = await rag.ingest_chunks(chunk_dicts)

@@ -30,8 +30,12 @@ python -m pytest \
 # Full backend suite
 python -m pytest tests/ -q
 
+# Synthetic data engineering + notebook integration gate (repo root)
+cd ..
+make etl-certify
+
 # Frontend static check
-cd ../frontend
+cd frontend
 npm run lint
 ```
 
@@ -65,6 +69,7 @@ Open `http://localhost:3000`.
 | Contract gate | Every agent | `tests/test_agent_contracts.py` passes; `AGENT_REGISTRY == AGENT_SPECS`. |
 | Behavioral eval gate | Agent truthfulness | `tests/test_agentic_behaviors.py` passes, including negative-space refusal and known-limit assertions. |
 | RAG gate | Retrieval + synthesis | Local SQLite cosine tests pass; pgvector integration passes when DSN is present. |
+| Data engineering gate | Synthetic ETL + data audits | Notebook cells execute; temporal metadata wins the poisoned-policy test; exact dataset counts, bias, safety and object-plan checks pass. |
 | Intake gate | Text/PDF/URL | `tests/test_intake.py` passes; bad PDFs and unreachable URLs return controlled errors. |
 | Compliance gate | HR safety | `tests/test_compliance.py` passes; PII redacted, prompt injection refused, advisory framing preserved. |
 | BYOK key-safety gate | Request-scoped secrets | `tests/test_no_detached_tasks.py` passes; no `create_task`, `ensure_future`, or `BackgroundTasks`. |
@@ -140,8 +145,8 @@ automatic employment decision.
 | Strong match | JD requires Python/FastAPI/AWS; resume demonstrates those skills | High score, `hire`, matched skills | `test_resume_output_matches_contract` |
 | Name-blind parity | Same resume with two different names | Identical scores; `blinded=True` | `test_resume_name_blind_identical_scores` |
 | Age/pregnancy guard | Resume includes graduation year/pregnancy leave | Reasoning does not cite age/year; output is recommendation only | `test_resume_never_auto_rejects_and_no_age` |
-| Negation blind spot, fallback | `attempted FastAPI but abandoned`, `never built LangGraph` | Keyless fallback may still match terms, but marks `skill_audit_mode=keyword_fallback` | `test_screener_fallback_marks_mode_and_keeps_blindspot` |
-| Validated negation path | Mocked validator marks matched skills negated | Score drops, `no-hire`, `unverified_skills` populated | `test_screener_validated_path_flips_score` |
+| Negation guard, fallback | `attempted FastAPI but abandoned`, `never built LangGraph` | Keyless fallback removes nearby-negated terms and keeps `skill_audit_mode=keyword_fallback` | `test_screener_fallback_uses_deterministic_negation_guard` |
+| Validated negation path | Mocked validator marks matched skills negated | Score drops, `review_recommended`, `unverified_skills` populated | `test_screener_validated_path_flips_score` |
 | UI honesty | `skill_audit_mode=keyword_fallback` | Recommendation pill says `Review required: fallback mode`, not green advance | Manual/browser |
 
 Manual walkthrough:
@@ -310,6 +315,27 @@ detached background task, but it creates head-of-line blocking for large PDFs an
 slow live LLM passes. A future polling job runner must solve key custody first,
 not bolt on a queue casually.
 
+Agentic latency reminder:
+
+Agent workflows are not single-turn LLM calls. Planning, retrieval, tool
+execution, schema/guardrail validation, audit writes, and human-in-the-loop pauses
+each add a measurable hop. RAG paths also pay vector lookup and reranking costs,
+while external HR integrations can add network delay outside the app's control.
+The current BYOK-safe design favors request-scoped key custody over low p99
+latency, so test reports should call out slow live LLM/PDF/RAG paths as expected
+trade-offs rather than hidden defects.
+
+Future real-time optimizations to evaluate:
+
+- Accelerate inference with smaller models, quantized runtimes, or hosted
+  inference backends when a server-side key/model is acceptable.
+- Cache repeated retrievals and policy answers by query/document embedding.
+- Run independent retrieval/tool calls in parallel, while preserving awaited
+  request scope for BYOK-sensitive paths.
+- Move non-BYOK workloads to a bounded queue with job polling and backpressure.
+- Shard long-lived memory/vector state once tenant volume exceeds single-node
+  lookup budgets.
+
 ## Frontend Honesty Test Plan
 
 | Surface | Scenario | Expected result |
@@ -394,4 +420,3 @@ Use these as scripted demos or acceptance tests.
   - resume validation fallback rate,
   - attrition high-risk review outcomes,
   - RAG no-context rate.
-

@@ -1,8 +1,9 @@
 # Launch Plan — Demo, Open-Source Criteria & Path to Hosting
 
-Compact, actionable. Ties together the existing docs ([WALKTHROUGH](./WALKTHROUGH.md),
-[DEPLOYMENT](./DEPLOYMENT.md), [COMPLIANCE](./COMPLIANCE.md),
-[OPEN_SOURCE_LAUNCH](./OPEN_SOURCE_LAUNCH.md)).
+Compact, actionable. The release gate is
+[OPEN_SOURCE_LAUNCH.md](./OPEN_SOURCE_LAUNCH.md); deployment and compliance
+details live in [DEPLOYMENT.md](./DEPLOYMENT.md) and
+[COMPLIANCE.md](./COMPLIANCE.md).
 
 ---
 
@@ -18,15 +19,16 @@ uvicorn api.main:app --reload --port 8000
 cd ../frontend && npm install && npm run dev      # http://localhost:3000
 ```
 
-Two ways to run the demo:
+Two access modes:
 
 | Mode | Env | Shows |
 |------|-----|-------|
-| **Explore** (default) | `AUTH_ENFORCE=false` | One login sees the whole console (top bar: "demo · open access") |
+| **Open-access evaluation** (default) | `AUTH_ENFORCE=false` | No login required; choose a seeded persona |
 | **Product** | `AUTH_ENFORCE=true` | Role split: employee → chat-only; HR → full console |
 
 ### Demo script (8 beats, ~6 min)
-1. **Login** → land on the dashboard. (Product mode: log in as `employee@acme.com` to show **chat-only HR Assistant**, then as `admin@acme.com` for the **full Command Center**.)
+1. **Enter** through the persona launchpad. In enforced mode, sign in as a
+   viewer and an HR operator to show the role boundary.
 2. **Chat → policy Q&A:** "How many vacation days do I get?" → cited answer (or "basic mode" without a key).
 3. **Chat → triage:** "I'm being harassed by my manager" → **URGENT → escalated → human** (bypasses manager).
 4. **Cases** → live feed updates; click a case → **detail drawer** with the audit activity trail.
@@ -35,24 +37,24 @@ Two ways to run the demo:
 7. **Approvals:** trigger Onboarding → **pause** → Approve/Reject (reason captured in audit).
 8. **Audit** → every action above, PII-redacted → **Export CSV**. Close on the compliance story.
 
-> Guarantee resilience: `MOCK_LLM=true` (zero LLM spend, no external flake) or
-> `DEMO_MODE=true` for a fully deterministic, cached run.
+> For a deterministic run with zero model spend, set `MOCK_LLM=true`.
 
 ---
 
-## B. Live setup (Render Blueprint, ~15 min)
+## B. Release setup (Docker Compose or AMD overlay)
 
-1. **Pre-flight (must pass):** `cd backend && ruff check . && black --check . && pytest -q`
-   and `cd frontend && npm run build`. Confirm no secrets in git (`gitleaks` / CI).
+1. **Pre-flight (must pass):** run every step in
+   [OPEN_SOURCE_LAUNCH.md](./OPEN_SOURCE_LAUNCH.md).
 2. **Push to GitHub** (public). CI runs lint · test · **compliance gate** · build · secret-scan.
-3. **Render → New + → Blueprint → select repo** (`render.yaml`): provisions Postgres,
-   **auto-generates `JWT_SECRET`**, builds the **lean prod images** (no torch/CrewAI →
-   small, fast, free-tier-friendly).
-4. **Set dashboard secrets:** `ANTHROPIC_API_KEY` (optional), `ADMIN_EMAIL`/`ADMIN_PASSWORD`
-   (first-run admin), `CORS_ORIGINS` (frontend URL), and the frontend's
-   `NEXT_PUBLIC_API_BASE` / `NEXT_PUBLIC_WS_URL` (the backend URL). Redeploy.
-5. **Enforced by default in prod:** `render.yaml` sets `AUTH_ENFORCE=true`, so the
-   role split + RBAC are live. Verify `/health` → `auth_enforced: true`.
+3. **Run the production Compose stack** with Postgres/pgvector and the lean prod
+   images; set `JWT_SECRET`, `ADMIN_*`, `CORS_ORIGINS`, and provider settings in
+   the environment. See [DEPLOYMENT.md](./DEPLOYMENT.md).
+4. **For AMD inference**, apply `docker-compose.amd.yml` on a compatible AMD
+   host and run `make judge-amd-live` only when the required hardware and
+   credentials are present.
+5. **Choose the access posture deliberately:** local demos may use
+   `AUTH_ENFORCE=false`; private or production deployments must set
+   `AUTH_ENFORCE=true` and verify it through `/health`.
 
 Backend entry point: `uvicorn api.main:app` (Dockerfile.prod `CMD`). Same pattern
 maps to Fly.io / Railway via `*/Dockerfile.prod`. Full details: [DEPLOYMENT.md](./DEPLOYMENT.md).
@@ -66,12 +68,12 @@ Ship when **all** are true — measurable, not vibes.
 **Compact & packaged**
 - [x] Lean prod image installs `requirements-prod.txt` (no torch/CrewAI/LangGraph); boots without them.
 - [x] One-command demo data: `python -m scripts.seed_data`.
-- [x] Multi-stage **non-root** Dockerfiles + `docker-compose.prod.yml` + `render.yaml`.
+- [x] Multi-stage **non-root** Dockerfiles + `docker-compose.prod.yml` + AMD overlay.
 - [x] Single entry point (`uvicorn api.main:app`); `.env.example` documents every flag.
 
 **Quality gates (CI blocks merge)**
-- [x] `ruff` + `black` clean; **70 tests** pass; frontend `build` passes.
-- [x] **Compliance gate** job: bias disparity-ratio < 1.1 + security suite.
+- [x] Backend lint and complete tests; frontend lint and production build.
+- [x] **Compliance gate** job: bias and security suites.
 - [x] **gitleaks** secret scan; no secrets in history; `.env*`/`*.db` gitignored.
 
 **Trust & docs**
@@ -82,10 +84,10 @@ Ship when **all** are true — measurable, not vibes.
 
 **Clarity**
 - [x] 10-second README hook + quick start + docs index.
-- [x] Clear use cases (§D of WALKTHROUGH + the demo script above).
+- [x] Clear use cases in [USECASES.md](./USECASES.md) and the demo script above.
 
-> **Go/no-go:** every box except the GIF + repo-settings is done. Record the GIF,
-> flip the repo public, and it's launch-ready.
+> **Go/no-go:** run the current pre-push checklist and verify the exact release
+> commit. Do not inherit an older green status.
 
 ---
 
@@ -93,15 +95,16 @@ Ship when **all** are true — measurable, not vibes.
 
 Each step is independently shippable; the app keeps working between them.
 
-1. **Record demo GIF + go public** (Tier-0 from SHOWCASE_READINESS). *← do first.*
-2. **Deploy live** (Render Blueprint above) → share the URL + LinkedIn post draft.
+1. **Record the walkthrough** using synthetic data.
+2. **Run the approved Docker Compose path** and verify the release commit.
 3. **Per-user case ownership** so employees see *their* cases (today org-scoped by role).
 4. **Embeddable employee chat widget** (Slack/Teams/portal) — make the dashboard HR-only.
 5. **Redis** → read-through cache + rate-limit + **WebSocket Pub/Sub** (multi-replica live feed).
 6. **Task queue** (Arq/Celery) → agent work off the request path; `/trigger` returns a job id.
 7. **Scheduled retention purge** + Postgres audit partitioning (close the GDPR auto-erasure gap).
 8. **LangSmith** tracing/eval harness; **Workday/ServiceNow** connectors (mock-first).
-9. **Multi-tenancy** (tenant id + row-level security) for SaaS; then **K8s + autoscaling**.
+9. **Multi-tenancy** (tenant id + row-level security) for SaaS; Kubernetes and
+   autoscaling remain future-state work after a measured scale requirement.
 
 Full architecture & rationale: [SCALING.md](./SCALING.md) · [PIPELINE_AND_UX.md](./PIPELINE_AND_UX.md) · [PRODUCT.md](./PRODUCT.md).
 
@@ -109,6 +112,7 @@ Full architecture & rationale: [SCALING.md](./SCALING.md) · [PIPELINE_AND_UX.md
 
 ## One-line status
 
-> **Code-complete and gated** (70 tests, compliance CI, lean packaging, Render
-> blueprint). The only blockers to a public launch are **a demo GIF** and
-> **flipping the repo public + setting deploy secrets** — everything else is shipped.
+> **Release candidate:** lean packaging, CI gates, and Docker Compose plus an
+> optional AMD overlay exist. Kubernetes templates are future-state only. Public
+> release still requires the current
+> pre-push checklist, endpoint verification, and review of all intended changes.

@@ -12,9 +12,9 @@ the API, the docs ([AGENT_PLAYBOOK.md]) and the tests all derive from.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 # --------------------------------------------------------------------------- #
 # Inputs
@@ -60,6 +60,8 @@ class AttritionInput(BaseModel):
 
 CATEGORIES = ["BENEFITS", "POLICY", "ONBOARDING", "PERFORMANCE", "COMPLIANCE", "URGENT"]
 
+STRICT_CONTRACT_CONFIG = ConfigDict(extra="forbid")
+
 
 class CaseRef(BaseModel):
     """A minimal reference to a created/updated case."""
@@ -68,8 +70,15 @@ class CaseRef(BaseModel):
     category: str
     status: str
     assigned_agent: str
+    summary: str | None = None
+    detail: str | None = None
+    ai_recommendation: str | None = None
+    ai_confidence: float | None = Field(default=None, ge=0, le=1)
+    ai_mode: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class TriageResult(BaseModel):
@@ -77,9 +86,12 @@ class TriageResult(BaseModel):
 
     category: str
     case: CaseRef
+    priority: str | None = None
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    dossier: dict[str, Any] | None = None
     resolution: dict[str, Any] | None = None
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class PolicyAnswer(BaseModel):
@@ -89,15 +101,18 @@ class PolicyAnswer(BaseModel):
     source_documents: list[dict[str, Any]] = []
     confidence_score: float = Field(..., ge=0, le=1)
     needs_review: bool = False  # confidence below threshold → route to a human
+    mode: str | None = None
+    prompt_version: str | None = None
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class ResumeScore(BaseModel):
     """Resume screener output contract."""
 
+    case_id: str | None = None
     score: int = Field(..., ge=0, le=100)
-    recommendation: str
+    recommendation: Literal["strong_fit", "review_recommended"]
     reasoning: str
     matched_skills: list[str] = []
     missing_skills: list[str] = []
@@ -113,7 +128,7 @@ class ResumeScore(BaseModel):
     skill_audit_mode: str = "keyword_fallback"
     unverified_skills: list[str] = []
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class RiskFactor(BaseModel):
@@ -124,16 +139,18 @@ class RiskFactor(BaseModel):
 class AttritionResult(BaseModel):
     """Attrition predictor output contract."""
 
+    case_id: str | None = None
     attrition_risk_score: float = Field(..., ge=0, le=1)
     top_risk_factors: list[RiskFactor]
     explanation: str
+    business_impact: dict[str, Any] = {}
     needs_review: bool = False  # high risk → human bias review before action
     advisory_only: bool = True  # never an automated adverse decision
     # Grounded, policy-cited retention suggestions composed from Policy Q&A when
     # risk is high (advisory; empty otherwise).
     retention_context: list[dict[str, Any]] = []
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 class OnboardingResult(BaseModel):
@@ -143,7 +160,7 @@ class OnboardingResult(BaseModel):
     task: dict[str, Any] | None = None
     state: dict[str, Any] | None = None
 
-    model_config = {"extra": "ignore"}
+    model_config = STRICT_CONTRACT_CONFIG
 
 
 # --------------------------------------------------------------------------- #
@@ -160,7 +177,7 @@ class AgentSpec(BaseModel):
     purpose: str
     input_model: type[BaseModel]
     output_model: type[BaseModel]
-    min_role: str  # viewer | analyst | manager | admin
+    min_role: str  # viewer | manager | admin
     tools: list[str] = []
     guardrails: list[str] = []
     risk: str  # advisory | decision-support | gated-write | escalate
@@ -172,11 +189,11 @@ AGENT_SPECS: dict[str, AgentSpec] = {
     "triage_agent": AgentSpec(
         name="triage_agent",
         label="Triage",
-        framework="CrewAI",
+        framework="Pydantic AI + deterministic fallback",
         purpose="Classify an HR ticket and route it: URGENT→human, POLICY→auto-resolve, else categorise.",
         input_model=TicketInput,
         output_model=TriageResult,
-        min_role="analyst",
+        min_role="manager",
         tools=["keyword_classifier|llm_classifier", "rag_pipeline", "cases_store"],
         guardrails=[
             "URGENT always escalates to a human; never auto-resolved.",
@@ -206,11 +223,11 @@ AGENT_SPECS: dict[str, AgentSpec] = {
         purpose="Score a resume against a JD and explain the fit.",
         input_model=ResumeInput,
         output_model=ResumeScore,
-        min_role="analyst",
+        min_role="manager",
         tools=["embedding_similarity", "skill_matcher", "crewai_crew"],
         guardrails=[
             "Decision-support only — never auto-rejects a candidate.",
-            "Every screen is audited with the score and recommendation.",
+            "Every screen is audited with the score and advisory fit label.",
         ],
         risk="decision-support",
     ),

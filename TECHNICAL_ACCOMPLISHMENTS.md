@@ -1,8 +1,9 @@
 # HR AI Command Center — Backend Technical Accomplishments
 
 A reference for the backend's notable engineering decisions, each **grounded in
-the codebase and verified by tests** (169 passed / 3 skipped on `main`). Numbers
-quoted below are *measured*, not estimated. Where something is only structurally
+the codebase and verified by tests**. Test counts belong to the current CI run,
+not a long-lived document. Numbers quoted below are *measured*, not estimated.
+Where something is only structurally
 guaranteed (not exercised against a live key), it says so — honesty is the point.
 
 **Stack:** FastAPI · async SQLAlchemy Core (SQLite ↔ Postgres) · Pydantic AI ·
@@ -22,7 +23,7 @@ LangGraph workflows"* still surfaces the high-value tokens, so the
 extract-then-embed blend in [`agents/resume_screener_agent.py`](backend/agents/resume_screener_agent.py)
 counts them as matched skills.
 
-- **Measured:** that résumé scores **72/100 → "hire"**, with `fastapi` and
+- **Measured:** that résumé scores **72/100 → "strong_fit"**, with `fastapi` and
   `langgraph` in `matched_skills`.
 - **Decision:** rather than fudge the scoring, the failure is encoded as a
   **KNOWN LIMITATION** assertion — `test_KNOWN_LIMITATION_screener_does_not_discount_negative_context`

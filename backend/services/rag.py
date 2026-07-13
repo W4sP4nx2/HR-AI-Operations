@@ -16,13 +16,33 @@ agree on the same store, so what gets embedded is what gets searched.
 from __future__ import annotations
 
 import re
+from datetime import date
 from typing import Any
 
 from core.config import settings
 
 # Tokens common to titles/queries that shouldn't drive a structural match.
-_TITLE_STOP = {"policy", "pdf", "the", "and", "for", "doc", "document", "hr"}
+_TITLE_STOP = {
+    "policy",
+    "pdf",
+    "the",
+    "and",
+    "for",
+    "doc",
+    "document",
+    "hr",
+    "how",
+    "many",
+    "days",
+    "does",
+    "have",
+    "receive",
+    "available",
+    "allowed",
+}
 _TOK = re.compile(r"[a-z0-9]+")
+_VERSIONED_POLICY = re.compile(r"^(policy_[a-z0-9_]+)_(20\d{2})(?:\.pdf)?$")
+_INACTIVE_POLICY_STATUSES = {"expired", "inactive", "superseded", "retired"}
 
 
 def _title_tokens(text: str) -> set[str]:
@@ -45,10 +65,91 @@ def _apply_title_boost(query: str, hits: list[dict[str, Any]]) -> list[dict[str,
         tt = _title_tokens(str(h.get("doc_id", "")))
         if tt:
             overlap = len(qt & tt) / len(qt)
-            if overlap >= 0.5:  # query (mostly) names this policy by title
+            # Acronyms such as PTO are strong title signals even inside a longer
+            # natural-language question ("How many PTO days do I have?").
+            if "pto" in qt and "pto" in tt:
+                h["score"] = max(float(h.get("score", 0.0)), 0.97)
+            elif overlap >= 0.5:  # query (mostly) names this policy by title
                 h["score"] = max(float(h.get("score", 0.0)), 0.5 + 0.45 * overlap)
     hits.sort(key=lambda h: h.get("score", 0.0), reverse=True)
     return hits
+
+
+def _apply_section_boost(query: str, hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Use hierarchical section metadata to reduce irrelevant RAG matches.
+
+    A section heading is a compact semantic prior (for example, "Records and
+    privacy"). When its meaningful terms overlap the query, the chunk gets a
+    bounded ranking lift without bypassing the normal grounding threshold.
+    """
+    query_terms = _title_tokens(query)
+    if not query_terms:
+        return hits
+    for hit in hits:
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        section_terms = _title_tokens(str(metadata.get("section_title", "")))
+        if not section_terms:
+            continue
+        overlap = len(query_terms & section_terms) / len(query_terms)
+        if overlap >= 0.25:
+            hit["score"] = min(1.0, float(hit.get("score", 0.0)) + 0.12 * overlap)
+    hits.sort(key=lambda h: h.get("score", 0.0), reverse=True)
+    return hits
+
+
+def _apply_active_policy_version_filter(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse policy conflicts using temporal metadata, then filename fallback.
+
+    Governed ingestion persists ``policy_family``, ``effective_date``,
+    ``expires_on`` and ``status`` on every chunk. Retrieval excludes inactive,
+    expired and not-yet-effective versions, then keeps the latest effective
+    version per family. Strict ``policy_*_YYYY`` ids remain supported for legacy
+    rows that predate metadata persistence.
+    """
+    today = date.today()
+    latest_by_family: dict[str, date] = {}
+    parsed: list[tuple[dict[str, Any], str | None, date | None, bool]] = []
+    for hit in hits:
+        metadata = hit.get("metadata") if isinstance(hit.get("metadata"), dict) else {}
+        match = _VERSIONED_POLICY.match(str(hit.get("doc_id", "")).lower())
+        family = str(metadata.get("policy_family", "")).lower() or (match.group(1) if match else "")
+        if not family:
+            parsed.append((hit, None, None, True))
+            continue
+
+        effective = _iso_date(metadata.get("effective_date"))
+        if effective is None and match:
+            effective = date(int(match.group(2)), 1, 1)
+        expires_on = _iso_date(metadata.get("expires_on"))
+        status = str(metadata.get("status", "")).strip().lower()
+        eligible = (
+            effective is not None
+            and effective <= today
+            and status not in _INACTIVE_POLICY_STATUSES
+            and (expires_on is None or expires_on >= today)
+        )
+        if eligible:
+            latest_by_family[family] = max(latest_by_family.get(family, effective), effective)
+        parsed.append((hit, family, effective, eligible))
+
+    filtered = [
+        hit
+        for hit, family, effective, eligible in parsed
+        if family is None
+        or (eligible and effective is not None and effective == latest_by_family.get(family))
+    ]
+    filtered.sort(key=lambda h: h.get("score", 0.0), reverse=True)
+    return filtered
+
+
+def _iso_date(value: Any) -> date | None:
+    """Parse an ISO date from metadata; invalid or empty values are absent."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError:
+        return None
 
 
 async def _vector_search(query: str, k: int) -> list[dict[str, Any]]:
@@ -83,7 +184,20 @@ _LOCAL_CONFIDENCE_FLOOR = 0.35
 
 def _review_threshold() -> float:
     """Confidence floor below which an answer is flagged for human review."""
-    return _LOCAL_CONFIDENCE_FLOOR if active_backend() == "local" else settings.confidence_threshold
+    from core.runtime_settings import runtime_settings
+
+    threshold = (
+        settings.confidence_threshold
+        if not runtime_settings.active
+        else (
+            settings.confidence_threshold
+            if runtime_settings.value("human_review_required", True)
+            else 0.0
+        )
+    )
+    if runtime_settings.active and not runtime_settings.value("human_review_required", True):
+        return 0.0
+    return _LOCAL_CONFIDENCE_FLOOR if active_backend() == "local" else threshold
 
 
 def active_backend() -> str:
@@ -119,6 +233,8 @@ async def retrieve(query: str, top_k: int | None = None) -> list[dict[str, Any]]
     k = top_k or settings.retrieval_top_k
     hits = await _vector_search(query, max(k, 12))
     hits = _apply_title_boost(query, hits)
+    hits = _apply_section_boost(query, hits)
+    hits = _apply_active_policy_version_filter(hits)
     return hits[:k]
 
 
@@ -186,7 +302,12 @@ async def query(q: str, top_k: int | None = None) -> dict[str, Any]:
         "answer": answer,
         "mode": mode,  # what produced the answer: llm vs deterministic excerpt
         "source_documents": [
-            {"doc_id": c["doc_id"], "score": round(c["score"], 4), "text": c["text"]}
+            {
+                "doc_id": c["doc_id"],
+                "score": round(c["score"], 4),
+                "text": c["text"],
+                "metadata": c.get("metadata", {}),
+            }
             for c in contexts
         ],
         "confidence_score": confidence,

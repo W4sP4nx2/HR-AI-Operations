@@ -61,8 +61,8 @@ class RoleUpdate(BaseModel):
     role: str
 
 
-class DemoSwitchRequest(BaseModel):
-    """Demo-mode role switch payload (no password — advisory mode only)."""
+class RoleSwitchRequest(BaseModel):
+    """Open-access role switch payload (no password — advisory mode only)."""
 
     role: str
 
@@ -129,18 +129,18 @@ async def me(user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]
 
 
 # --------------------------------------------------------------------------- #
-# Demo role switch (advisory mode only — no real accounts, no passwords)
+# Open-access role switch (advisory mode only — no real accounts, no passwords)
 # --------------------------------------------------------------------------- #
 
 
-@router.post("/demo/switch")
-async def demo_switch(body: DemoSwitchRequest) -> dict[str, Any]:
-    """Mint a token for a pre-seeded demo persona of the requested role.
+@router.post("/open-access/switch")
+async def open_access_switch(body: RoleSwitchRequest) -> dict[str, Any]:
+    """Mint a token for a pre-seeded open-access account of the requested role.
 
-    This is the "one login, switch roles" affordance: instead of creating three
-    separate accounts, a reviewer flips between viewer / analyst / manager /
+    This is the no-login "switch roles" affordance: instead of creating
+    separate accounts, a reviewer flips between viewer / manager /
     admin to see how the surface changes. It is **only** available when
-    ``AUTH_ENFORCE`` is off (demo mode); in an enforced deployment it is
+    ``AUTH_ENFORCE`` is off; in an enforced deployment it is
     disabled so it can never be used to escalate privilege.
     """
     from core.security import ROLES
@@ -150,20 +150,32 @@ async def demo_switch(body: DemoSwitchRequest) -> dict[str, Any]:
     if body.role not in ROLES:
         return fail(f"invalid role; must be one of {ROLES}")
 
+    role_names = {
+        "viewer": "Employee",
+        "manager": "HR Manager",
+        "admin": "Admin",
+    }
+    display_name = role_names[body.role]
     email = f"{body.role}@demo.local"
     user = await memory.get_user_by_email(email)
     if not user:
         user = await memory.create_user(
             email=email,
-            name=f"Demo {body.role.capitalize()}",
+            name=display_name,
             role=body.role,
             provider="demo",
         )
-    elif user["role"] != body.role:
-        # Keep the persona's role in sync if ROLES ever change.
-        user = await memory.update_user(user["id"], role=body.role)
+    elif user["role"] != body.role or user.get("name") != display_name:
+        # Keep the open-access account in sync if roles or labels ever change.
+        user = await memory.update_user(user["id"], role=body.role, name=display_name)
     await memory.update_user(user["id"], last_login=_now())
     return ok(_issue(user))
+
+
+@router.post("/demo/switch")
+async def demo_switch(body: RoleSwitchRequest) -> dict[str, Any]:
+    """Backward-compatible alias for older local frontends."""
+    return await open_access_switch(body)
 
 
 # --------------------------------------------------------------------------- #
@@ -247,7 +259,9 @@ async def google_callback(request: Request):
 
 
 @router.get("/users")
-async def list_users(_: dict[str, Any] = Depends(require_role("admin"))) -> dict[str, Any]:
+async def list_users(
+    _: dict[str, Any] = Depends(require_role("admin")),
+) -> dict[str, Any]:
     """List all users (admin only)."""
     return ok([_public_user(u) for u in await memory.list_users()])
 

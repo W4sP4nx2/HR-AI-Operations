@@ -111,6 +111,9 @@ class VectorStore:
                 "text": h.payload.get("text", ""),
                 "doc_id": h.payload.get("doc_id", "unknown"),
                 "score": float(h.score),
+                "metadata": {
+                    key: value for key, value in h.payload.items() if key not in {"text", "doc_id"}
+                },
             }
             for h in hits
         ]
@@ -139,7 +142,16 @@ class VectorStore:
             )
         except Exception:  # noqa: BLE001 - degrade gracefully if Qdrant is unavailable
             return []
-        return [{"text": p.payload.get("text", ""), "doc_id": doc_id} for p in points]
+        return [
+            {
+                "text": p.payload.get("text", ""),
+                "doc_id": doc_id,
+                "metadata": {
+                    key: value for key, value in p.payload.items() if key not in {"text", "doc_id"}
+                },
+            }
+            for p in points
+        ]
 
 
 # Module-level singleton.

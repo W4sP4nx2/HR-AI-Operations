@@ -1,0 +1,84 @@
+# AMD inference overlay for docker-compose.prod.yml.
+#
+# The image is published by AMD's verified `rocm` organization and includes
+# ROCm, PyTorch, and vLLM for gfx94X data-center GPUs such as MI300X. The
+# default tag and digest were verified against AMD's Docker Hub on 2026-07-10.
+#
+# Usage:
+#   export AMD_VLLM_MODEL=<model path or registry id>
+#   export AMD_VLLM_SERVED_MODEL=<allowlisted served name>
+#   export AMD_VLLM_API_KEY=<random internal service key>
+#   export HF_TOKEN=<read token after accepting the Gemma license>
+#   export POSTGRES_PASSWORD=<random database password>
+#   export ADMIN_EMAIL=<private first-run administrator email>
+#   export ADMIN_PASSWORD=<strong first-run administrator password>
+#   export AMD_VLLM_BASE_URL=http://amd-vllm:8000/v1
+#   export ALLOWED_MODELS=$AMD_VLLM_SERVED_MODEL
+#   docker compose -f docker-compose.prod.yml -f docker-compose.amd.yml \
+#     --profile amd up -d
+services:
+  backend:
+    environment:
+      LLM_PROVIDER: amd_vllm
+      AMD_VLLM_API_KEY: ${AMD_VLLM_API_KEY:?set AMD_VLLM_API_KEY}
+      AMD_VLLM_BASE_URL: ${AMD_VLLM_BASE_URL:?set AMD_VLLM_BASE_URL}
+      ALLOWED_MODELS: ${ALLOWED_MODELS:?set ALLOWED_MODELS}
+      DATABASE_URL: postgresql://hr:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/hrdb
+      AUTH_OPEN_REGISTRATION: "false"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+    depends_on:
+      amd-vllm:
+        condition: service_healthy
+
+  amd-vllm:
+    image: ${AMD_VLLM_IMAGE:-rocm/vllm:rocm7.13.0_gfx94X-dcgpu_ubuntu24.04_py3.13_pytorch_2.10.0_vllm_0.19.1@sha256:75503c82b8a1d3c970b19d1ac1a3e3c96436aab6d3695580527f8581694f3b2d}
+    platform: linux/amd64
+    profiles: ["amd"]
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        exec python3 -m vllm.entrypoints.openai.api_server
+        --host 0.0.0.0
+        --port 8000
+        --model "$${AMD_VLLM_MODEL}"
+        --served-model-name "$${AMD_VLLM_SERVED_MODEL}"
+        --max-model-len "$${AMD_VLLM_MAX_MODEL_LEN}"
+        --enable-prefix-caching
+    environment:
+      AMD_VLLM_MODEL: ${AMD_VLLM_MODEL:?set AMD_VLLM_MODEL}
+      AMD_VLLM_SERVED_MODEL: ${AMD_VLLM_SERVED_MODEL:?set AMD_VLLM_SERVED_MODEL}
+      VLLM_API_KEY: ${AMD_VLLM_API_KEY:?set AMD_VLLM_API_KEY}
+      AMD_VLLM_MAX_MODEL_LEN: ${AMD_VLLM_MAX_MODEL_LEN:-32768}
+      HF_TOKEN: ${HF_TOKEN:?accept the Gemma license and set a Hugging Face read token}
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:?accept the Gemma license and set a Hugging Face read token}
+      HF_HOME: /models/huggingface
+      VLLM_CACHE_ROOT: /models/vllm
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    shm_size: 16gb
+    volumes:
+      - amd_model_cache:/models
+    ports:
+      - "${AMD_VLLM_BIND:-127.0.0.1}:${AMD_VLLM_PORT:-8001}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=3)
+      interval: 15s
+      timeout: 5s
+      start_period: 600s
+      retries: 40
+    restart: unless-stopped
+
+volumes:
+  amd_model_cache:

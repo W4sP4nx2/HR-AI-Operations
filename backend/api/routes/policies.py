@@ -24,9 +24,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from api.responses import fail, ok, unavailable
+from core.config import settings
 from core.memory import memory
 from core.security import require_role
-from pipelines.ingestion import chunk_text
+from pipelines.ingestion import chunk_document, plan_chunking
 from pipelines.intake import (
     CapabilityUnavailable,
     enforce_upload_size,
@@ -34,6 +35,16 @@ from pipelines.intake import (
 )
 
 router = APIRouter(prefix="/policies", tags=["policies"])
+
+
+def _chunking_contract() -> dict[str, Any]:
+    """Return the active ingestion contract so the UI never guesses settings."""
+    return {
+        "size_tokens": settings.chunk_size,
+        "overlap_tokens": settings.chunk_overlap,
+        "strategy": "structure-aware token windows",
+    }
+
 
 # Sanitise filenames to safe doc_id fragments.
 _UNSAFE = re.compile(r"[^a-zA-Z0-9._-]")
@@ -84,9 +95,14 @@ async def ingest_policy(
         return fail("no extractable text found in this PDF (it may be scanned/image-only)")
 
     # 2) Chunk (also off the event loop)
-    chunks = await asyncio.to_thread(chunk_text, text)
     char_count = len(text)
     doc_id = _doc_id_from_filename(file.filename)
+    plan, chunks = await asyncio.to_thread(
+        chunk_document,
+        text,
+        doc_id=doc_id,
+        source=file.filename,
+    )
 
     # 3) Embed + upsert into the active vector backend (pgvector on Postgres,
     #    else Qdrant) — advisory; degrades gracefully.
@@ -95,15 +111,7 @@ async def ingest_policy(
     try:
         from services import rag
 
-        chunk_dicts = [
-            {
-                "text": c,
-                "doc_id": doc_id,
-                "metadata": {"source": file.filename, "chunk_index": i},
-            }
-            for i, c in enumerate(chunks)
-        ]
-        written = await rag.ingest_chunks(chunk_dicts)
+        written = await rag.ingest_chunks(chunks)
     except Exception as exc:  # noqa: BLE001
         vector_error = str(exc)
 
@@ -119,6 +127,7 @@ async def ingest_policy(
         source_text=text,
     )
     record.pop("source_text", None)  # don't ship the full text back
+    record["chunking"] = {**_chunking_contract(), **plan.as_dict()}
 
     return ok(
         {
@@ -136,7 +145,16 @@ async def list_policies() -> dict[str, Any]:
     """Return active policy documents (soft-deleted ones hidden)."""
     rows = await memory.list_policies()
     for r in rows:
-        r.pop("source_text", None)
+        text = r.pop("source_text", "")
+        plan = plan_chunking(text) if text else None
+        r["chunking"] = {
+            **_chunking_contract(),
+            **(
+                plan.as_dict()
+                if plan
+                else {"strategy": "unknown", "reason": "source text unavailable"}
+            ),
+        }
     return ok(rows)
 
 
@@ -158,7 +176,14 @@ async def delete_policy(
 
     removed = await rag.delete_policy(doc_id)  # purge vectors → excluded from RAG
     await memory.set_policy_status(doc_id, "deleted")
-    return ok({"doc_id": doc_id, "deleted": True, "chunks_purged": removed, "restorable": True})
+    return ok(
+        {
+            "doc_id": doc_id,
+            "deleted": True,
+            "chunks_purged": removed,
+            "restorable": True,
+        }
+    )
 
 
 @router.post("/{doc_id}/restore")
@@ -174,14 +199,16 @@ async def restore_policy(
     from services import rag
 
     text = policy.get("source_text") or ""
-    chunks = chunk_text(text) if text else []
+    plan, chunks = chunk_document(text, doc_id=doc_id) if text else (None, [])
     written = 0
     if chunks:
-        written = await rag.ingest_chunks(
-            [
-                {"text": c, "doc_id": doc_id, "metadata": {"chunk_index": i}}
-                for i, c in enumerate(chunks)
-            ]
-        )
+        written = await rag.ingest_chunks(chunks)
     await memory.set_policy_status(doc_id, "ingested" if written else "vector_store_unavailable")
-    return ok({"doc_id": doc_id, "restored": True, "vector_chunks": written})
+    return ok(
+        {
+            "doc_id": doc_id,
+            "restored": True,
+            "vector_chunks": written,
+            "chunking": {**_chunking_contract(), **(plan.as_dict() if plan else {})},
+        }
+    )

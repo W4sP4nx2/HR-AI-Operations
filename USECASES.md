@@ -1,4 +1,4 @@
-# Use Cases — How People Actually Use the HR AI Command Center
+# Use Cases — How People Actually Use Govern.ai
 
 This is a hands-on walkthrough of the system **as it runs today** (locally, no
 Docker, no API key required). Every request and response below was captured
@@ -13,8 +13,9 @@ the **dashboard** shows.
 > # frontend (separate shell)
 > cd frontend && npm run dev    # → http://localhost:3000
 > ```
-> Everything works in **fallback mode** with no secrets. Add `ANTHROPIC_API_KEY`
-> (and run Qdrant) to upgrade answers from deterministic → LLM-grounded.
+> Everything works in **fallback mode** with no secrets. Ingest policies into
+> pgvector and configure an allowlisted Fireworks or AMD/vLLM endpoint to upgrade
+> answers from deterministic excerpts to model-grounded synthesis.
 
 ---
 
@@ -34,9 +35,9 @@ curl -s -X POST http://localhost:8000/agents/policy_qa_agent/trigger \
   "answer": "(LLM disabled — showing top retrieved policy excerpt)\n\nNo relevant policy found.",
   "source_documents": [], "confidence_score": 0.0 } }
 ```
-**With policies ingested + `ANTHROPIC_API_KEY`:** a grounded answer that cites the
-specific policy document and version, with a confidence score from the top
-retrieval cosine similarity. Every query is written to the audit log.
+**With policies ingested + an active provider:** a grounded answer that cites
+the specific policy document and version, with a confidence score from
+retrieval. Every query is written to the audit log.
 
 **In the UI:** the employee never sees raw JSON — HR ops watches Policy Q&A runs
 tick up in the **Fleet** panel and can spot-check answers in **Audit**.
@@ -99,14 +100,15 @@ curl -s -X POST http://localhost:8000/agents/resume_screener_agent/trigger \
 ```
 **Real result (strong candidate):**
 ```json
-{ "score": 70, "recommendation": "hire",
-  "reasoning": "Semantic fit 0.72; matched 4/6 required skills (keyword coverage 67%). Strong overall alignment.",
+{ "score": 70, "recommendation": "strong_fit",
+  "reasoning": "Overall fit 70/100; matched 4/6 required skills. Strong alignment.",
   "matched_skills": ["python","fastapi","pytorch","aws"],
   "missing_skills": ["senior","engineer"] }
 ```
-A weak candidate (marketing resume vs. the same JD) scored **41 → no-hire**. The
-screener returns the full structured contract every time — and it **never
-auto-rejects**; it hands the recruiter a ranked, explainable decision.
+A weak candidate (marketing resume vs. the same JD) is labelled
+**review_recommended**, not rejected. The screener returns the full structured
+contract every time — and it **never auto-rejects**; it hands the recruiter a
+ranked, explainable advisory result.
 
 > Works with **zero** heavy dependencies: when `sentence-transformers` is absent
 > the embedder falls back to a deterministic hashing embedding, so the score is
@@ -228,14 +230,35 @@ curl -s http://localhost:8000/health      # {status, agents_registered, agents_a
 
 ---
 
+## Scenario 9 — Prove the two-agent A2A handoff
+
+**Persona:** recruiting platform / Govern.ai policy layer · **Risk:** human approval required
+
+The extractor and policy guard are independently addressable HTTP roles. The
+first endpoint returns an identity-free profile and the second adds the policy
+version, forbidden actions, and the human checkpoint. Both outputs are
+certified before the next role may consume them.
+
+```bash
+curl -s http://localhost:8000/a2a/agents/resume_extractor/.well-known/agent-card.json
+curl -s -X POST http://localhost:8000/a2a/agents/resume_extractor/rpc \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"text":"Backend engineer with Python and FastAPI."}}}'
+```
+
+Pass the returned `candidate-profile` artifact as `params.profile` to
+`/a2a/agents/policy_guard/rpc`; the task ends in `input-required`. This is a
+same-service proof today, with a documented split-service plan in
+[A2A_TECHNICAL_PLAN.md](./A2A_TECHNICAL_PLAN.md).
+
 ## What changes when you add secrets / scale up
 
-| Capability | Fallback mode (today) | + `ANTHROPIC_API_KEY` | + Qdrant | + LangSmith |
+| Capability | Fallback mode (today) | + Fireworks configuration | + pgvector | + LangSmith |
 |------------|----------------------|----------------------|----------|-------------|
-| Policy Q&A | top retrieved excerpt | Claude-synthesised, cited answer | real top-k semantic retrieval | full trace + eval scores |
-| Triage     | keyword classifier | LLM classifier (CrewAI) | POLICY auto-resolve via RAG | per-run observability |
-| Resume     | hashing-embedding score | CrewAI 3-agent narrative review | — | — |
-| Attrition  | RandomForest + templated text | Claude plain-English explanation | — | — |
+| Policy Q&A | top retrieved excerpt | Fireworks-synthesised, cited answer | real top-k semantic retrieval | full trace + eval scores |
+| Triage     | keyword classifier | typed Pydantic AI classifier | POLICY auto-resolve via RAG | per-run observability |
+| Resume     | hashing-embedding score | optional CrewAI narrative review after blinding | — | redacted trace/eval metadata |
+| Attrition  | RandomForest + templated text | Fireworks plain-English explanation | — | — |
 
 Nothing about the **workflows, audit, approvals, or UI** changes — only the depth
 of the intelligence. That separation is what lets you demo the whole system on a

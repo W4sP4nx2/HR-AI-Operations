@@ -1,34 +1,33 @@
 "use client";
 
 /**
- * Launchpad — the demo's landing card (replaces the fake login gate).
+ * Launchpad — open-access landing card.
  *
- * A visitor picks a starting **persona** (which mints a real per-role demo JWT)
- * and lands straight in the app; the sidebar "View as" switcher then lets them
- * swap personas in real time. The **BYOK affordance row** is surfaced here so
- * evaluators immediately see the zero-data-retention "use your own key" sandbox.
+ * A visitor starts with the guided operator walkthrough. The sidebar "View as"
+ * switcher remains available after entry for employee and manager views.
  *
- * Shown only in demo mode (AUTH_ENFORCE off). Enforced deployments fall back to
+ * Shown only in open-access mode (AUTH_ENFORCE off). Enforced deployments fall back to
  * the email/password LoginScreen.
  */
 
 import { useState } from "react";
-import { Activity, User, BarChart3, ShieldCheck, Crown, ArrowRight, Loader2 } from "lucide-react";
+import { Activity, User, ShieldCheck, Crown, ArrowRight, Loader2 } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import ByokControl from "../components/ByokControl";
+import { useSystemStatus } from "../hooks/useSystemStatus";
 import type { Role } from "../../lib/api";
 
-const PERSONAS: { role: Role; label: string; blurb: string; icon: React.ReactNode }[] = [
-  { role: "viewer", label: "Employee", blurb: "Self-service chat assistant", icon: <User size={18} /> },
-  { role: "analyst", label: "HR Analyst", blurb: "Fleet · Cases · Screener · Analytics", icon: <BarChart3 size={18} /> },
-  { role: "manager", label: "HR Manager", blurb: "+ Policies · Approvals · Audit", icon: <ShieldCheck size={18} /> },
-  { role: "admin", label: "Admin", blurb: "Full operator console", icon: <Crown size={18} /> },
+const START_OPTIONS: { role: Role; label: string; blurb: string; icon: React.ReactNode; primary?: boolean }[] = [
+  { role: "admin", label: "Start operator walkthrough", blurb: "Policy → triage → case → audit", icon: <Crown size={18} />, primary: true },
+  { role: "viewer", label: "Preview employee view", blurb: "Self-service policy chat", icon: <User size={18} /> },
 ];
 
 export default function Launchpad() {
   const { switchRole } = useAuth();
+  const { byokSupported } = useSystemStatus();
   const [busy, setBusy] = useState<Role | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const providerLabel = "Fireworks";
 
   const enter = async (role: Role) => {
     setBusy(role);
@@ -44,13 +43,13 @@ export default function Launchpad() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-brand-purple p-4">
       <div className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl">
-        <div className="mb-1 flex items-center gap-2 text-lg font-semibold text-brand-purple">
-          <Activity size={22} className="text-brand-magenta" />
-          HR AI Command Center
-        </div>
-        <p className="mb-3 text-sm text-ink-700/60">
-          A safe, audited AI layer for HR. Pick a role to explore — no login, no setup.
-        </p>
+	        <div className="mb-1 flex items-center gap-2 text-lg font-semibold text-brand-purple">
+	          <Activity size={22} className="text-brand-magenta" />
+	          Govern.ai
+	        </div>
+          <p className="mb-3 text-sm text-ink-700/60">
+            A governed HR operations layer. Start with one clean, judgeable workflow — no login, no setup.
+	        </p>
 
         {/* Guardrails showcase — the safety posture as a feature, not fine print. */}
         <div
@@ -74,26 +73,23 @@ export default function Launchpad() {
           </span>
         </div>
 
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-700/50">
-          Enter as
-        </p>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          {PERSONAS.map((p) => (
+        <div className="space-y-2.5">
+          {START_OPTIONS.map((p) => (
             <button
               key={p.role}
               onClick={() => enter(p.role)}
               disabled={busy !== null}
-              className="group flex items-center gap-3 rounded-2xl border border-brand-purple/15 bg-white p-3.5 text-left transition hover:border-brand-magenta hover:bg-brand-cream/40 disabled:opacity-60"
+              className={`group flex w-full items-center gap-3 rounded-2xl border p-4 text-left transition disabled:opacity-60 ${p.primary ? "border-brand-purple bg-brand-purple text-white shadow-sm hover:bg-brand-purple/90" : "border-brand-purple/15 bg-white text-ink-800 hover:border-brand-magenta hover:bg-brand-cream/40"}`}
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-purple/10 text-brand-purple">
+              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${p.primary ? "bg-white/15 text-brand-peach" : "bg-brand-purple/10 text-brand-purple"}`}>
                 {busy === p.role ? <Loader2 size={18} className="animate-spin" /> : p.icon}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1 font-semibold text-brand-purple">
+                <span className={`flex items-center gap-1 font-semibold ${p.primary ? "text-white" : "text-brand-purple"}`}>
                   {p.label}
                   <ArrowRight size={13} className="opacity-0 transition group-hover:opacity-100" />
                 </span>
-                <span className="block truncate text-[11px] text-ink-700/55">{p.blurb}</span>
+                <span className={`block truncate text-[11px] ${p.primary ? "text-white/65" : "text-ink-700/55"}`}>{p.blurb}</span>
               </span>
             </button>
           ))}
@@ -101,20 +97,31 @@ export default function Launchpad() {
 
         {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
 
-        {/* BYOK affordance row — teaches the secure, zero-retention sandbox up front. */}
-        <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/10 bg-brand-cream/40 p-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-brand-purple">Bring your own API key</p>
+        {byokSupported ? (
+          /* BYOK affordance row — teaches the secure, zero-retention sandbox up front. */
+          <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-brand-purple/10 bg-brand-cream/40 p-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-brand-purple">
+                Bring your own {providerLabel} key
+              </p>
+              <p className="text-[11px] leading-snug text-ink-700/55">
+                Optional — get real LLM answers. Used per-request, <strong>never stored</strong>.
+                Runs fully without one in deterministic mode.
+              </p>
+            </div>
+            <ByokControl placement="up" providerLabel={providerLabel} />
+          </div>
+        ) : (
+          <div className="mt-6 rounded-2xl border border-brand-purple/10 bg-brand-cream/40 p-3">
+            <p className="text-sm font-medium text-brand-purple">Local demo mode</p>
             <p className="text-[11px] leading-snug text-ink-700/55">
-              Optional — get real LLM answers. Used per-request, <strong>never stored</strong>.
-              Runs fully without one in deterministic mode.
+              The walkthrough is fully usable without a provider key. Add Fireworks later from the walkthrough when live responses are needed.
             </p>
           </div>
-          <ByokControl />
-        </div>
+        )}
 
         <p className="mt-5 text-center text-[11px] text-ink-700/40">
-          Demo mode · roles are advisory · switch personas anytime with “View as”.
+          Open access · roles are advisory · switch roles anytime with “View as”.
         </p>
       </div>
     </div>

@@ -1,0 +1,94 @@
+# Govern.ai agentic coding instructions
+
+## Project identity
+
+Govern.ai is a governed, audit-first HR workflow orchestrator.
+
+- Current branch: `dev`. Never commit or push directly to `main`.
+- Backend: FastAPI, Pydantic, PostgreSQL/SQLite, pgvector.
+- Frontend: Next.js, React, TypeScript, Tailwind.
+- Inference: Fireworks serving paths with deterministic no-key fallback.
+- Preserve unrelated work in the dirty worktree.
+
+## Core architecture
+
+Use one orchestrator, not inter-agent message passing:
+
+```text
+request
+  -> route (fast / standard / batch / deploy-on-demand)
+  -> CostRouter + semantic cache
+  -> provider call through llm_factory
+  -> FireworksOutputCertifier
+  -> audit service
+  -> user response
+```
+
+The product surfaces are the selected route/model, cost tier, cache state,
+certification result, audit event, deterministic fallback, and human checkpoint.
+Do not present envelope or card metadata as a user-facing feature.
+
+## Critical boundaries
+
+- Agent code must not import or instantiate `openai` or `fireworks` clients.
+- All provider construction and calls go through `backend/core/llm_factory.py`.
+- Every generated response must pass `FireworksOutputCertifier` before use.
+- Every material action must be written through
+  `backend/services/audit_service.py`.
+- Use `CostRouter.classify()` before provider execution.
+- Use `HRSemanticCache` for repeated governed queries.
+- Read model IDs from `ALLOWED_MODELS` and runtime configuration.
+- Never hardcode API keys, provider credentials, or a non-allowlisted model.
+- Redact PII before provider transmission and audit persistence.
+
+## Gemma multimodal route
+
+Image-bearing resume requests use the allowlisted Gemma 4 26B A4B IT
+deploy-on-demand route. Text-only resume requests remain on the standard route.
+The route must fail closed when the required Gemma model is absent, and resume
+output remains advisory with a human recruiting decision.
+
+## Contract and safety rules
+
+- Executable workflow contracts remain in `backend/agents/contracts.py`.
+- Sensitive HR actions require explicit human review.
+- URGENT triage cannot auto-resolve.
+- Resume screening cannot auto-reject.
+- Attrition output cannot authorize adverse action.
+- Deterministic output must be labelled as fallback, never live inference.
+
+## Release gates
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p pytest_asyncio.plugin -q
+ruff check backend scripts
+cd frontend && npm run build
+npm audit --audit-level=high
+make preview-check
+git diff --check
+```
+
+Exercise Chat, Cases, Policies, Approvals, Audit, Command, Screener, Attrition,
+and Analytics in the local browser. Confirm `/lifecycle/fireworks` exposes the
+visible orchestration controls and no A2A/card product surface.
+
+## Anti-patterns
+
+- Inter-agent envelope passing as product architecture.
+- A2A cards or tool metadata exposed as a product feature.
+- Raw or uncertified model output used by a workflow.
+- Provider clients constructed in agent modules.
+- Dead demo links, fake live status, or unmeasured performance claims.
+- Direct work on `main`.
+
+## Key files
+
+- `backend/agents/orchestrator.py`
+- `backend/core/llm_factory.py`
+- `backend/core/cost_router.py`
+- `backend/core/fireworks_certifier.py`
+- `backend/services/semantic_cache.py`
+- `backend/services/audit_service.py`
+- `frontend/app/components/DemoWalkthrough.tsx`
+- `frontend/app/components/AgentFleet.tsx`
+- `frontend/app/components/AuditLog.tsx`

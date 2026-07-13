@@ -1,6 +1,6 @@
-# Agent Playbook — Use Cases & Workflows
+# Govern.ai agent playbook — use cases & workflows
 
-The systematic reference for the five agents in the HR AI Command Center. Each
+The systematic reference for the five agents in Govern.ai. Each
 agent is **engineered, not loose**: it has a typed input model, a validated output
 contract, a required role, declared tools, and explicit guardrails — all defined in
 [`backend/agents/contracts.py`](./backend/agents/contracts.py) (`AGENT_SPECS`) and
@@ -27,7 +27,7 @@ slow-burn calibration — use [TEST_PLANS.md](./TEST_PLANS.md).
 | **Attrition Predictor** | manager+ | advisory | `AttritionInput` → `AttritionResult` |
 
 RBAC roles ascend: **viewer → analyst → manager → admin**. In advisory mode
-(`AUTH_ENFORCE=false`, the default) anyone can run anything for demos; in enforced
+(`AUTH_ENFORCE=false`, the default) seeded evaluation is open access; in enforced
 mode the "Role to use" column is required.
 
 ---
@@ -35,7 +35,7 @@ mode the "Role to use" column is required.
 ## 1. Triage Agent
 
 - **Purpose:** classify an incoming HR ticket and route it.
-- **Framework:** CrewAI (LLM classifier) with a deterministic keyword fallback.
+- **Framework:** Pydantic AI (typed LLM classifier) with a deterministic keyword fallback.
 - **Validated input:** `TicketInput { text: str (non-empty) }`
 - **Validated output:** `TriageResult { category, case{id,category,status,assigned_agent}, resolution? }`
 - **Tools:** keyword/LLM classifier · RAG pipeline · cases store.
@@ -63,14 +63,14 @@ ticket ─▶ classify ─┬─ URGENT     ─▶ open case (status=escalated, 
 - **Framework:** LangGraph `StateGraph` over the RAG pipeline.
 - **Validated input:** `TicketInput { text }`
 - **Validated output:** `PolicyAnswer { answer, source_documents[], confidence_score 0..1 }`
-- **Tools:** `qdrant_search` · `get_policy_doc` · Claude synthesis.
+- **Tools:** vector search · policy document lookup · provider-neutral synthesis.
 - **Guardrails:** grounded in retrieved docs (cites `doc_id`); says "no relevant
   policy found" instead of hallucinating when the store is empty.
 
 **Workflow**
 ```
-question ─▶ embed ─▶ Qdrant top-k ─▶ [hit?] ─yes─▶ Claude synthesise + cite ─▶ answer ─▶ audit
-                                     └─no──▶ "No relevant policy found"        ─▶ answer ─▶ audit
+question ─▶ embed ─▶ pgvector top-k ─▶ [hit?] ─yes─▶ synthesise + cite ─▶ answer ─▶ audit
+                                      └─no──▶ "No relevant policy found" ─▶ answer ─▶ audit
 ```
 
 **Use cases**
@@ -83,7 +83,7 @@ question ─▶ embed ─▶ Qdrant top-k ─▶ [hit?] ─yes─▶ Claude synt
 ## 3. Resume Screener Agent
 
 - **Purpose:** score a resume against a job description and explain the fit.
-- **Framework:** CrewAI (3-agent crew) with a deterministic embedding fallback.
+- **Framework:** deterministic embedding scorer with an optional certified CrewAI narrative crew.
 - **Validated input:** `ResumeInput { job_description, resume (non-empty) }`
 - **Validated output:** `ResumeScore { score 0..100, recommendation, reasoning, matched_skills[], missing_skills[] }`
 - **Tools:** embedding similarity · skill matcher · CrewAI crew.
@@ -96,7 +96,7 @@ JD + resume ─▶ extract skills ─▶ semantic + keyword score ─▶ recomme
 ```
 
 **Use cases**
-- Recruiter attaches a resume PDF + types the JD → "Score 95 · hire", matched/missing skills.
+- Recruiter attaches a resume PDF + types the JD → "Score 95 · strong alignment", matched/missing skills.
 - ATS webhook (`POST /webhooks/ats`) screens inbound applicants automatically.
 - A human always makes the final call; the score is a ranked first pass.
 
@@ -133,17 +133,17 @@ new hire ─▶ validate ─▶ create_accounts ─▶ assign_training ─▶ �
 ## 5. Attrition Predictor
 
 - **Purpose:** score attrition risk and surface the top drivers.
-- **Framework:** scikit-learn `RandomForestClassifier` + Claude explanation.
+- **Framework:** scikit-learn `RandomForestClassifier` + optional provider explanation.
 - **Validated input:** `AttritionInput { tenure_months, performance_score 1..5, absence_days, last_promotion_months, salary_band 1..5, manager_rating 1..5 }`
 - **Validated output:** `AttritionResult { attrition_risk_score 0..1, top_risk_factors[3], explanation }`
-- **Tools:** random forest · feature attribution · Claude explanation.
+- **Tools:** random forest · feature attribution · provider or templated explanation.
 - **Guardrails:** **advisory only** — framed to start a retention conversation,
   never punitive; manager+ access; sensitive-data handling reviewed.
 
 **Workflow**
 ```
 employee features ─▶ RandomForest.predict_proba ─▶ risk score
-                  └─ feature attribution ─▶ top 3 drivers ─▶ Claude/templated explanation
+                  └─ feature attribution ─▶ top 3 drivers ─▶ provider/templated explanation
                                                           └─▶ AttritionResult (advisory)
 ```
 
@@ -153,7 +153,7 @@ employee features ─▶ RandomForest.predict_proba ─▶ risk score
 
 ---
 
-## End-to-end: a day in the Command Center
+## End-to-end: a day in Govern.ai
 
 ```
 1. Admin signs in (or Google) ─▶ RBAC role attached to the session.

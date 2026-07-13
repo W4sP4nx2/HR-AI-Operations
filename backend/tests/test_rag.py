@@ -61,7 +61,7 @@ def test_local_store_roundtrip(tmp_path) -> None:
                     {
                         "text": "Annual leave is 20 paid days per year for full-time staff.",
                         "doc_id": "leave",
-                        "metadata": {"chunk_index": 0},
+                        "metadata": {"chunk_index": 0, "status": "active"},
                     },
                     {
                         "text": "Remote work is permitted up to 3 days a week.",
@@ -80,6 +80,7 @@ def test_local_store_roundtrip(tmp_path) -> None:
     # Synonym-aware lexical retrieval should rank the leave policy first.
     assert hits and hits[0]["doc_id"] == "leave"
     assert hits[0]["score"] > 0.0
+    assert hits[0]["metadata"]["status"] == "active"
 
 
 def test_service_query_shape() -> None:
@@ -126,7 +127,7 @@ def test_pgvector_roundtrip_integration() -> None:
                     {
                         "text": "Remote work is allowed 3 days a week.",
                         "doc_id": "remote",
-                        "metadata": {"chunk_index": 0},
+                        "metadata": {"chunk_index": 0, "status": "active"},
                     },
                     {
                         "text": "Annual leave is 20 days per year.",
@@ -137,6 +138,7 @@ def test_pgvector_roundtrip_integration() -> None:
             )
             hits = await store.search("how many days remote", top_k=1)
             assert hits and hits[0]["doc_id"] == "remote"
+            assert hits[0]["metadata"]["status"] == "active"
             await store.delete_policy("remote")
 
         asyncio.run(scenario())

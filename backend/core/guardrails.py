@@ -21,6 +21,7 @@ import re
 # --------------------------------------------------------------------------- #
 
 _INJECTION_PATTERNS = [
+    r"ignore\s+all\s+(previous|prior|above)\s+(instructions|rules|policy|prompts?)",
     r"ignore (all|any|the|previous|prior|above)\s+(instructions|rules|policy|prompts?)",
     r"disregard (all|the|previous|prior|above)",
     r"forget (all|everything|the above|previous)",
@@ -70,6 +71,21 @@ _PROTECTED_TERMS = re.compile(
 _YEAR = re.compile(r"\b(19|20)\d{2}\b")
 
 
+def _strip_protected_label_line(line: str) -> str | None:
+    """Remove a leading protected label while preserving later resume content."""
+    match = _PROTECTED_LABEL.match(line)
+    if not match:
+        return line
+    remainder = line[match.end() :].strip()
+    # Common pasted resumes can arrive as one line:
+    # "Name: Jane Doe. Backend engineer with Python..."
+    # Drop the labelled value, then keep the non-sensitive sentence that follows.
+    for separator in (". ", "; ", " | "):
+        if separator in remainder:
+            return remainder.split(separator, 1)[1].strip()
+    return None
+
+
 def blind_demographics(text: str) -> str:
     """Remove protected attributes from resume text before scoring.
 
@@ -82,10 +98,12 @@ def blind_demographics(text: str) -> str:
     kept: list[str] = []
     for line in text.splitlines():
         # Drop entire lines that reveal a protected attribute — both labelled
-        # headers (Name:/DOB:) and free-text mentions (maternity/pregnancy) —
-        # so the surrounding words can't influence the score either.
-        if _PROTECTED_LABEL.match(line) or _PROTECTED_TERMS.search(line):
+        # headers (Name:/DOB:) and free-text mentions (maternity/pregnancy).
+        # When a pasted resume has useful non-sensitive content after the labelled
+        # value on the same line, keep only the later sentence.
+        stripped = _strip_protected_label_line(line)
+        if stripped is None or _PROTECTED_TERMS.search(stripped):
             continue
-        line = _YEAR.sub("[year]", line)
+        line = _YEAR.sub("[year]", stripped)
         kept.append(line)
     return "\n".join(kept)
