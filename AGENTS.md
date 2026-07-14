@@ -28,6 +28,60 @@ The product surfaces are the selected route/model, cost tier, cache state,
 certification result, audit event, deterministic fallback, and human checkpoint.
 Do not present envelope or card metadata as a user-facing feature.
 
+## Aligned live agent contract (2026-07-14)
+
+The CrewAI Studio export is design input, not executable source of truth. The
+live product keeps the smaller original fleet and maps the exported roles onto
+tested runtime boundaries:
+
+| Studio role | Live product mapping |
+|---|---|
+| GitHub Handbook Ingestor | Removed. Policy/resume context arrives as validated endpoint parameters or the existing pgvector RAG path. |
+| HR Triage Specialist | `triage_agent` plus the single orchestrator route gate. |
+| Policy + Benefits specialists | `policy_qa_agent`; benefits remain a policy category until a distinct contract has tests and product demand. |
+| Bias-Aware Resume Screener | `resume_screener_agent` and the bounded `resume_review` CrewAI subtask. |
+| Onboarding Coordinator | `onboarding_agent` with durable approval/rejection state. |
+| Attrition Analyst | `attrition_agent`, advisory only. |
+| Governance Certifier | `FireworksOutputCertifier` plus typed Pydantic contracts; this is an enforcement service, not an autonomous agent. |
+| Agent Config Publisher | Removed. Runtime agents never write specs or code to GitHub. |
+
+The product hierarchy is deliberately bounded:
+
+```text
+validated API parameters
+  -> one product orchestrator
+  -> one selected CrewAI manager subtask
+  -> two non-delegating evidence/control workers
+  -> output certification
+  -> durable human approval task
+```
+
+CrewAI is an optional reasoning layer, not the workflow system of record. Its
+implemented systems are `policy_case_resolution` and `resume_review`. Discover
+them with `GET /crews/hierarchical` and run one with:
+
+```json
+{
+  "mode": "deterministic | auto | live",
+  "inputs": {
+    "ticket": "required for policy_case_resolution",
+    "policy_context": "optional endpoint-supplied context",
+    "policy_version": "optional version"
+  }
+}
+```
+
+Resume runs accept `job_description` and `resume`. Unknown fields are ignored
+before execution, required fields are checked, text is sanitized/redacted, and
+no crew fetches an external repository. `auto` selects live execution only when
+CrewAI and an allowlisted Fireworks or AMD/vLLM runtime are ready; otherwise it
+selects deterministic fallback before launch. A live launch or certification
+failure must surface as a failure and must never silently fall back.
+
+The user-facing run view shows manager/worker relationships, execution mode,
+certification, provider-call state, and the resulting human approval task. It
+does not expose prompts, secrets, raw A2A envelopes, or internal tool cards.
+
 ## Critical boundaries
 
 - Agent code must not import or instantiate `openai` or `fireworks` clients.
@@ -38,6 +92,8 @@ Do not present envelope or card metadata as a user-facing feature.
 - Use `CostRouter.classify()` before provider execution.
 - Use `HRSemanticCache` for repeated governed queries.
 - Read model IDs from `ALLOWED_MODELS` and runtime configuration.
+- CrewAI receives its LLM only from `backend/core/llm_factory.py`; Fireworks and
+  AMD/vLLM endpoints, keys, and models are injected runtime parameters.
 - Never hardcode API keys, provider credentials, or a non-allowlisted model.
 - Redact PII before provider transmission and audit persistence.
 
@@ -75,6 +131,8 @@ visible orchestration controls and no A2A/card product surface.
 ## Anti-patterns
 
 - Inter-agent envelope passing as product architecture.
+- GitHub scraping or publishing as a runtime agent dependency.
+- Fixed OpenAI model IDs in CrewAI agents.
 - A2A cards or tool metadata exposed as a product feature.
 - Raw or uncertified model output used by a workflow.
 - Provider clients constructed in agent modules.
