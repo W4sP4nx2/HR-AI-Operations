@@ -117,7 +117,9 @@ class ResumeJobWorker:
                     sort_keys=True,
                 ),
                 error_code="needs_review" if needs_review else None,
-                error_detail=("Parser warnings require review before scoring." if needs_review else None),
+                error_detail=(
+                    "Parser warnings require review before scoring." if needs_review else None
+                ),
                 completed_at=_utcnow(),
             )
             return terminal

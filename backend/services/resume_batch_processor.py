@@ -97,7 +97,9 @@ class ResumeBatchProcessor:
             try:
                 parsed = self.parser.parse(path.read_bytes(), path.name)
                 if not parsed.text.strip():
-                    raise ResumeParseError("no text; use the bounded vision fallback before batching")
+                    raise ResumeParseError(
+                        "no text; use the bounded vision fallback before batching"
+                    )
                 records.append(
                     ResumeBatchRecord(
                         custom_id=_custom_id(index, path),

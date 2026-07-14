@@ -313,7 +313,7 @@ async def trigger_agent_upload(
     elif agent_name == "attrition_agent":
         # Attrition needs six structured signals, not free text — guide the user
         # to the right surface instead of throwing a hard error on raw input.
-            return unavailable(
+        return unavailable(
             "Attrition scoring needs structured employee signals (tenure, performance, "
             "absence, …), not free text. Open the Attrition panel to enter them.",
             {"capability": "structured_input", "panel": "attrition"},

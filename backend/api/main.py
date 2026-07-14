@@ -67,17 +67,19 @@ def _byok_capable_request(method: str, path: str) -> bool:
         return True
     parts = path.strip("/").split("/")
     return (
-        len(parts) == 3 and parts[0] == "agents" and bool(parts[1]) and parts[2] == "trigger"
-    ) or (
-        len(parts) == 4
-        and parts[0] == "agents"
-        and bool(parts[1])
-        and parts[2:] == ["trigger", "upload"]
-    ) or (
-        len(parts) == 4
-        and parts[:2] == ["crews", "hierarchical"]
-        and bool(parts[2])
-        and parts[3] == "run"
+        (len(parts) == 3 and parts[0] == "agents" and bool(parts[1]) and parts[2] == "trigger")
+        or (
+            len(parts) == 4
+            and parts[0] == "agents"
+            and bool(parts[1])
+            and parts[2:] == ["trigger", "upload"]
+        )
+        or (
+            len(parts) == 4
+            and parts[:2] == ["crews", "hierarchical"]
+            and bool(parts[2])
+            and parts[3] == "run"
+        )
     )
 
 

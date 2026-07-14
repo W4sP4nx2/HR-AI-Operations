@@ -34,9 +34,7 @@ def _make_pdf(text: str) -> bytes:
 def _make_docx(text: str) -> bytes:
     document_xml = (
         '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-        "<w:body><w:p><w:r><w:t>"
-        + text
-        + "</w:t></w:r></w:p></w:body></w:document>"
+        "<w:body><w:p><w:r><w:t>" + text + "</w:t></w:r></w:p></w:body></w:document>"
     ).encode()
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w") as archive:
@@ -56,7 +54,9 @@ def test_parser_handles_pdf_docx_html_json_and_text() -> None:
     assert docx.source_type == "docx"
     assert "Kubernetes" in docx.text
 
-    html = parser.parse(b"<html><script>alert(1)</script><h1>Resume</h1><p>Python</p></html>", "resume.html")
+    html = parser.parse(
+        b"<html><script>alert(1)</script><h1>Resume</h1><p>Python</p></html>", "resume.html"
+    )
     assert html.source_type == "html"
     assert "alert" not in html.text
     assert "Python" in html.text
@@ -87,14 +87,20 @@ def test_legacy_doc_uses_only_the_sandboxed_converter(monkeypatch) -> None:
 
     from services import resume_pipeline
 
-    monkeypatch.setattr(resume_pipeline.shutil, "which", lambda name: "/usr/bin/antiword" if name == "antiword" else None)
+    monkeypatch.setattr(
+        resume_pipeline.shutil,
+        "which",
+        lambda name: "/usr/bin/antiword" if name == "antiword" else None,
+    )
     calls: list[list[str]] = []
 
     def fake_run(command, **kwargs):
         calls.append(command)
         assert kwargs["shell"] is False
         assert kwargs["timeout"] == 10
-        return subprocess.CompletedProcess(command, 0, stdout=b"Converted Python resume", stderr=b"")
+        return subprocess.CompletedProcess(
+            command, 0, stdout=b"Converted Python resume", stderr=b""
+        )
 
     monkeypatch.setattr(resume_pipeline.subprocess, "run", fake_run)
     parsed = resume_pipeline.ResumeParserPipeline().parse(b"legacy binary", "resume.doc")
@@ -201,7 +207,9 @@ def test_batch_processor_chunks_records_without_reordering(tmp_path) -> None:
     ]
 
 
-def test_batch_processor_submits_bounded_jobs_without_exposing_credentials(monkeypatch, tmp_path) -> None:
+def test_batch_processor_submits_bounded_jobs_without_exposing_credentials(
+    monkeypatch, tmp_path
+) -> None:
     import asyncio
 
     from services import fireworks_batch

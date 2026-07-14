@@ -68,7 +68,7 @@ system refuses to trust them:
 
 ## Run the judge-ready product
 
-Requirements: Docker with Compose v2, `make`, `curl`, and Python 3.11 or newer.
+Requirements: Docker with Compose v2, `make`, `curl`, and Python 3.12 or newer.
 No API key or GPU is required for the deterministic demo.
 
 ```bash
@@ -247,7 +247,9 @@ workflows—not a prompt playground.
 
 See [`backend/.env.example`](./backend/.env.example) and
 [`backend/.env.live.example`](./backend/.env.live.example) for the complete
-configuration contract. Never commit provider keys.
+configuration contract. Install `backend/requirements-ml.txt` only when local
+sentence-transformer embeddings are explicitly needed; the default control-plane
+image excludes PyTorch and GPU-vendor wheels. Never commit provider keys.
 
 ## Large-resume and concurrency target
 

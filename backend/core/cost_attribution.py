@@ -149,9 +149,7 @@ def provider_usage_snapshot() -> dict[str, Any]:
         "source": "provider_response_usage",
         "requests": sum(int(row["requests"]) for row in models.values()),
         "prompt_tokens": sum(int(row["prompt_tokens"]) for row in models.values()),
-        "cached_prompt_tokens": sum(
-            int(row["cached_prompt_tokens"]) for row in models.values()
-        ),
+        "cached_prompt_tokens": sum(int(row["cached_prompt_tokens"]) for row in models.values()),
         "completion_tokens": sum(int(row["completion_tokens"]) for row in models.values()),
         "rated_cost_usd": None,
         "models": models,

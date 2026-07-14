@@ -153,13 +153,9 @@ class ResumeParserPipeline:
         if kind == "pdf":
             return self._parse_pdf(file_bytes, name, password=password)
         if kind == "docx":
-            return self._finalize(
-                self._extract_docx(file_bytes), "docx", name, confidence=0.90
-            )
+            return self._finalize(self._extract_docx(file_bytes), "docx", name, confidence=0.90)
         if kind == "html":
-            return self._finalize(
-                self._extract_html(file_bytes), "html", name, confidence=0.82
-            )
+            return self._finalize(self._extract_html(file_bytes), "html", name, confidence=0.82)
         if kind == "json":
             return self._finalize(
                 self._extract_json(file_bytes), "linkedin_json", name, confidence=0.78
@@ -186,7 +182,10 @@ class ResumeParserPipeline:
             return "pdf"
         if file_bytes.startswith(b"PK\x03\x04") and extension == ".docx":
             return "docx"
-        if file_bytes.startswith((b"<!DOCTYPE", b"<html", b"<HTML")) or extension in cls.HTML_EXTENSIONS:
+        if (
+            file_bytes.startswith((b"<!DOCTYPE", b"<html", b"<HTML"))
+            or extension in cls.HTML_EXTENSIONS
+        ):
             return "html"
         if extension == ".json":
             return "json"
@@ -213,9 +212,7 @@ class ResumeParserPipeline:
                 if reader.decrypt(password) == 0:
                     raise ResumeParseError("PDF password was rejected")
             if len(reader.pages) > self.max_pages:
-                raise ResumeParseError(
-                    f"resume exceeds the {self.max_pages}-page processing limit"
-                )
+                raise ResumeParseError(f"resume exceeds the {self.max_pages}-page processing limit")
             pages: list[str] = []
             for page in reader.pages:
                 try:
@@ -358,10 +355,14 @@ class ResumeParserPipeline:
         except subprocess.TimeoutExpired as exc:
             raise CapabilityUnavailable("doc_parser", "legacy .doc conversion timed out") from exc
         except OSError as exc:
-            raise CapabilityUnavailable("doc_parser", "legacy .doc converter could not start") from exc
+            raise CapabilityUnavailable(
+                "doc_parser", "legacy .doc converter could not start"
+            ) from exc
         if completed.returncode != 0:
             detail = completed.stderr.decode("utf-8", errors="replace").strip()[:240]
-            raise ResumeParseError(f"legacy .doc conversion failed{': ' + detail if detail else ''}")
+            raise ResumeParseError(
+                f"legacy .doc conversion failed{': ' + detail if detail else ''}"
+            )
         return completed.stdout.decode("utf-8", errors="replace")
 
     @staticmethod
@@ -454,7 +455,9 @@ def _normalize_text(text: str, max_chars: int) -> str:
     return "\n".join(compact).strip()[:max_chars]
 
 
-def chunk_resume_text(text: str, *, chunk_chars: int = 6_000, overlap_chars: int = 300) -> list[str]:
+def chunk_resume_text(
+    text: str, *, chunk_chars: int = 6_000, overlap_chars: int = 300
+) -> list[str]:
     """Split normalized resume text without dropping the tail.
 
     The screening model has a bounded context window. Chunking is therefore a

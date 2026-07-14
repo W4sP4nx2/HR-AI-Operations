@@ -33,7 +33,9 @@ class ResumeJobCreate(BaseModel):
 
 
 def _tenant_id(user: dict[str, Any]) -> str:
-    return str(user.get("tenant_id") or ("demo" if user.get("id") == "anon" else f"tenant:{user['id']}"))
+    return str(
+        user.get("tenant_id") or ("demo" if user.get("id") == "anon" else f"tenant:{user['id']}")
+    )
 
 
 def _public_job(job: dict[str, Any], *, deduplicated: bool = False) -> dict[str, Any]:
@@ -161,5 +163,7 @@ async def retry_resume_job(
         completed_at=None,
     )
     if not retried:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="resume job changed before retry")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="resume job changed before retry"
+        )
     return ok(_public_job(retried))

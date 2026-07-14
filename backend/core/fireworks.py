@@ -32,6 +32,7 @@ def gemma_route_status() -> dict[str, Any]:
         "live_gate": "allowlist plus a configured DOD OpenAI-compatible endpoint",
     }
 
+
 RESUME_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {

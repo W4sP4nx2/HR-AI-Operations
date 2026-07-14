@@ -234,8 +234,7 @@ async def orchestrate(
     if not certification.is_valid:
         _METRICS["certifications_failed"] += 1
         raise RuntimeError(
-            "orchestrator output failed certification: "
-            + ", ".join(certification.violations)
+            "orchestrator output failed certification: " + ", ".join(certification.violations)
         )
     _METRICS["certifications_passed"] += 1
 
@@ -323,9 +322,7 @@ def orchestrator_manifest() -> dict[str, Any]:
         ],
         "runtime": {
             **_METRICS,
-            "cache_hit_rate": (
-                _METRICS["cache_hits"] / plans_total if plans_total else 0.0
-            ),
+            "cache_hit_rate": (_METRICS["cache_hits"] / plans_total if plans_total else 0.0),
         },
         "last_route": dict(_LAST_ROUTE),
     }
@@ -381,9 +378,7 @@ def _card_for_workflow(workflow: Workflow, has_images: bool) -> A2ACard:
 def _serving_path(workflow: Workflow, payload: Mapping[str, Any]) -> ServingPath:
     records = payload.get("records")
     has_batch = (
-        isinstance(records, Sequence)
-        and not isinstance(records, (str, bytes))
-        and bool(records)
+        isinstance(records, Sequence) and not isinstance(records, (str, bytes)) and bool(records)
     )
     if has_batch and workflow in {"attrition", "resume_screening"}:
         return "batch"
@@ -393,9 +388,7 @@ def _serving_path(workflow: Workflow, payload: Mapping[str, Any]) -> ServingPath
 
 
 def _gemma_model(allowed: Sequence[str]) -> str:
-    configured = os.environ.get(
-        "FIREWORKS_GEMMA_MODEL", settings.fireworks_gemma_model
-    ).strip()
+    configured = os.environ.get("FIREWORKS_GEMMA_MODEL", settings.fireworks_gemma_model).strip()
     if configured and configured in allowed:
         return configured
     candidates = [
@@ -419,9 +412,7 @@ def _non_multimodal_models(allowed: Sequence[str]) -> list[str]:
 
 
 def _batch_model(allowed: Sequence[str]) -> str | None:
-    configured = os.environ.get(
-        "FIREWORKS_BATCH_MODEL", settings.fireworks_batch_model
-    ).strip()
+    configured = os.environ.get("FIREWORKS_BATCH_MODEL", settings.fireworks_batch_model).strip()
     return configured if configured in allowed else None
 
 

@@ -45,7 +45,9 @@ def benchmark(directory: Path, *, max_files: int = 1000) -> dict[str, object]:
         "skipped": skipped,
         "latency_ms": {
             "p50": round(statistics.median(ordered), 3) if ordered else None,
-            "p95": round(ordered[max(0, math.ceil(len(ordered) * 0.95) - 1)], 3) if ordered else None,
+            "p95": (
+                round(ordered[max(0, math.ceil(len(ordered) * 0.95) - 1)], 3) if ordered else None
+            ),
             "max": round(max(ordered), 3) if ordered else None,
         },
         "model_calls": 0,

@@ -1,0 +1,5 @@
+# Optional local embedding stack. The default backend image deliberately omits
+# PyTorch and GPU vendor wheels; production RAG uses pgvector with the configured
+# embedding provider, while zero-spend development falls back to hashing.
+-r requirements.txt
+sentence-transformers

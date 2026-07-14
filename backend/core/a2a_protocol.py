@@ -148,7 +148,9 @@ def _guard_profile(profile: dict[str, Any]) -> dict[str, Any]:
     return safe
 
 
-async def execute_agent_message(agent_name: str, params: dict[str, Any]) -> tuple[A2ATask, A2AEnvelope]:
+async def execute_agent_message(
+    agent_name: str, params: dict[str, Any]
+) -> tuple[A2ATask, A2AEnvelope]:
     """Execute one protocol message and certify its artifact."""
     if agent_name == "resume_extractor":
         message = params.get("message") or {}

@@ -76,12 +76,9 @@ def build_extraction_body(
     if len(text) > settings.max_llm_input_tokens * 4:
         text = text[: settings.max_llm_input_tokens * 4]
     if not 1 <= max_tokens <= settings.max_llm_output_tokens:
-        raise ValueError(
-            f"max_tokens must be between 1 and {settings.max_llm_output_tokens}"
-        )
+        raise ValueError(f"max_tokens must be between 1 and {settings.max_llm_output_tokens}")
     user_content: str | list[dict[str, Any]] = (
-        "Return valid JSON matching the ExtractedResume schema.\n\n"
-        f"Resume text:\n{text}"
+        "Return valid JSON matching the ExtractedResume schema.\n\n" f"Resume text:\n{text}"
     )
     if image_urls:
         user_content = [
@@ -92,10 +89,7 @@ def build_extraction_body(
                     "Extract only visible resume facts; record uncertainty in warnings."
                 ),
             },
-            *[
-                {"type": "image_url", "image_url": {"url": image_url}}
-                for image_url in image_urls
-            ],
+            *[{"type": "image_url", "image_url": {"url": image_url}} for image_url in image_urls],
         ]
     return {
         "model": model_id,
@@ -130,9 +124,7 @@ def build_extraction_body(
 def resolve_resume_model(model_id: str | None = None) -> str:
     """Resolve an operator-injected resume model without baking in a model ID."""
     requested = (
-        model_id
-        or os.environ.get("FIREWORKS_RESUME_MODEL", "")
-        or settings.fireworks_vision_model
+        model_id or os.environ.get("FIREWORKS_RESUME_MODEL", "") or settings.fireworks_vision_model
     ).strip()
     if requested:
         from core.fireworks import validate_model

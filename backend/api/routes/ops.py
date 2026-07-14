@@ -81,11 +81,31 @@ async def overview(
                 },
             },
             "workflow_edges": [
-                {"source": "triage_agent", "target": "policy_qa_agent", "contract": "route_to_grounded_evidence"},
-                {"source": "resume_screener_agent", "target": "skill_validator", "contract": "certified_skill_audit"},
-                {"source": "resume_screener_agent", "target": "human_review", "contract": "advisory_screening"},
-                {"source": "onboarding_agent", "target": "human_review", "contract": "approval_checkpoint"},
-                {"source": "attrition_agent", "target": "human_review", "contract": "advisory_retention_review"},
+                {
+                    "source": "triage_agent",
+                    "target": "policy_qa_agent",
+                    "contract": "route_to_grounded_evidence",
+                },
+                {
+                    "source": "resume_screener_agent",
+                    "target": "skill_validator",
+                    "contract": "certified_skill_audit",
+                },
+                {
+                    "source": "resume_screener_agent",
+                    "target": "human_review",
+                    "contract": "advisory_screening",
+                },
+                {
+                    "source": "onboarding_agent",
+                    "target": "human_review",
+                    "contract": "approval_checkpoint",
+                },
+                {
+                    "source": "attrition_agent",
+                    "target": "human_review",
+                    "contract": "advisory_retention_review",
+                },
             ],
             "gates": {
                 "auth_enforced": settings.auth_enforce,

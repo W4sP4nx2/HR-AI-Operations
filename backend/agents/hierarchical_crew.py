@@ -310,7 +310,9 @@ def _policy_guard_worker(prepared: _PreparedInput) -> WorkerExecution:
     )
 
 
-def _deterministic_steps(spec: HierarchicalSystemSpec, prepared: _PreparedInput) -> list[WorkerExecution]:
+def _deterministic_steps(
+    spec: HierarchicalSystemSpec, prepared: _PreparedInput
+) -> list[WorkerExecution]:
     if spec.system_id == "resume_review":
         return [_resume_evidence_worker(prepared), _resume_fairness_worker(prepared)]
     return [_case_triage_worker(prepared), _policy_guard_worker(prepared)]
@@ -323,7 +325,12 @@ def _manager_summary(spec: HierarchicalSystemSpec, steps: list[WorkerExecution])
             "This output is decision support only and is queued for recruiter review."
         )
     category = next(
-        (item.split("=", 1)[1] for step in steps for item in step.evidence if item.startswith("category=")),
+        (
+            item.split("=", 1)[1]
+            for step in steps
+            for item in step.evidence
+            if item.startswith("category=")
+        ),
         "POLICY",
     )
     return (

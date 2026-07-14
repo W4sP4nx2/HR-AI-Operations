@@ -42,12 +42,10 @@ def pick_model_for_role(role: str, models: list[str]) -> str:
         raise RuntimeError("ALLOWED_MODELS is empty or unset - harness must inject this")
 
     unique = list(dict.fromkeys(models))
-    gemma_model = os.environ.get(
-        "FIREWORKS_GEMMA_MODEL", settings.fireworks_gemma_model
-    ).strip()
-    serving_mode = os.environ.get(
-        "FIREWORKS_SERVING_MODE", settings.fireworks_serving_mode
-    ).strip().lower()
+    gemma_model = os.environ.get("FIREWORKS_GEMMA_MODEL", settings.fireworks_gemma_model).strip()
+    serving_mode = (
+        os.environ.get("FIREWORKS_SERVING_MODE", settings.fireworks_serving_mode).strip().lower()
+    )
     if (
         gemma_model in unique
         and serving_mode in {"deploy_on_demand", "dedicated"}

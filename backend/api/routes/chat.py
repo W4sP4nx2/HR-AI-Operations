@@ -60,9 +60,7 @@ def _record_stream_usage(stream: Any, agent: Any, query: str) -> str | None:
             return None
         model = getattr(agent, "model", None)
         model_id = str(
-            getattr(model, "model_name", None)
-            or getattr(model, "model_id", None)
-            or "unknown"
+            getattr(model, "model_name", None) or getattr(model, "model_id", None) or "unknown"
         )
         if model_id == "unknown":
             return None
@@ -97,15 +95,15 @@ async def _ensure_session(session_id: str, message: str, user: dict[str, Any]) -
     if session_id:
         session = await memory.get_chat_session(session_id)
         if session is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="chat session not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="chat session not found"
+            )
         owner_id = session.get("user_id")
         actor_id = user.get("id")
-        if (
-            owner_id not in (None, actor_id)
-            and user.get("role") != "admin"
-            and actor_id != "anon"
-        ):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="chat session access denied")
+        if owner_id not in (None, actor_id) and user.get("role") != "admin" and actor_id != "anon":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="chat session access denied"
+            )
         return session_id
     uid = None if user.get("id") in (None, "anon") else user["id"]
     title = message.strip()[:60] or "New chat"
@@ -113,7 +111,9 @@ async def _ensure_session(session_id: str, message: str, user: dict[str, Any]) -
     return session["id"]
 
 
-async def _server_history(session_id: str, *, exclude_latest_user: bool = False) -> list[dict[str, str]]:
+async def _server_history(
+    session_id: str, *, exclude_latest_user: bool = False
+) -> list[dict[str, str]]:
     """Load bounded context from the server-owned transcript.
 
     Browser-supplied history is intentionally ignored for authorization and
@@ -292,7 +292,9 @@ async def chat_stream(
                         yield f"data: {json.dumps({'type': 'token', 'content': reply})}\n\n"
                         yield f"data: {json.dumps({'type': 'done', 'mode': mode, 'session_id': session_id, 'error_code': 'DEPLOYMENT_SCALING_UP'})}\n\n"
                     else:
-                        reply = "The AI assistant is temporarily unavailable. No answer was generated."
+                        reply = (
+                            "The AI assistant is temporarily unavailable. No answer was generated."
+                        )
                         mode = "unavailable"
                         reply_parts = [reply]
                         yield f"data: {json.dumps({'type': 'token', 'content': reply})}\n\n"

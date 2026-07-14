@@ -4,9 +4,10 @@ uvicorn[standard]
 langchain
 langsmith>=0.4,<1
 langgraph
-# LiteLLM enables Fireworks and private AMD/vLLM OpenAI-compatible endpoints.
-crewai>=1.14,<2
-sentence-transformers
+# CrewAI 1.15 aligns with Pydantic 2.12 on the Python 3.12 runtime used by
+# Docker and CI. Keep this floor explicit so Python 3.11 cannot backtrack to
+# CrewAI 1.14's incompatible Pydantic 2.11 constraint.
+crewai>=1.15.2,<2
 qdrant-client
 pypdf
 pypdfium2>=4.30,<5
@@ -23,7 +24,8 @@ python-multipart
 httpx
 cryptography
 beautifulsoup4
-pydantic-ai==1.104.0
+# The slim distribution still provides the `pydantic_ai` import surface while
+# avoiding provider SDKs that Govern.ai never uses.
 pydantic-ai-slim[anthropic,openai]==1.104.0
 pyjwt
 bcrypt

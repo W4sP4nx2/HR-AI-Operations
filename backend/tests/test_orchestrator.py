@@ -17,9 +17,7 @@ GEMMA_MODEL = "tenant/models/gemma-4-26b-a4b-it"
 
 @pytest.fixture(autouse=True)
 def orchestrator_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(
-        "ALLOWED_MODELS", f"{FAST_MODEL},{STANDARD_MODEL},{GEMMA_MODEL}"
-    )
+    monkeypatch.setenv("ALLOWED_MODELS", f"{FAST_MODEL},{STANDARD_MODEL},{GEMMA_MODEL}")
     monkeypatch.setenv("FIREWORKS_GEMMA_MODEL", GEMMA_MODEL)
     monkeypatch.setenv("FIREWORKS_BATCH_MODEL", STANDARD_MODEL)
 
@@ -99,9 +97,7 @@ def test_manifest_exposes_observability_not_agent_handoffs() -> None:
     assert "certification_status" in manifest["visible_metrics"]
     assert "cache_hit_rate" in manifest["runtime"]
     assert isinstance(manifest["last_route"], dict)
-    assert "gemma_multimodal" in {
-        tool["function"]["name"] for tool in manifest["tools"]
-    }
+    assert "gemma_multimodal" in {tool["function"]["name"] for tool in manifest["tools"]}
     assert manifest["a2a_handoff"] == "certified_handoff with redacted route payload"
 
 
@@ -113,8 +109,7 @@ def test_lifecycle_manifest_surfaces_visible_orchestration() -> None:
     data = response.json()["data"]
     assert data["orchestration"]["pattern"] == "single_orchestrator"
     assert "gemma_multimodal" in {
-        tool["function"]["name"]
-        for tool in data["orchestration"]["tools"]
+        tool["function"]["name"] for tool in data["orchestration"]["tools"]
     }
 
 

@@ -90,9 +90,7 @@ class SkillOntologyMapper:
     def __init__(self, mappings: dict[str, str] | None = None) -> None:
         self.mappings = {self._key(k): v for k, v in (mappings or self.DEFAULT_MAPPINGS).items()}
         self._category_by_name = {
-            skill: category
-            for category, skills in self.CATEGORIES.items()
-            for skill in skills
+            skill: category for category, skills in self.CATEGORIES.items() for skill in skills
         }
 
     def normalize(self, skills: list[str] | tuple[str, ...]) -> list[NormalizedSkill]:

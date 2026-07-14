@@ -1002,7 +1002,9 @@ class Memory:
             )
         return dict(row) if row else None
 
-    async def get_resume_job(self, job_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
+    async def get_resume_job(
+        self, job_id: str, tenant_id: str | None = None
+    ) -> dict[str, Any] | None:
         """Return one resume job, optionally constrained to a tenant."""
         await self._ensure_schema()
         stmt = select(resume_jobs_t).where(resume_jobs_t.c.id == job_id)
