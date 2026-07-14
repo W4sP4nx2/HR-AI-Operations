@@ -10,7 +10,7 @@
  * opens a detail drawer with the full ticket and its audit activity trail.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   X,
   FileText,
@@ -68,23 +68,27 @@ export default function CaseFeed({
   const [status, setStatus] = useState("ALL");
   const [selected, setSelected] = useState<HRCase | null>(null);
   const [live, setLive] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
+
+  const loadCases = useCallback(async () => {
+    try {
+      setCases(await api.cases());
+      setLoadError("");
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Case queue unavailable");
+    }
+  }, []);
 
   // Initial + fallback polling load.
   useEffect(() => {
-    const load = async () => {
-      try {
-        setCases(await api.cases());
-      } catch {
-        /* ignore */
-      }
-    };
-    load();
-    const id = setInterval(() => {
-      if (!live) load();
-    }, 10_000);
+    loadCases();
+    // Keep a slow reconciliation poll even with WebSocket connected. The
+    // socket carries deltas, not an authoritative snapshot, and can connect
+    // before an initial HTTP request succeeds during local/proxy startup.
+    const id = setInterval(loadCases, live ? 15_000 : 5_000);
     return () => clearInterval(id);
-  }, [live]);
+  }, [live, loadCases]);
 
   // WebSocket live feed.
   useEffect(() => {
@@ -92,7 +96,10 @@ export default function CaseFeed({
     try {
       ws = new WebSocket(WS_URL);
       wsRef.current = ws;
-      ws.onopen = () => setLive(true);
+      ws.onopen = () => {
+        setLive(true);
+        loadCases();
+      };
       ws.onclose = () => setLive(false);
       ws.onerror = () => setLive(false);
       ws.onmessage = (ev) => {
@@ -105,7 +112,7 @@ export default function CaseFeed({
       setLive(false);
     }
     return () => wsRef.current?.close();
-  }, []);
+  }, [loadCases]);
 
   useEffect(() => {
     if (!focusCaseId) return;
@@ -152,6 +159,11 @@ export default function CaseFeed({
       </div>
 
       <div className="w-full max-w-full overflow-hidden rounded-2xl border border-brand-purple/10 bg-white shadow-sm">
+        {loadError && (
+          <div className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
+            Case queue could not refresh: {loadError}
+          </div>
+        )}
         <div className="overflow-x-auto">
           <div className="min-w-[760px]">
             {filtered.map((c) => (

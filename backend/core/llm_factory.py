@@ -7,6 +7,7 @@ required for keys, base URLs, and the comma-separated model allow-list.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
@@ -182,6 +183,118 @@ def get_request_scoped_model(
 def get_request_scoped_anthropic_model() -> Any | None:
     """Backward-compatible alias for older call sites."""
     return get_request_scoped_model()
+
+
+def crewai_llm_for(role: str = "synthesis", model_id: str | None = None) -> Any:
+    """Build CrewAI's OpenAI-compatible adapter through the provider boundary.
+
+    Crew modules receive only this configured ``BaseLLM`` instance. They never
+    construct SDK clients, choose arbitrary models, or read provider secrets.
+    The same adapter works with Fireworks and a self-hosted AMD/vLLM endpoint.
+    """
+    if not llm_active():
+        raise RuntimeError("live LLM provider is not configured")
+
+    models = _allowed_models()
+    selected_model = model_id or pick_model_for_role(role, models)
+    if selected_model not in models:
+        raise RuntimeError("CrewAI model must be present in ALLOWED_MODELS")
+
+    provider = llm_provider()
+    if provider not in {"fireworks", "amd_vllm"}:
+        raise RuntimeError("CrewAI live execution requires Fireworks or AMD/vLLM")
+    base_url = os.environ.get(
+        "FIREWORKS_BASE_URL" if provider == "fireworks" else "AMD_VLLM_BASE_URL",
+        settings.fireworks_base_url if provider == "fireworks" else settings.amd_vllm_base_url,
+    ).strip()
+    if not base_url:
+        raise RuntimeError(f"{provider} base URL is empty")
+
+    from crewai import BaseLLM
+
+    class OpenAICompatibleCrewLLM(BaseLLM):
+        """CrewAI adapter backed by the centrally configured provider endpoint."""
+
+        def __init__(self, *, model: str, api_key: str, endpoint: str) -> None:
+            super().__init__(model=model, temperature=0.0)
+            from openai import OpenAI
+
+            self._client = OpenAI(
+                api_key=api_key,
+                base_url=endpoint,
+                max_retries=max(0, settings.fireworks_max_retries),
+                timeout=30.0,
+            )
+
+        def call(
+            self,
+            messages: str | list[dict[str, Any]],
+            tools: list[dict[str, Any]] | None = None,
+            callbacks: list[Any] | None = None,
+            available_functions: dict[str, Any] | None = None,
+        ) -> str:
+            del callbacks
+            normalized = (
+                [{"role": "user", "content": messages}]
+                if isinstance(messages, str)
+                else list(messages)
+            )
+            kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": normalized,
+                "temperature": self.temperature,
+            }
+            if tools:
+                kwargs["tools"] = tools
+            stop = getattr(self, "stop", None)
+            if stop:
+                kwargs["stop"] = stop
+            response = self._client.chat.completions.create(**kwargs)
+            _record_response_usage(response, model_id=self.model)
+            message = response.choices[0].message
+            if message.tool_calls and available_functions:
+                normalized.append(
+                    {
+                        "role": "assistant",
+                        "content": message.content,
+                        "tool_calls": [item.model_dump() for item in message.tool_calls],
+                    }
+                )
+                for tool_call in message.tool_calls:
+                    function = available_functions.get(tool_call.function.name)
+                    if function is None:
+                        continue
+                    arguments = json.loads(tool_call.function.arguments or "{}")
+                    result = function(**arguments)
+                    normalized.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": tool_call.function.name,
+                            "content": str(result),
+                        }
+                    )
+                return self.call(
+                    normalized,
+                    tools,
+                    available_functions=available_functions,
+                )
+            return message.content or ""
+
+        def supports_function_calling(self) -> bool:
+            return True
+
+        def supports_stop_words(self) -> bool:
+            return True
+
+        def get_context_window_size(self) -> int:
+            return 32_768
+
+    return OpenAICompatibleCrewLLM(
+        model=selected_model,
+        api_key=effective_api_key(),
+        endpoint=base_url,
+    )
 
 
 async def run_fireworks_chat_body(

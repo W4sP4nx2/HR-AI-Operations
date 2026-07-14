@@ -40,8 +40,10 @@ from api.routes import crews as crews_routes
 from api.routes import feedback as feedback_routes
 from api.routes import lifecycle as lifecycle_routes
 from api.routes import metrics as metrics_routes
+from api.routes import ops as ops_routes
 from api.routes import osint as osint_routes
 from api.routes import policies as policies_routes
+from api.routes import resume_jobs as resume_jobs_routes
 from api.routes import settings as settings_routes
 from api.routes import webhooks as webhooks_routes
 from api.websocket_manager import manager
@@ -302,7 +304,9 @@ app.include_router(chat_routes.router)
 app.include_router(crews_routes.router)
 app.include_router(metrics_routes.router)
 app.include_router(osint_routes.router)
+app.include_router(ops_routes.router)
 app.include_router(policies_routes.router)
+app.include_router(resume_jobs_routes.router)
 app.include_router(settings_routes.router)
 app.include_router(webhooks_routes.router)
 

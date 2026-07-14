@@ -46,7 +46,12 @@ export default function ApprovalQueue() {
     try {
       // The task may relate to a case; the backend resolves it from the task id.
       await api.approve("TASK", task.id);
-      toast.notify(`Approved — ${task.agent_name} resumed`, "success");
+      toast.notify(
+        task.agent_name === "onboarding_agent"
+          ? `Approved — ${task.agent_name} resumed`
+          : `Approved — ${task.agent_name} review recorded`,
+        "success",
+      );
       await load();
     } catch (e) {
       toast.notifyError(e);

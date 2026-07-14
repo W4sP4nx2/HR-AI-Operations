@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import types
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,6 +24,9 @@ def test_manifest_exposes_two_manager_plus_two_worker_systems() -> None:
     manifest = hierarchical_system_manifest()
 
     assert manifest["architecture"] == "hierarchical"
+    assert manifest["product_boundary"] == "single_orchestrator_with_bounded_crewai_subtask"
+    assert manifest["context_source"] == "validated_endpoint_parameters"
+    assert manifest["external_repository_fetch"] is False
     assert manifest["system_count"] == 2
     assert {item["system_id"] for item in manifest["systems"]} == {
         "resume_review",
@@ -51,6 +55,8 @@ async def test_resume_hierarchy_runs_two_workers_and_blinds_pii() -> None:
     assert envelope.payload["execution_mode"] == "deterministic_fallback"
     assert envelope.payload["process"] == "hierarchical"
     assert envelope.payload["human_review_required"] is True
+    assert envelope.metadata["hitl_status"] == "awaiting_approval"
+    assert envelope.metadata["human_review_task_id"].startswith("TASK-")
     assert [step["agent_id"] for step in envelope.payload["steps"]] == [
         "resume_evidence_analyst",
         "fairness_policy_guard",
@@ -59,6 +65,8 @@ async def test_resume_hierarchy_runs_two_workers_and_blinds_pii() -> None:
     assert "Jane Doe" not in serialized
     assert "jane@example.com" not in serialized
     assert "matched_skills=Docker,Python" in serialized
+    assert envelope.payload["handoffs"][-1]["target"] == "human_reviewer"
+    assert envelope.payload["handoffs"][-1]["status"] == "awaiting_human_review"
 
 
 @pytest.mark.asyncio
@@ -121,6 +129,14 @@ def test_builder_uses_real_hierarchical_contract(monkeypatch) -> None:
     assert all(agent.kwargs["allow_delegation"] is False for agent in crew.kwargs["agents"])
     assert len(crew.kwargs["tasks"]) == 1
     assert "both specialists" in crew.kwargs["tasks"][0].kwargs["description"]
+
+
+def test_agent_modules_do_not_construct_provider_clients() -> None:
+    agents_dir = Path(__file__).parents[1] / "agents"
+    source = "\n".join(path.read_text() for path in agents_dir.glob("*.py"))
+
+    assert "from openai import" not in source
+    assert "OpenAI(" not in source
 
 
 def test_installed_crewai_builds_both_real_hierarchies(monkeypatch, tmp_path) -> None:
@@ -217,6 +233,8 @@ def test_hierarchical_api_exposes_and_runs_both_systems(monkeypatch) -> None:
     assert run["success"] is True
     assert run["data"]["certification"]["is_valid"] is True
     assert run["data"]["payload"]["execution_mode"] == "deterministic_fallback"
+    assert run["data"]["metadata"]["hitl_status"] == "awaiting_approval"
+    assert run["data"]["metadata"]["human_review_task_id"].startswith("TASK-")
 
 
 def test_resume_batch_endpoint_returns_202_and_provider_ids(monkeypatch) -> None:

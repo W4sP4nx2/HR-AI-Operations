@@ -18,7 +18,6 @@ import re
 from typing import Any
 
 from agents.resume_resolver import resume_resolver
-from core.config import settings
 from core.embeddings import embedder
 from core.memory import memory
 from models.naive_baselines import resume_overlap_baseline
@@ -211,14 +210,16 @@ class ResumeScreenerAgent:
         Returns:
             A configured ``Crew`` instance or ``None``.
         """
-        from core.runtime_key import llm_provider
+        from core.runtime_key import llm_active, llm_provider
 
-        if llm_provider() != "anthropic" or not settings.anthropic_api_key:
+        if llm_provider() not in {"fireworks", "amd_vllm"} or not llm_active():
             return None
         try:
             from crewai import Agent, Crew, Process, Task
 
-            llm = f"anthropic/{settings.claude_model}"
+            from core.llm_factory import crewai_llm_for
+
+            llm = crewai_llm_for(role="resume_narrative")
             jd_parser = Agent(
                 role="JD Parser",
                 goal="Extract the required skills from the job description.",
@@ -427,8 +428,8 @@ class ResumeScreenerAgent:
                         result["crewai_mode"] = "certified_narrative"
                     else:
                         result["crewai_mode"] = "certification_failed"
-                except Exception:  # noqa: BLE001
-                    result["crewai_mode"] = "unavailable"
+                except Exception as exc:  # noqa: BLE001
+                    raise RuntimeError("live CrewAI resume narrative failed") from exc
 
             # Land the screen in the Cases ledger as a SCREENING case so it shows
             # up in the Cases panel (every agent action → Cases + Audit). The

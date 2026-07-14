@@ -102,6 +102,37 @@ export interface PendingTask {
   created_at: string;
 }
 
+export interface OpsOverview {
+  schema_version: "ops.v1";
+  tenant_id: string;
+  generated_at: string;
+  fresh_for_seconds: number;
+  provenance: "demo_runtime" | "live_runtime";
+  agents: Array<{
+    name: string;
+    status: string;
+    last_action: string | null;
+    last_run: string | null;
+    total_runs: number;
+  }>;
+  queues: {
+    human_review: { pending: number; state: "blocked" | "clear" };
+    cases: { active: number; open: number; escalated: number };
+    resume: { state: string; pending: number; detail: string };
+  };
+  workflow_edges: Array<{ source: string; target: string; contract: string }>;
+  gates: {
+    auth_enforced: boolean;
+    llm_provider: string;
+    llm_active: boolean;
+    human_review_pending: boolean;
+    injection_blocks: number;
+  };
+  providers: ProviderCapability[];
+  hardware: HardwareCapability[];
+  slo: { status: string; note: string };
+}
+
 export interface FireworksBatchStatus {
   job_id: string;
   status:
@@ -287,6 +318,9 @@ export interface IntegrationCapability {
 
 export interface HierarchicalCrewManifest {
   architecture: "hierarchical";
+  product_boundary: "single_orchestrator_with_bounded_crewai_subtask";
+  context_source: "validated_endpoint_parameters";
+  external_repository_fetch: false;
   system_count: number;
   systems: Array<{
     system_id: string;
@@ -295,6 +329,8 @@ export interface HierarchicalCrewManifest {
     process: "hierarchical";
     manager_agent: { agent_id: string; role: string; allow_delegation: boolean };
     worker_agents: Array<{ agent_id: string; role: string; allow_delegation: boolean }>;
+    required_inputs: string[];
+    expected_output: string;
     human_decision_boundary: string;
   }>;
   runtime: {
@@ -302,6 +338,7 @@ export interface HierarchicalCrewManifest {
     langsmith_configured: boolean;
     default_mode: string;
     fallback: string;
+    live_requirement: string;
   };
 }
 
@@ -316,10 +353,30 @@ export interface HierarchicalCrewEnvelope {
     manager_agent: string;
     worker_agents: string[];
     summary: string;
+    status: "completed" | "review_required";
+    steps: Array<{
+      agent_id: string;
+      role: string;
+      status: "completed" | "delegated";
+      summary: string;
+      evidence: string[];
+      human_review_required: boolean;
+    }>;
+    handoffs: Array<{
+      source: string;
+      target: string;
+      contract: string;
+      status: "completed" | "delegated" | "awaiting_human_review";
+    }>;
     human_review_required: boolean;
+    guardrails: string[];
   };
   certification: { is_valid: boolean; confidence: number; violations: string[] };
-  metadata: Record<string, unknown>;
+  metadata: Record<string, unknown> & {
+    human_review_task_id?: string;
+    hitl_status?: "awaiting_approval";
+    provider_call?: boolean;
+  };
 }
 
 const TOKEN_KEY = "hr_access_token";
@@ -483,6 +540,9 @@ export const api = {
   /** Operational metrics derived from the audit log + cases. */
   metrics: () => probeRequest<Metrics>("/metrics"),
 
+  /** One coherent, provenance-labelled snapshot for the 3D/2D command center. */
+  opsOverview: () => request<OpsOverview>("/ops/overview"),
+
   /** Four-Fifths rule evidence from the synthetic adverse-impact ATS dataset. */
   biasAudit: () => request<BiasAudit>("/metrics/bias-audit"),
 
@@ -511,10 +571,10 @@ export const api = {
       body: JSON.stringify({ request_type: requestType, payload }),
     }),
 
-  /** Discover the two manager-plus-two-worker CrewAI hierarchies. */
+  /** Discover bounded CrewAI subtasks fed only by validated endpoint parameters. */
   hierarchicalCrews: () => request<HierarchicalCrewManifest>("/crews/hierarchical"),
 
-  /** Execute a governed hierarchy; auto visibly falls back when live CrewAI is unavailable. */
+  /** Execute a governed subtask and queue its certified result for human review. */
   runHierarchicalCrew: (
     systemId: string,
     inputs: Record<string, unknown>,

@@ -487,9 +487,10 @@ async def chat(
                 "error_code": "DEPLOYMENT_SCALING_UP",
             }
         return {
-            "reply": f"Agent error: {exc}\n\nFalling back to basic mode.",
+            "reply": "The AI assistant is temporarily unavailable. No answer was generated.",
             "tool_calls": [],
-            "mode": "error",
+            "mode": "unavailable",
+            "error_code": "CHAT_PROVIDER_ERROR",
         }
 
 

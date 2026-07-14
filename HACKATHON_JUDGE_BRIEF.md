@@ -2,7 +2,7 @@
 
 ## One-Line Thesis
 
-Govern.ai is a governed, cost-bounded HR operations layer with A2A-style
+Govern.ai is a governed, cost-bounded HR operations layer with typed,
 certified handoffs: deterministic when no model is available,
 Fireworks-authenticated for live structured inference, and AMD-Gemma deployable
 through an OpenAI-compatible ROCm/vLLM route.
@@ -23,7 +23,7 @@ magic. This project treats model calls as governed infrastructure:
 3. **Constrain outputs** — agent contracts use schema-bound structured output
    and certification before another agent consumes a result.
 4. **Attribute spend** — cost tier, model route, token estimates, cache state and
-   provider-call state travel with A2A envelopes.
+   provider-call state are recorded with each governed run.
 5. **Escalate safely** — low confidence, urgent tickets, policy conflicts and
    sensitive actions route to human review.
 
@@ -33,12 +33,13 @@ magic. This project treats model calls as governed infrastructure:
 |---|---|
 | Run with no API key | The product is useful before any provider spend. |
 | `/agents/orchestrator/plan` | The fleet chooses an agent, serving path, model source and Fireworks primitive before execution. |
+| Governed CrewAI run in Fleet | Endpoint parameters drive a bounded manager/worker subtask; the result is certified and a real approval task appears in the queue. |
 | Fireworks BYOK verification | Hosted-provider spend is opt-in; the memory-only Fireworks key is accepted only on verification, chat, and agent-trigger routes. |
 | AMD service-auth boundary | Browser BYOK disappears in the AMD profile; the backend uses its private vLLM service key and the GPU pod alone receives `HF_TOKEN`. |
 | Split GPU/application secrets | The Hugging Face weight-download token is mounted only into the inference pod, not the backend. |
 | Policy Q&A with citations | RAG grounds answers in policy evidence rather than chat history. |
 | Resume / Batch path | Bulk work is asynchronous and auditable instead of fake-synchronous. |
-| `/a2a/graph` + two `message/send` calls | Resume Extractor and Policy Guard are independently addressable, certified, PII-safe, and end in a human checkpoint. |
+| Approval queue | CrewAI human-review flags are durable approve/reject work, not decorative metadata. |
 | Integrations panel | CrewAI is optional and certified; LangSmith is optional redacted observability, not the audit system of record. |
 | AMD/vLLM profile | The same workflow can target a Gemma-family model served on AMD ROCm/vLLM. |
 | `CLAIMS.md` | Static, Fireworks-live and AMD-live claims are separated by evidence status. |
@@ -81,12 +82,15 @@ Fast static gate before every rehearsal:
 make judge-static
 ```
 
-Local A2A proof (no provider key):
+Local endpoint-driven CrewAI proof (no provider key):
 
 ```bash
-curl -s http://127.0.0.1:8010/a2a/graph
+curl -s http://127.0.0.1:8010/crews/hierarchical
+curl -s -X POST http://127.0.0.1:8010/crews/hierarchical/policy_case_resolution/run \
+  -H 'content-type: application/json' \
+  -d '{"mode":"deterministic","inputs":{"ticket":"Urgent safety incident","policy_context":"Route safety incidents to a human HR manager."}}'
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python3 -m pytest -p pytest_asyncio.plugin \
-  backend/tests/test_a2a_protocol_surface.py -q
+  backend/tests/test_hierarchical_crewai.py -q
 ```
 
 Fireworks live proof:

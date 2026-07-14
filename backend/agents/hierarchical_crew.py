@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from dataclasses import dataclass
 from typing import Any, Literal
 from uuid import uuid4
@@ -72,6 +71,15 @@ class WorkerExecution(BaseModel):
     human_review_required: bool = False
 
 
+class CrewHandoff(BaseModel):
+    """One visible relationship in the governed manager-led run."""
+
+    source: str
+    target: str
+    contract: str
+    status: Literal["completed", "delegated", "awaiting_human_review"]
+
+
 class HierarchicalCrewOutput(BaseModel):
     """Certified result returned by either execution path."""
 
@@ -85,6 +93,7 @@ class HierarchicalCrewOutput(BaseModel):
     status: Literal["completed", "review_required"]
     summary: str
     steps: list[WorkerExecution]
+    handoffs: list[CrewHandoff]
     human_review_required: bool
     guardrails: list[str]
 
@@ -164,6 +173,9 @@ def hierarchical_system_manifest() -> dict[str, Any]:
 
     return {
         "architecture": "hierarchical",
+        "product_boundary": "single_orchestrator_with_bounded_crewai_subtask",
+        "context_source": "validated_endpoint_parameters",
+        "external_repository_fetch": False,
         "system_count": len(HIERARCHICAL_SYSTEMS),
         "systems": [spec.model_dump(mode="json") for spec in HIERARCHICAL_SYSTEMS.values()],
         "runtime": {
@@ -328,6 +340,28 @@ def _guardrail_labels(prepared: _PreparedInput) -> list[str]:
     return labels
 
 
+def _handoffs(spec: HierarchicalSystemSpec, *, live: bool) -> list[CrewHandoff]:
+    worker_status: Literal["completed", "delegated"] = "delegated" if live else "completed"
+    handoffs = [
+        CrewHandoff(
+            source=spec.manager_agent.agent_id,
+            target=worker.agent_id,
+            contract="sanitized endpoint parameters -> reviewable specialist evidence",
+            status=worker_status,
+        )
+        for worker in spec.worker_agents
+    ]
+    handoffs.append(
+        CrewHandoff(
+            source=spec.manager_agent.agent_id,
+            target="human_reviewer",
+            contract="certified advisory output -> durable approval task",
+            status="awaiting_human_review",
+        )
+    )
+    return handoffs
+
+
 def build_hierarchical_crewai(system_id: str, *, llm: Any | None = None) -> Any:
     """Build a live CrewAI hierarchy with one manager and two worker agents."""
     spec = _system(system_id)
@@ -336,7 +370,12 @@ def build_hierarchical_crewai(system_id: str, *, llm: Any | None = None) -> Any:
     except ImportError as exc:
         raise CrewCapabilityUnavailable("CrewAI is not installed") from exc
 
-    live_llm = llm or _build_crewai_llm()
+    if llm is None:
+        from core.llm_factory import crewai_llm_for
+
+        live_llm = crewai_llm_for(role=f"{system_id}_synthesis")
+    else:
+        live_llm = llm
     manager = Agent(
         role=spec.manager_agent.role,
         goal=spec.manager_agent.goal,
@@ -376,114 +415,6 @@ def build_hierarchical_crewai(system_id: str, *, llm: Any | None = None) -> Any:
     )
 
 
-def _build_crewai_llm() -> Any:
-    from crewai import BaseLLM
-
-    from core.fireworks import configured_models
-    from core.llm_factory import pick_model_for_role
-    from core.runtime_key import effective_api_key, llm_active, llm_provider
-
-    if not llm_active():
-        raise CrewCapabilityUnavailable("live LLM provider is not configured")
-    models = configured_models()
-    if not models:
-        raise CrewCapabilityUnavailable("ALLOWED_MODELS is empty")
-    model_id = pick_model_for_role("synthesis", models)
-    provider = llm_provider()
-    if provider not in {"fireworks", "amd_vllm"}:
-        raise CrewCapabilityUnavailable(
-            "hierarchical CrewAI live execution requires Fireworks or AMD/vLLM"
-        )
-    base_url = os.environ.get(
-        "FIREWORKS_BASE_URL" if provider == "fireworks" else "AMD_VLLM_BASE_URL",
-        "",
-    ).strip()
-    if not base_url:
-        raise CrewCapabilityUnavailable(f"{provider} base URL is empty")
-
-    class OpenAICompatibleCrewLLM(BaseLLM):
-        """CrewAI adapter for an injected OpenAI-compatible provider endpoint."""
-
-        def __init__(self, *, model: str, api_key: str, endpoint: str) -> None:
-            super().__init__(model=model, temperature=0.0)
-            from openai import OpenAI
-
-            self._client = OpenAI(
-                api_key=api_key,
-                base_url=endpoint,
-                max_retries=2,
-                timeout=30.0,
-            )
-
-        def call(
-            self,
-            messages: str | list[dict[str, Any]],
-            tools: list[dict[str, Any]] | None = None,
-            callbacks: list[Any] | None = None,
-            available_functions: dict[str, Any] | None = None,
-        ) -> str:
-            del callbacks
-            normalized = (
-                [{"role": "user", "content": messages}]
-                if isinstance(messages, str)
-                else list(messages)
-            )
-            kwargs: dict[str, Any] = {
-                "model": self.model,
-                "messages": normalized,
-                "temperature": self.temperature,
-            }
-            if tools:
-                kwargs["tools"] = tools
-            stop = getattr(self, "stop", None)
-            if stop:
-                kwargs["stop"] = stop
-            response = self._client.chat.completions.create(**kwargs)
-            from core.llm_factory import _record_response_usage
-
-            _record_response_usage(response, model_id=self.model)
-            message = response.choices[0].message
-            if message.tool_calls and available_functions:
-                normalized.append(
-                    {
-                        "role": "assistant",
-                        "content": message.content,
-                        "tool_calls": [item.model_dump() for item in message.tool_calls],
-                    }
-                )
-                for tool_call in message.tool_calls:
-                    function = available_functions.get(tool_call.function.name)
-                    if function is None:
-                        continue
-                    arguments = json.loads(tool_call.function.arguments or "{}")
-                    result = function(**arguments)
-                    normalized.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": tool_call.function.name,
-                            "content": str(result),
-                        }
-                    )
-                return self.call(normalized, tools, available_functions=available_functions)
-            return message.content or ""
-
-        def supports_function_calling(self) -> bool:
-            return True
-
-        def supports_stop_words(self) -> bool:
-            return True
-
-        def get_context_window_size(self) -> int:
-            return 32_768
-
-    return OpenAICompatibleCrewLLM(
-        model=model_id,
-        api_key=effective_api_key(),
-        endpoint=base_url,
-    )
-
-
 async def _live_output(
     spec: HierarchicalSystemSpec,
     prepared: _PreparedInput,
@@ -520,6 +451,7 @@ async def _live_output(
         status="review_required",
         summary=summary,
         steps=steps,
+        handoffs=_handoffs(spec, live=True),
         human_review_required=True,
         guardrails=_guardrail_labels(prepared),
     )
@@ -575,6 +507,7 @@ async def run_hierarchical_system(
                 status="review_required" if review else "completed",
                 summary=_manager_summary(spec, steps),
                 steps=steps,
+                handoffs=_handoffs(spec, live=False),
                 human_review_required=review,
                 guardrails=_guardrail_labels(prepared),
             )
@@ -593,6 +526,9 @@ async def run_hierarchical_system(
         metadata={
             "integration": "crewai",
             "process": "hierarchical",
+            "product_boundary": "single_orchestrator_with_bounded_crewai_subtask",
+            "context_source": "validated_endpoint_parameters",
+            "external_repository_fetch": False,
             "orchestration_id": orchestration_id,
             "execution_mode": "crewai_live" if resolved_live else "deterministic_fallback",
             "worker_count": len(spec.worker_agents),
@@ -602,4 +538,46 @@ async def run_hierarchical_system(
         },
         cost_query=spec.use_case,
     )
+    if resolved_live and not envelope.certification.is_valid:
+        raise RuntimeError(
+            "live CrewAI output failed certification: "
+            + ", ".join(envelope.certification.violations)
+        )
+    if envelope.certification.is_valid and envelope.payload.get("human_review_required"):
+        from core.memory import memory
+        from services.audit_service import record_action
+
+        task = await memory.create_agent_task(
+            spec.manager_agent.agent_id,
+            step="review_certified_crew_output",
+            context=(
+                f"{spec.label} produced certified advisory evidence. "
+                "A qualified HR reviewer must approve, reject, or request changes."
+            ),
+            state={
+                "orchestration_id": orchestration_id,
+                "system_id": system_id,
+                "trace_id": envelope.trace_id,
+                "certified_output": envelope.payload,
+            },
+        )
+        envelope.metadata.update(
+            {
+                "human_review_task_id": task["id"],
+                "hitl_status": "awaiting_approval",
+            }
+        )
+        await record_action(
+            agent=spec.manager_agent.agent_id,
+            action="human_review_queued",
+            input_data={
+                "orchestration_id": orchestration_id,
+                "system_id": system_id,
+            },
+            output_data={
+                "task_id": task["id"],
+                "step": task["step"],
+            },
+            status="paused",
+        )
     return envelope

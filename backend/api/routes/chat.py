@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -95,11 +95,38 @@ def _record_stream_usage(stream: Any, agent: Any, query: str) -> str | None:
 async def _ensure_session(session_id: str, message: str, user: dict[str, Any]) -> str:
     """Return a valid session id, creating one (titled from the message) if needed."""
     if session_id:
+        session = await memory.get_chat_session(session_id)
+        if session is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="chat session not found")
+        owner_id = session.get("user_id")
+        actor_id = user.get("id")
+        if (
+            owner_id not in (None, actor_id)
+            and user.get("role") != "admin"
+            and actor_id != "anon"
+        ):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="chat session access denied")
         return session_id
     uid = None if user.get("id") in (None, "anon") else user["id"]
     title = message.strip()[:60] or "New chat"
     session = await memory.create_chat_session(user_id=uid, title=title)
     return session["id"]
+
+
+async def _server_history(session_id: str, *, exclude_latest_user: bool = False) -> list[dict[str, str]]:
+    """Load bounded context from the server-owned transcript.
+
+    Browser-supplied history is intentionally ignored for authorization and
+    context. The persisted transcript is the source of truth; a later summary
+    column can replace this rolling window without changing the route contract.
+    """
+    messages = await memory.get_chat_messages(session_id)
+    if exclude_latest_user and messages and messages[-1].get("role") == "user":
+        messages = messages[:-1]
+    return [
+        {"role": str(message.get("role", "user")), "content": str(message.get("content", ""))}
+        for message in messages[-6:]
+    ]
 
 
 @router.post("")
@@ -113,7 +140,8 @@ async def chat_turn(
     """
     session_id = await _ensure_session(body.session_id, body.message, user)
     await memory.add_chat_message(session_id, "user", body.message)
-    result = await governed_chat(body.message, body.history, session_id)
+    server_history = await _server_history(session_id, exclude_latest_user=True)
+    result = await governed_chat(body.message, server_history, session_id)
     await memory.add_chat_message(
         session_id,
         "assistant",
@@ -141,17 +169,19 @@ async def list_sessions(
 
 @router.get("/sessions/{session_id}")
 async def get_session(
-    session_id: str, _: dict[str, Any] = Depends(get_current_user)
+    session_id: str, user: dict[str, Any] = Depends(get_current_user)
 ) -> dict[str, Any]:
     """Return all messages in a chat session."""
+    await _ensure_session(session_id, "", user)
     return ok(await memory.get_chat_messages(session_id))
 
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(
-    session_id: str, _: dict[str, Any] = Depends(get_current_user)
+    session_id: str, user: dict[str, Any] = Depends(get_current_user)
 ) -> dict[str, Any]:
     """Delete a chat session and all its messages (data control)."""
+    await _ensure_session(session_id, "", user)
     deleted = await memory.delete_chat_session(session_id)
     if not deleted:
         return fail("session not found")
@@ -175,6 +205,7 @@ async def chat_stream(
     """
     session_id = await _ensure_session(body.session_id, body.message, user)
     await memory.add_chat_message(session_id, "user", body.message)
+    server_history = await _server_history(session_id, exclude_latest_user=True)
 
     async def generate():
         reply_parts: list[str] = []
@@ -184,7 +215,7 @@ async def chat_stream(
             from core.runtime_key import llm_active
 
             if not llm_active():
-                result = await chat(body.message, body.history, session_id)
+                result = await chat(body.message, server_history, session_id)
                 mode = result.get("mode", "degraded")
                 reply_parts.append(result["reply"])
                 tools_used = result.get("tool_calls", [])
@@ -214,7 +245,7 @@ async def chat_stream(
                             **turn,
                             "content": redact_pii(sanitize_text(turn.get("content", ""))),
                         }
-                        for turn in body.history[-6:]
+                        for turn in server_history
                     ]
                     deps = ChatDeps(session_id=session_id, history=safe_history)
                     prompt = redact_pii(sanitize_text(body.message))
@@ -261,12 +292,11 @@ async def chat_stream(
                         yield f"data: {json.dumps({'type': 'token', 'content': reply})}\n\n"
                         yield f"data: {json.dumps({'type': 'done', 'mode': mode, 'session_id': session_id, 'error_code': 'DEPLOYMENT_SCALING_UP'})}\n\n"
                     else:
-                        result = await chat(body.message, body.history, session_id)
-                        mode = result.get("mode", "error")
-                        reply_parts = [result["reply"]]
-                        tools_used = result.get("tool_calls", [])
-                        yield f"data: {json.dumps({'type': 'token', 'content': result['reply']})}\n\n"
-                        yield f"data: {json.dumps({'type': 'done', 'mode': mode, 'session_id': session_id, 'error': str(exc)})}\n\n"
+                        reply = "The AI assistant is temporarily unavailable. No answer was generated."
+                        mode = "unavailable"
+                        reply_parts = [reply]
+                        yield f"data: {json.dumps({'type': 'token', 'content': reply})}\n\n"
+                        yield f"data: {json.dumps({'type': 'done', 'mode': mode, 'session_id': session_id, 'error_code': 'CHAT_PROVIDER_ERROR'})}\n\n"
 
         except Exception as exc:  # noqa: BLE001
             yield f"data: {json.dumps({'type': 'error', 'content': str(exc)})}\n\n"

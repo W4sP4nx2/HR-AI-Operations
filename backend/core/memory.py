@@ -44,6 +44,7 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from sqlalchemy.pool import NullPool
 
@@ -205,6 +206,37 @@ batch_jobs_t = Table(
     Column("output_dataset_id", String(128)),
     Column("updated_at", String(40), nullable=False),
     Index("idx_batch_jobs_status", "status", "updated_at"),
+)
+
+# Durable large-resume workflow state. The original document lives in private
+# object storage; this table contains only the processing manifest and bounded
+# result/error metadata needed by the API, workers, and command center.
+resume_jobs_t = Table(
+    "resume_jobs",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("tenant_id", String(128), nullable=False),
+    Column("created_by", String(128), nullable=False),
+    Column("idempotency_key", String(255), nullable=False),
+    Column("state", String(32), nullable=False),
+    Column("filename", String(255), nullable=False),
+    Column("source_object_key", Text, nullable=False),
+    Column("size_bytes", Integer, nullable=False),
+    Column("pages_total", Integer),
+    Column("pages_completed", Integer, nullable=False, default=0),
+    Column("coverage", Float, nullable=False, default=0.0),
+    Column("result_json", Text),
+    Column("error_code", String(64)),
+    Column("error_detail", Text),
+    Column("trace_id", String(128), nullable=False),
+    Column("attempt", Integer, nullable=False, default=0),
+    Column("version", Integer, nullable=False, default=1),
+    Column("created_at", String(40), nullable=False),
+    Column("updated_at", String(40), nullable=False),
+    Column("started_at", String(40)),
+    Column("completed_at", String(40)),
+    Index("idx_resume_jobs_tenant_state", "tenant_id", "state", "updated_at"),
+    Index("uq_resume_jobs_tenant_idempotency", "tenant_id", "idempotency_key", unique=True),
 )
 
 # Singleton operator configuration. Non-secret settings are stored as JSON;
@@ -895,6 +927,134 @@ class Memory:
         return dict(row) if row else None
 
     # ------------------------------------------------------------------ #
+    # Durable large-resume jobs
+    # ------------------------------------------------------------------ #
+    async def create_resume_job(
+        self,
+        *,
+        tenant_id: str,
+        created_by: str,
+        idempotency_key: str,
+        filename: str,
+        source_object_key: str,
+        size_bytes: int,
+        pages_total: int | None,
+        trace_id: str,
+    ) -> tuple[dict[str, Any], bool]:
+        """Create a queued resume job, returning ``(job, deduplicated)``."""
+        await self._ensure_schema()
+        existing = await self.get_resume_job_by_idempotency(tenant_id, idempotency_key)
+        if existing:
+            return existing, True
+        now = _utcnow()
+        record = {
+            "id": f"RES-{uuid.uuid4().hex[:12].upper()}",
+            "tenant_id": tenant_id,
+            "created_by": created_by,
+            "idempotency_key": idempotency_key,
+            "state": "queued",
+            "filename": filename[:255],
+            "source_object_key": source_object_key,
+            "size_bytes": size_bytes,
+            "pages_total": pages_total,
+            "pages_completed": 0,
+            "coverage": 0.0,
+            "result_json": None,
+            "error_code": None,
+            "error_detail": None,
+            "trace_id": trace_id,
+            "attempt": 0,
+            "version": 1,
+            "created_at": now,
+            "updated_at": now,
+            "started_at": None,
+            "completed_at": None,
+        }
+        try:
+            async with self._engine.begin() as conn:
+                await conn.execute(insert(resume_jobs_t).values(**record))
+        except IntegrityError:
+            # Two retries can race on the unique tenant/idempotency key. The
+            # winner is the authoritative job; callers must not duplicate work.
+            existing = await self.get_resume_job_by_idempotency(tenant_id, idempotency_key)
+            if existing:
+                return existing, True
+            raise
+        return record, False
+
+    async def get_resume_job_by_idempotency(
+        self, tenant_id: str, idempotency_key: str
+    ) -> dict[str, Any] | None:
+        """Find a resume job by tenant-scoped idempotency key."""
+        await self._ensure_schema()
+        async with self._engine.connect() as conn:
+            row = (
+                (
+                    await conn.execute(
+                        select(resume_jobs_t).where(
+                            resume_jobs_t.c.tenant_id == tenant_id,
+                            resume_jobs_t.c.idempotency_key == idempotency_key,
+                        )
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        return dict(row) if row else None
+
+    async def get_resume_job(self, job_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
+        """Return one resume job, optionally constrained to a tenant."""
+        await self._ensure_schema()
+        stmt = select(resume_jobs_t).where(resume_jobs_t.c.id == job_id)
+        if tenant_id:
+            stmt = stmt.where(resume_jobs_t.c.tenant_id == tenant_id)
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(stmt)).mappings().first()
+        return dict(row) if row else None
+
+    async def list_resume_jobs(
+        self, tenant_id: str, states: tuple[str, ...] = ("queued", "running")
+    ) -> list[dict[str, Any]]:
+        """Return tenant-scoped jobs in the requested states, newest first."""
+        await self._ensure_schema()
+        stmt = (
+            select(resume_jobs_t)
+            .where(resume_jobs_t.c.tenant_id == tenant_id, resume_jobs_t.c.state.in_(states))
+            .order_by(resume_jobs_t.c.updated_at.desc())
+            .limit(200)
+        )
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(stmt)).mappings().all()
+        return [dict(row) for row in rows]
+
+    async def transition_resume_job(
+        self,
+        job_id: str,
+        tenant_id: str,
+        *,
+        from_states: tuple[str, ...],
+        state: str,
+        **fields: Any,
+    ) -> dict[str, Any] | None:
+        """CAS transition for cancellation/retry/worker state changes."""
+        await self._ensure_schema()
+        fields = {**fields, "state": state, "updated_at": _utcnow()}
+        fields.setdefault("version", resume_jobs_t.c.version + 1)
+        async with self._engine.begin() as conn:
+            result = await conn.execute(
+                update(resume_jobs_t)
+                .where(
+                    resume_jobs_t.c.id == job_id,
+                    resume_jobs_t.c.tenant_id == tenant_id,
+                    resume_jobs_t.c.state.in_(from_states),
+                )
+                .values(**fields)
+            )
+            if result.rowcount == 0:
+                return None
+        return await self.get_resume_job(job_id, tenant_id)
+
+    # ------------------------------------------------------------------ #
     # Runtime AI settings
     # ------------------------------------------------------------------ #
     async def get_runtime_settings(self, scope: str = "global") -> dict[str, Any] | None:
@@ -1165,6 +1325,21 @@ class Memory:
         async with self._engine.connect() as conn:
             rows = (await conn.execute(stmt)).mappings().all()
         return [dict(r) for r in rows]
+
+    async def get_chat_session(self, session_id: str) -> dict[str, Any] | None:
+        """Return chat-session ownership metadata without loading its messages."""
+        await self._ensure_schema()
+        async with self._engine.connect() as conn:
+            row = (
+                (
+                    await conn.execute(
+                        select(chat_sessions_t).where(chat_sessions_t.c.id == session_id)
+                    )
+                )
+                .mappings()
+                .first()
+            )
+        return dict(row) if row else None
 
     async def get_chat_messages(self, session_id: str) -> list[dict[str, Any]]:
         """Return all messages in a session in chronological order."""

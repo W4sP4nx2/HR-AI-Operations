@@ -132,9 +132,10 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 0
     rate_limit_window_seconds: int = 3600
     # Reject uploads larger than this (PDF policies / resumes). DoS + cost guard.
-    max_upload_size_mb: int = 10
+    max_upload_size_mb: int = 25
     enable_resume_vlm: bool = False
-    resume_vlm_max_pages: int = 10
+    resume_vlm_max_pages: int = 50
+    resume_concurrency_limit: int = 10
 
     # --- Safety / observability ------------------------------------------
     # Redact emails / phone / common IDs from text written to audit + chat + tools.

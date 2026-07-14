@@ -33,8 +33,10 @@ import {
   type HRCase,
   type InferenceUsage,
   type Metrics,
+  type OpsOverview,
   type PendingTask,
 } from "../../lib/api";
+import GovernedCrewPanel from "./GovernedCrewPanel";
 
 const NEON = {
   amd: "#ED1C24",
@@ -60,18 +62,20 @@ export default function AgentFleet({ onOpenCase, onOpenCases, onOpenApprovals, o
   const [biasAudit, setBiasAudit] = useState<BiasAudit | null>(null);
   const [cases, setCases] = useState<HRCase[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<PendingTask[]>([]);
+  const [ops, setOps] = useState<OpsOverview | null>(null);
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const [nextMetrics, nextCapabilities, nextUsage, nextBias, nextCases, nextApprovals] = await Promise.allSettled([
+      const [nextMetrics, nextCapabilities, nextUsage, nextBias, nextCases, nextApprovals, nextOps] = await Promise.allSettled([
         api.metrics(),
         api.capabilities(),
         api.inferenceUsage(),
         api.biasAudit(),
         api.cases(),
         api.pendingApprovals(),
+        api.opsOverview(),
       ]);
       if (!mounted) return;
       let loaded = false;
@@ -97,6 +101,10 @@ export default function AgentFleet({ onOpenCase, onOpenCases, onOpenApprovals, o
       }
       if (nextApprovals.status === "fulfilled") {
         setPendingApprovals(nextApprovals.value);
+        loaded = true;
+      }
+      if (nextOps.status === "fulfilled") {
+        setOps(nextOps.value);
         loaded = true;
       }
       setOffline(!loaded);
@@ -181,6 +189,10 @@ export default function AgentFleet({ onOpenCase, onOpenCases, onOpenApprovals, o
         observedModel={observedFireworksModel}
         observedCalls={observedProviderCalls}
       />
+
+      <LiveOperationalMap snapshot={ops} />
+
+      <GovernedCrewPanel onOpenApprovals={onOpenApprovals} />
 
       <details className="relative z-10 rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-white">
         <summary className="cursor-pointer list-none text-sm font-semibold text-white/75 marker:content-none">
@@ -361,6 +373,95 @@ export default function AgentFleet({ onOpenCase, onOpenCases, onOpenApprovals, o
       </details>
     </div>
   );
+}
+
+function LiveOperationalMap({ snapshot }: { snapshot: OpsOverview | null }) {
+  const nodes = snapshot?.agents ?? [];
+  const pending = snapshot?.queues.human_review.pending ?? 0;
+  const resumeState = snapshot?.queues.resume.state ?? "unknown";
+  return (
+    <section className="relative z-10 mb-4 overflow-hidden rounded-xl border border-[#00D4FF]/25 bg-[rgba(8,14,28,0.88)] p-5 shadow-[0_20px_70px_rgba(0,212,255,0.08)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#00D4FF]">
+            <GitBranch size={15} /> Live workflow state
+          </div>
+          <h3 className="mt-1 text-lg font-semibold text-white">Agents, gates, and work queues</h3>
+          <p className="mt-1 max-w-2xl text-sm text-white/55">
+            This map is a projection of the operational snapshot, not a decorative health claim.
+            Data freshness: {snapshot ? `${snapshot.fresh_for_seconds}s window` : "unavailable"}.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
+          <StatusTile label="Provenance" value={snapshot?.provenance === "live_runtime" ? "live" : "demo"} tone={snapshot?.provenance === "live_runtime" ? "green" : "blue"} />
+          <StatusTile label="Human gate" value={pending ? `${pending} pending` : "clear"} tone={pending ? "red" : "green"} />
+          <StatusTile label="Resume queue" value={resumeState} tone="blue" />
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.35fr_1fr]">
+        <div className="relative h-[280px] overflow-hidden rounded-lg border border-white/10 bg-[#050813]" aria-label="Three-dimensional workflow map">
+          {snapshot ? <LiveOpsScene snapshot={snapshot} /> : <div className="flex h-full items-center justify-center text-sm text-white/45">Operational snapshot unavailable.</div>}
+        </div>
+        <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/45">Accessible state table</div>
+          <div className="space-y-2" role="table" aria-label="Agent operational state">
+            {nodes.length ? nodes.map((agent) => (
+              <div key={agent.name} className="flex items-center justify-between gap-3 rounded-md bg-white/[0.06] px-3 py-2 text-xs" role="row">
+                <span className="min-w-0 truncate text-white/80">{agent.name.replace(/_agent$/, "")}</span>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 font-semibold ${statusClass(agent.status)}`}>{agent.status}</span>
+              </div>
+            )) : <p className="text-sm text-white/45">No agent state available.</p>}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function LiveOpsScene({ snapshot }: { snapshot: OpsOverview }) {
+  const nodes = snapshot.agents.slice(0, 6);
+  const positions = nodes.map((_, index) => {
+    const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    return [Math.cos(angle) * 2.1, Math.sin(angle) * 0.9, Math.sin(angle) * 0.35] as [number, number, number];
+  });
+  const byName = new Map(nodes.map((node, index) => [node.name, positions[index]]));
+  return (
+    <Canvas camera={{ position: [0, 0.25, 6], fov: 44 }} dpr={[1, 1.5]}>
+      <color attach="background" args={[NEON.ink]} />
+      <ambientLight intensity={0.38} />
+      <pointLight position={[0, 2, 3]} intensity={18} color={NEON.fireworks} />
+      <group>
+        <NodeSphere position={[0, 0, 0]} radius={0.34} color={NEON.compliance} intensity={1.6} />
+        {snapshot.workflow_edges.map((edge) => {
+          const start = byName.get(edge.source);
+          const end = byName.get(edge.target);
+          if (!start || !end) return null;
+          return <CylinderBeam key={`${edge.source}-${edge.target}`} start={start} end={end} color={NEON.fireworks} opacity={0.32} radius={0.012} />;
+        })}
+        {nodes.map((node, index) => (
+          <NodeSphere key={node.name} position={positions[index]} radius={0.18} color={statusColor(node.status)} intensity={node.status === "RUNNING" ? 2.2 : 1.1} />
+        ))}
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[2.35, 0.012, 12, 96]} />
+          <meshBasicMaterial color={NEON.compliance} transparent opacity={0.24} />
+        </mesh>
+      </group>
+    </Canvas>
+  );
+}
+
+function statusColor(status: string) {
+  if (status === "ERROR") return NEON.red;
+  if (status === "RUNNING") return NEON.fireworks;
+  if (status === "PAUSED" || status === "BLOCKED") return NEON.amber;
+  return NEON.compliance;
+}
+
+function statusClass(status: string) {
+  if (status === "ERROR") return "bg-red-500/20 text-red-200";
+  if (status === "RUNNING") return "bg-cyan-400/20 text-cyan-100";
+  if (status === "PAUSED" || status === "BLOCKED") return "bg-amber-400/20 text-amber-100";
+  return "bg-emerald-400/20 text-emerald-100";
 }
 
 function ActionQueue({

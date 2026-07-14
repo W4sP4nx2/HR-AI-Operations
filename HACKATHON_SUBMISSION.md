@@ -27,17 +27,25 @@ pass before recording.
 
 1. **Chat / policy grounding (0:00–1:00).** Ask “What is the remote work
    policy?” Show the cited policy, confidence, and deterministic fallback badge.
-2. **Cases / human control (1:00–2:00).** Open the seeded urgent payroll or
+2. **Cases / human control (1:00–1:45).** Open the seeded urgent payroll or
    safety case. Show that triage routes it to a human queue; approve an
    onboarding checkpoint in Approvals.
-3. **Resume screening (2:00–3:00).** Upload a PDF, DOCX, HTML, JSON, or image in
+3. **Governed CrewAI handoff (1:45–2:30).** In **Agent Fleet**, run the
+   `policy_case_resolution` CrewAI system in deterministic mode with an urgent
+   ticket. Show the certified manager/worker handoffs and the durable `TASK-*`
+   approval checkpoint. The run is driven by validated endpoint parameters; it
+   does not fetch or publish GitHub content at runtime.
+4. **Resume screening (2:30–3:20).** Upload a PDF, DOCX, HTML, JSON, or image in
    Resume Screener. Point out the parser source type, normalized skills,
-   quality grade, and review warnings. Call it interactive screening; do not
-   call it a completed Batch job without a provider job ID.
-4. **Analytics / governance (3:00–4:00).** Show capability status, local token
+   quality grade, and review warnings. For the large-resume path, show the
+   `POST /resume-jobs` `202` admission, idempotent job status, page/chunk
+   coverage, and explicit parser gate. Call it interactive screening or a
+   parser-certified job; do not call it a completed model Batch job without a
+   provider job ID.
+5. **Analytics / governance (3:20–4:20).** Show capability status, local token
    estimates, cost-control gates, audit events, and the human-review count.
    “Live-gated” is the correct status in this container.
-5. **Architecture close (4:00–5:00).** Explain that the same contracts can
+6. **Architecture close (4:20–5:00).** Explain that the same contracts can
    route structured inference to Fireworks or a private AMD ROCm/vLLM service;
    the app keeps working when either provider is unavailable.
 

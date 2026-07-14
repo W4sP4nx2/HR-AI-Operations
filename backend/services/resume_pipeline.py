@@ -38,6 +38,10 @@ from xml.etree import ElementTree
 
 from pipelines.intake import CapabilityUnavailable
 
+MAX_RESUME_BYTES = 25 * 1024 * 1024
+MAX_RESUME_PAGES = 50
+MAX_RESUME_TEXT_CHARS = 200_000
+
 
 class ResumeParseError(ValueError):
     """A user-correctable parsing error (for example, a missing PDF password)."""
@@ -115,11 +119,18 @@ class ResumeParserPipeline:
     TEXT_EXTENSIONS = {".txt", ".md", ".csv", ".log"}
     HTML_EXTENSIONS = {".html", ".htm", ".xhtml"}
 
-    def __init__(self, *, max_bytes: int = 10 * 1024 * 1024, max_chars: int = 20_000) -> None:
-        if max_bytes < 1 or max_chars < 1:
+    def __init__(
+        self,
+        *,
+        max_bytes: int = MAX_RESUME_BYTES,
+        max_chars: int = MAX_RESUME_TEXT_CHARS,
+        max_pages: int = MAX_RESUME_PAGES,
+    ) -> None:
+        if max_bytes < 1 or max_chars < 1 or max_pages < 1:
             raise ValueError("parser limits must be positive")
         self.max_bytes = max_bytes
         self.max_chars = max_chars
+        self.max_pages = max_pages
 
     def parse(
         self,
@@ -201,6 +212,10 @@ class ResumeParserPipeline:
                     raise ResumeParseError("password required for this PDF")
                 if reader.decrypt(password) == 0:
                     raise ResumeParseError("PDF password was rejected")
+            if len(reader.pages) > self.max_pages:
+                raise ResumeParseError(
+                    f"resume exceeds the {self.max_pages}-page processing limit"
+                )
             pages: list[str] = []
             for page in reader.pages:
                 try:
@@ -217,7 +232,9 @@ class ResumeParserPipeline:
         if text.strip():
             return self._finalize(text, "pdf_text", name, confidence=0.95, pages=len(pages))
 
-        ocr_text, ocr_warning = self._ocr_pdf(data, max_pages=min(max(len(pages), 1), 30))
+        ocr_text, ocr_warning = self._ocr_pdf(
+            data, max_pages=min(max(len(pages), 1), self.max_pages)
+        )
         if ocr_text.strip():
             return self._finalize(
                 ocr_text,
@@ -435,3 +452,29 @@ def _normalize_text(text: str, max_chars: int) -> str:
             compact.append(line)
             blank = False
     return "\n".join(compact).strip()[:max_chars]
+
+
+def chunk_resume_text(text: str, *, chunk_chars: int = 6_000, overlap_chars: int = 300) -> list[str]:
+    """Split normalized resume text without dropping the tail.
+
+    The screening model has a bounded context window. Chunking is therefore a
+    worker concern, not a parser truncation side effect. The final chunk always
+    remains in the result, and overlap is clamped so it cannot stall progress.
+    """
+    if chunk_chars < 1 or overlap_chars < 0 or overlap_chars >= chunk_chars:
+        raise ValueError("overlap must be non-negative and smaller than chunk size")
+    normalized = text.strip()
+    if not normalized:
+        return []
+    chunks: list[str] = []
+    start = 0
+    step = chunk_chars - overlap_chars
+    while start < len(normalized):
+        end = min(start + chunk_chars, len(normalized))
+        chunk = normalized[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+        if end >= len(normalized):
+            break
+        start += step
+    return chunks

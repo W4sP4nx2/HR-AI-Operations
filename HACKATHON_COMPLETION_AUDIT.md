@@ -13,8 +13,8 @@ until the credentialed provider and hardware smoke tests run.
 
 Safe claim today:
 
-> Govern.ai is a governed, cost-bounded HR operations layer with A2A-style
-> certified handoffs. It runs without model spend, supports request-scoped
+> Govern.ai is a governed, cost-bounded HR operations layer with typed,
+> certified handoffs and a bounded CrewAI manager/worker subtask. It runs without model spend, supports request-scoped
 > Fireworks BYOK for live structured inference, and includes an AMD/vLLM Gemma
 > deployment profile whose real hosting and performance claims are gated by
 > smoke and benchmark evidence.
@@ -41,6 +41,7 @@ Do not claim today:
 | Model IDs not hardcoded; route only from allowlist | Implemented | `backend/core/fireworks.py`, `backend/core/llm_factory.py`, `backend/agents/orchestrator.py`, `tests/test_llm_factory.py`, `tests/test_orchestrator.py` |
 | A2A agent cards and tool-visible routing metadata | Implemented | `backend/agents/a2a_cards.py`, `/agents/orchestrator/plan`, `tests/test_orchestrator.py` |
 | Certified A2A envelopes for cross-agent handoff | Implemented | `backend/core/a2a_envelope.py`, `tests/test_a2a_envelope.py`, `tests/test_zero_spend_cost_certification.py` |
+| Bounded CrewAI orchestration with endpoint-driven inputs and durable HITL | Implemented, deterministic proof available without a provider key | `backend/agents/hierarchical_crew.py`, `/crews/hierarchical`, `backend/tests/test_hierarchical_crewai.py`, Fleet approval queue |
 | Constrained structured output path | Implemented at request-building and certification layer | `backend/core/fireworks.py`, `backend/core/fireworks_certifier.py`, `tests/test_fireworks_workloads.py` |
 | Zero-spend cost governance before API calls | Implemented | `backend/core/cost_guard.py`, `backend/core/cost_router.py`, `backend/core/cost_attribution.py`, `tests/test_zero_spend_cost_certification.py` |
 | Deterministic cache and context freshness checks | Implemented | `backend/services/semantic_cache.py`, `tests/test_zero_spend_cost_certification.py`, `tests/test_cost_router.py` |

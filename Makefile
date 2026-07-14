@@ -39,6 +39,9 @@ test-focused:
 		backend/tests/test_api_integration.py \
 		backend/tests/test_cost_control_certifier.py \
 		backend/tests/test_a2a_protocol_surface.py \
+		backend/tests/test_hierarchical_crewai.py \
+		backend/tests/test_ops_overview.py \
+		backend/tests/test_resume_jobs.py \
 		backend/tests/test_eval_goldens.py \
 		backend/tests/test_agentic_behaviors.py \
 		backend/tests/test_naive_baselines.py \
